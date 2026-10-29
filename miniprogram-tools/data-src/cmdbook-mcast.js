@@ -46,7 +46,10 @@ const MCAST_EXTRA = [
     id: 'mc-igmp-querier',
     devs: ['Switch'],
     name: 'IGMP Snooping 查询器（二层自己不查就没人管）',
-    kw: ['igmp查询器', 'querier', 'snooping不生效', '组播半小时断一次', '组播看一会儿就断', '组播看一会就断', '组播一会儿就断', '组播一会就断', '看一会儿就断', '组播时断时续', '组播断断续续'],
+    kw: [
+      'igmp查询器', 'querier', 'snooping不生效', '组播半小时断一次', '组播看一会儿就断', '组播看一会就断',
+      '组播一会儿就断', '组播一会就断', '看一会儿就断', '组播时断时续', '组播断断续续'
+    ],
     cmds: [
       ['华为', 'igmp-snooping enable\nvlan 10\n igmp-snooping enable\n igmp-snooping querier enable'],
       ['思科', 'ip igmp snooping\nip igmp snooping querier\nip igmp snooping vlan 10 querier'],

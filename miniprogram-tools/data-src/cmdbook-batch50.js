@@ -5,7 +5,10 @@ const BATCH50_EXTRA = [
     id: 'dc-spine-leaf',
     devs: ['Switch', '数据中心'],
     name: 'Spine-Leaf 组网基线（收敛比与容量）',
-    kw: ['spine leaf', '叶脊', '数据中心组网', '收敛比', 'overlay', 'underlay', 'clos'],
+    kw: [
+      'spine leaf', '叶脊', '数据中心组网', '收敛比', 'overlay', 'underlay',
+      'clos', '怎么规划', '组网设计', 'spine leaf 规划', '叶脊怎么设计'
+    ],
     cmds: [
       ['架构要点',
         '① 所有 Leaf 上联所有 Spine，Leaf 之间不互联（东西向全走 Spine）\n② Spine 只做转发，不接服务器，不做策略\n③ 服务器双归到两台 Leaf（M-LAG / vPC），网关下沉到 Leaf\n④ Underlay 用 OSPF/IS-IS 或 eBGP，Overlay 用 VXLAN EVPN\n# 这套结构的核心价值是「任意两台服务器之间跳数固定」，时延可预测'],

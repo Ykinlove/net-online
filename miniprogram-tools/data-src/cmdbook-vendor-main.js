@@ -8,7 +8,11 @@ const VENDOR_MAIN = [
     id: 'vm-config-rollback',
     devs: ['Switch', 'Router', '防火墙'],
     name: '配置回滚（改错了怎么退回去）',
-    kw: ['配置回滚', 'rollback', '回退', '退回', '退回原配置', '配置还原', '改错了', '配置改错', '回退配置', '配置替换', 'commit', '两阶段提交', '候选配置'],
+    kw: [
+      '配置回滚', 'rollback', '回退', '退回', '退回原配置', '配置还原',
+      '改错了', '配置改错', '回退配置', '配置替换', 'commit', '两阶段提交',
+      '候选配置'
+    ],
     cmds: [
       ['华为 VRP8', '! 先存档当前配置（回滚前的安全带）\nsave\n!\n! 回滚到指定存档文件\nconfiguration replace file flash:/backup.cfg\n!\n! 定期自动存档（分钟）\narchive configuration interval 1440\ndisplay archive configuration'],
       ['H3C Comware7', '! 敲的命令先进「候选配置」，不立即生效\ninterface GigabitEthernet 1/0/1\n description 测试改动\n!\n! 提交才生效\ncommit\n!\n! 丢弃本次所有未提交改动，回到上次 commit 状态\nrollback\n!\n! 试运行：300 秒内异常自动回滚（防把自己关在门外）\nconfiguration commit trial 300']
@@ -30,7 +34,10 @@ const VENDOR_MAIN = [
     id: 'vm-logfile',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: '本地日志文件（save logfile 才是真落盘）',
-    kw: ['本地日志', 'logfile', '日志文件', '日志存文件', 'save logfile', '日志落盘', 'flash日志', '日志重启后没了', '重启后日志没了', '日志没了', '日志丢失', '重启日志没了'],
+    kw: [
+      '本地日志', 'logfile', '日志文件', '日志存文件', 'save logfile', '日志落盘',
+      'flash日志', '日志重启后没了', '重启后日志没了', '日志没了', '日志丢失', '重启日志没了'
+    ],
     cmds: [
       ['华为', 'info-center logfile flash:/logfile.log\ninfo-center logfile size 32\n!\nsave logfile\n!\ndisplay logfile\ndisplay logbuffer'],
       ['H3C', 'info-center logfile flash:/logfile.log\ninfo-center logfile size 32\n!\nsave logfile\n!\ndisplay logfile\ndisplay logbuffer']
@@ -63,7 +70,11 @@ const VENDOR_MAIN = [
     id: 'vm-vty-acl',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: '登录来源 ACL 限制 + 在线用户管理',
-    kw: ['登录限制', 'acl限制', 'vty acl', 'user-interface', '谁能登录', '踢用户', '在线用户', 'telnet限制', 'ssh限制', '只允许网管机登录', '网管机登录', '限制登录', '只允许特定ip登录', '登录来源限制'],
+    kw: [
+      '登录限制', 'acl限制', 'vty acl', 'user-interface', '谁能登录', '踢用户',
+      '在线用户', 'telnet限制', 'ssh限制', '只允许网管机登录', '网管机登录', '限制登录',
+      '只允许特定ip登录', '登录来源限制'
+    ],
     cmds: [
       ['华为', 'acl number 2000\n rule 5 permit source 10.1.1.0 0.0.0.255\n!\nuser-interface vty 0 4\n acl 2000 inbound\n!\n! 看谁在线 + 踢人\ndisplay users\nfree user-interface vty 1'],
       ['H3C', 'acl number 2000\n rule 5 permit source 10.1.1.0 0.0.0.255\n!\nuser-interface vty 0 4\n acl 2000 inbound\n!\ndisplay users\nfree user-interface vty 1']
@@ -105,7 +116,12 @@ const VENDOR_MAIN = [
     id: 'vm-port-negotiation',
     devs: ['Switch', 'Router', '防火墙'],
     name: '端口协商与流控（speed/duplex/flow-control）',
-    kw: ['配置流控', '流控配置', '端口协商', 'negotiation', '自协商', 'speed', 'duplex', '半双工', '强制速率', 'flow-control', '流控', '协商不上', '端口只有100兆', '只有100兆', '100兆', '端口降速', '协商降速', '速率只有', '跑不满', '千兆变百兆'],
+    kw: [
+      '配置流控', '流控配置', '端口协商', 'negotiation', '自协商', 'speed',
+      'duplex', '半双工', '强制速率', 'flow-control', '流控', '协商不上',
+      '端口只有100兆', '只有100兆', '100兆', '端口降速', '协商降速', '速率只有',
+      '跑不满', '千兆变百兆'
+    ],
     cmds: [
       ['华为', 'interface GigabitEthernet 0/0/1\n speed 1000\n duplex full\n negotiation auto\n flow-control\n!\ndisplay interface GigabitEthernet 0/0/1'],
       ['H3C', 'interface GigabitEthernet 1/0/1\n speed 1000\n duplex full\n negotiation auto\n flow-control\n!\ndisplay interface GigabitEthernet 1/0/1']
@@ -127,7 +143,10 @@ const VENDOR_MAIN = [
     id: 'vm-display-cheatsheet',
     devs: ['Switch', 'Router', '防火墙', 'AC', 'AP'],
     name: 'display 常用查询速查表（排错第一步）',
-    kw: ['display', '查看命令', '查询命令', '速查', 'display this', 'display version', 'display brief', 'display mac', 'display arp', 'display cpu'],
+    kw: [
+      'display', '查看命令', '查询命令', '速查', 'display this', 'display version',
+      'display brief', 'display mac', 'display arp', 'display cpu'
+    ],
     cmds: [
       ['华为 / H3C', 'display version                      ! 版本/序列号/已运行时间\ndisplay device                       ! 硬件清单（板卡/模块/电源）\ndisplay interface brief              ! 所有接口一览（状态/IP）\ndisplay ip interface brief            ! 三层口 IP 与协议状态\ndisplay ip routing-table              ! 路由表（可跟协议/前缀过滤）\ndisplay mac-address                  ! MAC 地址表\ndisplay arp all                       ! ARP 表\ndisplay vlan                          ! VLAN 与端口成员关系\ndisplay cpu-usage                     ! CPU 利用率\ndisplay memory-usage                  ! 内存利用率\ndisplay health                        ! 健康汇总（华为；华三用 environment）\ndisplay current-configuration       ! 当前生效配置\ndisplay saved-configuration          ! 下次启动加载的配置\ndisplay this                          ! ★当前视图下的实际配置\ndisplay logbuffer                    ! 日志缓冲（重启前的现场）']
     ],
@@ -169,7 +188,11 @@ const VENDOR_MAIN = [
     id: 'vm-if-naming',
     devs: ['Switch', 'Router', '防火墙'],
     name: '接口命名跨厂商对照（GE/XGE/Eth-Trunk/Port-channel）',
-    kw: ['接口命名', '接口名', 'ge', 'xge', '40ge', '100ge', 'eth-trunk', 'bridge-aggregation', 'port-channel', 'vlanif', 'vlan-interface', '认接口','思科对应','华为对应','命令对应','对应什么'],
+    kw: [
+      '接口命名', '接口名', 'ge', 'xge', '40ge', '100ge',
+      'eth-trunk', 'bridge-aggregation', 'port-channel', 'vlanif', 'vlan-interface', '认接口',
+      '思科对应', '华为对应', '命令对应', '对应什么'
+    ],
     cmds: [
       ['华为 VRP8', 'GE0/0/1          千兆电口（盒式槽位固定 0）\nXGE1/0/1         万兆光口\n40GE2/0/1        40G\n100GE3/0/1       100G\nEth-Trunk1       链路聚合（= 思科 Port-channel）\nVlanif10         三层 VLAN 接口（= 思科 Vlan10）\nMEth0             管理口（= 思科 mgmt0）\nLoopBack0         环回口\nCellular0         4G 蜂窝口（AR 路由器）'],
       ['H3C Comware7', 'GE1/0/1 / Ten-GigabitEthernet1/0/49  千兆/万兆\nFortyGigE1/0/1 / HundredGigE1/0/1        40G/100G\nBridge-Aggregation1   链路聚合（= 华为 Eth-Trunk）\nVlan-interface10      三层 VLAN 接口\nM-GigabitEthernet0/0/0 管理口\nLoopBack0']
@@ -191,7 +214,11 @@ const VENDOR_MAIN = [
     id: 'vm-daily-check',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: '日常巡检清单（按顺序过一遍 + 看什么指标）',
-    kw: ['巡检', '日常巡检', '巡检清单', '每周巡检', '巡检命令', '健康巡检', '巡检什么', '巡检要敲什么', '巡检要敲', '日常巡检要敲', '巡检都看什么', '巡检看什么', '每天巡检'],
+    kw: [
+      '巡检', '日常巡检', '巡检清单', '每周巡检', '巡检命令', '健康巡检',
+      '巡检什么', '巡检要敲什么', '巡检要敲', '日常巡检要敲', '巡检都看什么', '巡检看什么',
+      '每天巡检'
+    ],
     cmds: [
       ['华为 / H3C', '! 1 版本与运行时间（重启过的要留意）\ndisplay version\n!\n! 2 硬件健康\ndisplay health\ndisplay environment\ndisplay fan\n!\n! 3 资源（CPU/内存/历史曲线）\ndisplay cpu-usage\ndisplay cpu-usage history\ndisplay memory-usage\n!\n! 4 接口（找 down 和错误涨的口）\ndisplay interface brief\ndisplay interface brief | include down\n!\n! 5 告警与日志\ndisplay alarm active\ndisplay trapbuffer\ndisplay logbuffer | include ERROR\n!\n! 6 协议邻居（数量对不对、有没有抖）\ndisplay ospf peer brief\ndisplay bgp peer\n!\n! 7 路由规模\ndisplay ip routing-table statistics']
     ],
@@ -212,7 +239,12 @@ const VENDOR_MAIN = [
     id: 'vm-file-system',
     devs: ['Switch', 'Router', '防火墙'],
     name: '文件系统维护（回收站 / 修复 / 指定启动文件）',
-    kw: ['文件系统', '回收站', 'undelete', 'reset recycle-bin', 'fix disk', 'fixdisk', '修复flash', '指定启动文件', 'startup system-software', 'boot-loader', '启动文件', 'flash空间不足', '空间不足', 'flash满', '存储空间不足', '磁盘满', '升级后版本没变', '升级不生效', '版本没变', '升级了还是老版本'],
+    kw: [
+      '文件系统', '回收站', 'undelete', 'reset recycle-bin', 'fix disk', 'fixdisk',
+      '修复flash', '指定启动文件', 'startup system-software', 'boot-loader', '启动文件', 'flash空间不足',
+      '空间不足', 'flash满', '存储空间不足', '磁盘满', '升级后版本没变', '升级不生效',
+      '版本没变', '升级了还是老版本'
+    ],
     cmds: [
       ['华为', '! delete 的文件进回收站，空间不释放！\ndelete flash:/old.cc\nundelete flash:/old.cc\nreset recycle-bin\n!\n! flash 异常（断电后报错）修复——有丢数据风险，先备份\nfix disk\n!\n! 升级后指定下次从哪个文件启动\nstartup system-software flash:/s5731-v8.cc\nstartup saved-configuration flash:/vrpcfg.zip\ndisplay startup'],
       ['H3C', '! 华三彻底删（不进回收站）\ndelete /unreserved flash:/old.cc\n!\n! 修复\nfixdisk flash:\n!\n! 华三指定启动文件用 boot-loader（和华为 startup 完全不同）\nboot-loader file flash:/s6850.cc\nboot-loader config flash:/startup.cfg']
@@ -233,7 +265,10 @@ const VENDOR_MAIN = [
     id: 'vm-ap-onboard',
     devs: ['AC', 'AP'],
     name: 'AP 上线全流程（加电到能用的每一步）',
-    kw: ['配置ap上线', 'ap怎么上线', 'ap上线', 'ap注册', 'ap不上线', '新ap', 'ap discovery', 'option 43', 'capwap', 'ap发现ac', 'ap激活'],
+    kw: [
+      '配置ap上线', 'ap怎么上线', 'ap上线', 'ap注册', 'ap不上线', '新ap',
+      'ap discovery', 'option 43', 'capwap', 'ap发现ac', 'ap激活'
+    ],
     cmds: [
       ['华为 AC', '! AC 侧排错四连\ndisplay ap all\n display ap online-fail record\n display ap version all\n display ap run-mode\n!\n! DHCP 里给 AP 下发 AC 地址（option 43，华为 hex 格式）\ndhcp enable\ninterface Vlanif10\n dhcp select interface\n dhcp server option 43 hex 80070000 0A0A0A01'],
       ['排查命令', '! AP 侧（现场接 AP console 时用）\ndisplay ap-mode\n display dhcp client\n ping 10.10.10.1\n!\n! CAPWAP 走 UDP 5246/5247，中间防火墙要放行']
@@ -265,7 +300,11 @@ const VENDOR_MAIN = [
     id: 'vm-v6-ra-guard',
     devs: ['Switch', 'Router'],
     name: 'IPv6 RA 防护（掐掉私设的假网关）',
-    kw: ['ra防护', 'rogue ra', 'ipv6 raguard', 'ipv6 nd raguard', '私设网关', '假网关', 'ipv6安全', 'ra guard', 'ipv6网关欺骗', 'ipv6时通时断', '时通时断', 'ipv6断断续续', 'ipv6一会通一会断'],
+    kw: [
+      'ra防护', 'rogue ra', 'ipv6 raguard', 'ipv6 nd raguard', '私设网关', '假网关',
+      'ipv6安全', 'ra guard', 'ipv6网关欺骗', 'ipv6时通时断', '时通时断', 'ipv6断断续续',
+      'ipv6一会通一会断'
+    ],
     cmds: [
       ['华为 VRP8', '! 接入层口全部按 host 角色处理：RA 一律丢（用户侧不该有路由器）\nipv6 ra guard policy HOST-ONLY\n device-role host\n!\ninterface GigabitEthernet 0/0/1\n ipv6 ra guard attach-policy HOST-ONLY\n!\n! 上联口/确认合法的路由器口放行\nipv6 ra guard policy TRUSTED-RA\n device-role router\n!\ninterface GigabitEthernet 0/0/24\n ipv6 ra guard attach-policy TRUSTED-RA\n!\ndisplay ipv6 raguard statistics'],
       ['思科', 'interface GigabitEthernet0/1\n ipv6 nd raguard\n!\nshow ipv6 nd raguard policy\nshow ipv6 nd raguard statistics']
@@ -286,7 +325,10 @@ const VENDOR_MAIN = [
     id: 'vm-sec-combo',
     devs: ['Switch', 'Router', '防火墙'],
     name: '网络安全组合拳（分层防护一张图）',
-    kw: ['安全组合', '网络安全', '防护组合', '二层安全', '三层安全', '防攻击组合', '安全加固', 'boundary protection', '内网安全', '内网加固', '安全怎么加固', '加固'],
+    kw: [
+      '安全组合', '网络安全', '防护组合', '二层安全', '三层安全', '防攻击组合',
+      '安全加固', 'boundary protection', '内网安全', '内网加固', '安全怎么加固', '加固'
+    ],
     cmds: [
       ['华为（分层清单）', '! 三层：防源地址造假\nip source check user-bind enable          ! IPSG（配 DHCP Snooping 绑定表）\n!\n! 二层：防伪造/私接\ndhcp snooping enable                       ! 防私接 DHCP（配 trusted 口）\n arp anti-attack check user-bind enable    ! ARP 报文过绑定表\n!\n! 控制面：防把 CPU 打满\ncpu-defend policy 1                        ! 协议报文限速送 CPU\n!\n! 管理面：防非法登录\nuser-interface vty 0 4\n acl 2000 inbound                         ! 只放行网管 IP'],
       ['各专题入口', '! IPSG/DHCP Snooping → 「DHCP Snooping 防私接」+「IP 源防护 IPSG」\n! ARP 防欺骗 → 「ARP 防欺骗/检查」\n! CPU 防御 → 「CPU 防攻击策略」\n! uRPF → 「uRPF 单播反向路径转发」\n! 登录限制 → 「登录来源 ACL 限制」\n! RA 防护 → 「IPv6 RA 防护」']
@@ -308,7 +350,11 @@ const VENDOR_MAIN = [
     id: 'vm-backup-strategy',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: '配置备份策略（三层体系 + 恢复演练）',
-    kw: ['备份策略', '配置备份', '异地备份', '备份频率', '恢复演练', 'archive', '备份周期', '配置管理', '备份多久一次', '多久备份一次', '备份周期多久', '多久做一次', '配置备份多久做一次'],
+    kw: [
+      '备份策略', '配置备份', '异地备份', '备份频率', '恢复演练', 'archive',
+      '备份周期', '配置管理', '备份多久一次', '多久备份一次', '备份周期多久', '多久做一次',
+      '配置备份多久做一次'
+    ],
     cmds: [
       ['华为（三层备份）', '! 第一层：设备本地定时快照（回滚用）\narchive configuration interval 1440\narchive configuration location flash:/archive\n display archive configuration\n!\n! 第二层：远程拉取（防设备整坏）\ndisplay current-configuration > flash:/backup-20261025.cfg\n! 再 SFTP 拉到网管服务器（见 SFTP 那条）\n!\n! 第三层：版本管理（Git/SVN 存每次变更）'],
       ['恢复', '! 整机坏了：新设备刷版本 → SFTP 传备份 → 恢复配置\n! 配置改错：configuration replace file flash:/backup.cfg（见配置回滚那条）\n! 单台恢复演练：每季度抽一台真的回滚一次']

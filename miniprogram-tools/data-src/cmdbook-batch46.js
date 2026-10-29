@@ -5,7 +5,11 @@ const BATCH46_EXTRA = [
     id: 'ntp-sync',
     devs: ['Switch', 'Router', '防火墙', '服务器'],
     name: 'NTP 时间同步（最容易被忽略的地基）',
-    kw: ['ntp', '时间同步', '时钟', '时间不一致', '时间不对', '同步时间', 'ntp server', '时间不准', '时间对不上', '时钟不同步', 'ntp 同步不上', '时间差', '校时'],
+    kw: [
+      'ntp', '时间同步', '时钟', '时间不一致', '时间不对', '同步时间',
+      'ntp server', '时间不准', '时间对不上', '时钟不同步', 'ntp 同步不上', '时间差',
+      '校时'
+    ],
     cmds: [
       ['华为 / H3C 配置',
         'clock timezone BJ add 08:00:00          # 先设时区，否则时间差 8 小时\nntp-service enable\nntp-service unicast-server 10.1.1.10     # 指向内网时钟源\nntp-service source-interface Vlanif10    # 指定出口，多出口必配\n# 验证\ndisplay ntp-service status               # clock status: synchronized 才算成功\ndisplay ntp-service sessions             # 看 stratum 和 offset'],
@@ -24,7 +28,11 @@ const BATCH46_EXTRA = [
     id: 'snmp-collect',
     devs: ['Switch', 'Router', '防火墙', '服务器'],
     name: 'SNMP 与网管采集（监控平台的数据来源）',
-    kw: ['snmp', '网管', 'mib', 'oid', 'snmpwalk', 'trap', '监控平台', '采集', 'zabbix', '网管采不到', '采不到数据', '监控没数据', '接口流量 oid', 'snmp 配'],
+    kw: [
+      'snmp', '网管', 'mib', 'oid', 'snmpwalk', 'trap',
+      '监控平台', '采集', 'zabbix', '网管采不到', '采不到数据', '监控没数据',
+      '接口流量 oid', 'snmp 配'
+    ],
     cmds: [
       ['华为 / H3C 配置',
         'snmp-agent\nsnmp-agent sys-info version v3            # 生产环境只开 v3\nsnmp-agent sys-info contact IT-zhangsan\nsnmp-agent sys-info location "IDC-A-3F"\nsnmp-agent group v3 monitor privacy read-view iso write-view iso\nsnmp-agent usm-user v3 monitor group monitor\nsnmp-agent usm-user v3 monitor authentication-mode sha2-256\nsnmp-agent usm-user v3 monitor privacy-mode aes128\n# Trap 上送\nsnmp-agent target-host trap address udp-domain 10.1.1.20 params securityname monitor v3 privacy\nsnmp-agent trap enable'],
@@ -45,7 +53,10 @@ const BATCH46_EXTRA = [
     id: 'syslog-server',
     devs: ['Switch', 'Router', '防火墙', '服务器'],
     name: 'Syslog 日志上送与级别管理',
-    kw: ['syslog', '日志服务器', '日志上送', 'info-center', '日志级别', '日志丢失', '日志保留', '日志传到服务器', '日志怎么上送', '告警日志丢了', '日志不上报'],
+    kw: [
+      'syslog', '日志服务器', '日志上送', 'info-center', '日志级别', '日志丢失',
+      '日志保留', '日志传到服务器', '日志怎么上送', '告警日志丢了', '日志不上报'
+    ],
     cmds: [
       ['华为 / H3C 配置',
         'info-center enable\ninfo-center loghost 10.1.1.20            # 默认 UDP 514\ninfo-center loghost 10.1.1.20 channel 2 loglevel warning\ninfo-center source default channel loghost log level informational\ninfo-center timestamp log date precision-time millisecond\n# 验证\ndisplay info-center\ndisplay logbuffer | include ERROR'],
@@ -64,7 +75,11 @@ const BATCH46_EXTRA = [
     id: 'span-mirror',
     devs: ['Switch', 'Router', '防火墙'],
     name: '端口镜像（SPAN / RSPAN / 远程抓包）',
-    kw: ['端口镜像', 'span', '镜像口', '抓包口', 'rspan', 'erspan', '流量复制', '交换机抓包', '设备抓包', '没有空闲口抓包', '一台设备能不能抓包', '本地抓包', '镜像配置'],
+    kw: [
+      '端口镜像', 'span', '镜像口', '抓包口', 'rspan', 'erspan',
+      '流量复制', '交换机抓包', '设备抓包', '没有空闲口抓包', '一台设备能不能抓包', '本地抓包',
+      '镜像配置'
+    ],
     cmds: [
       ['华为 / H3C 配置',
         'observe-port 1 interface GigabitEthernet0/0/24      # 定义镜像目的地\n# 进入源端口\ninterface GigabitEthernet0/0/1\n port-mirroring to observe-port 1 both                # inbound / outbound / both\n# 一个 observe-port 可挂多个源端口（端口数有限制）\n# 验证\ndisplay observe-port 1\ndisplay port-mirroring'],
@@ -106,7 +121,11 @@ const BATCH46_EXTRA = [
     id: 'mgmt-harden',
     devs: ['Switch', 'Router', '防火墙', '服务器'],
     name: '设备管理面加固（SSH / VTY / 登录限制）',
-    kw: ['管理面加固', 'ssh', 'telnet 关闭', 'vty', '登录限制', '账号安全', '远程登录', '弱口令', '登录不安全', '关掉 telnet', '只让内网登录', '运维网段登录', '禁止 telnet'],
+    kw: [
+      '管理面加固', 'ssh', 'telnet 关闭', 'vty', '登录限制', '账号安全',
+      '远程登录', '弱口令', '登录不安全', '关掉 telnet', '只让内网登录', '运维网段登录',
+      '禁止 telnet'
+    ],
     cmds: [
       ['华为 / H3C 配置',
         'stelnet server enable\ntelnet server disable                    # 第一件事：关掉 telnet\nssh server-source -i Vlanif10\n# 账号\naaa\n local-user netadmin password irreversible-cipher Xxxx@2024\n local-user netadmin privilege level 15\n local-user netadmin service-type ssh\n quit\n# VTY 只允许 SSH + AAA 认证\nuser-interface vty 0 4\n authentication-mode aaa\n protocol inbound ssh                    # 关键，限制只有 ssh\n idle-timeout 10 0\n# 源 IP 限制\nacl 2000\n rule 5 permit source 10.1.8.0 0.0.0.255\n rule 100 deny\n quit\nuser-interface vty 0 4\n acl 2000 inbound'],
@@ -125,7 +144,11 @@ const BATCH46_EXTRA = [
     id: 'aaa-admin',
     devs: ['Switch', 'Router', '防火墙'],
     name: 'AAA 集中认证（RADIUS / TACACS+ 管设备）',
-    kw: ['aaa', 'radius', 'tacacs+', '认证服务器', '统一认证', '账号集中管理', 'acs', 'ise', '账号统一', '认证服务器挂了', '登不进设备', '集中认证', '对接 radius'],
+    kw: [
+      'aaa', 'radius', 'tacacs+', '认证服务器', '统一认证', '账号集中管理',
+      'acs', 'ise', '账号统一', '认证服务器挂了', '登不进设备', '集中认证',
+      '对接 radius'
+    ],
     cmds: [
       ['华为 RADIUS 对接',
         'radius-server template RD1\n radius-server shared-key cipher Shared@2024\n radius-server authentication 10.1.1.40 1812\n radius-server accounting 10.1.1.40 1813\n radius-server retransmit 2\n quit\naaa\n authentication-scheme SCH1\n  authentication-mode radius local        # 关键：local 做兜底\n  accounting-mode radius\n  authentication-mode radius local\n quit\n domain default\n  authentication-scheme SCH1\n  radius-server RD1\n quit\n# 验证\ndisplay radius-server template RD1\ndisplay aaa'],
@@ -144,7 +167,10 @@ const BATCH46_EXTRA = [
     id: 'dhcp-snooping',
     devs: ['Switch'],
     name: 'DHCP Snooping 与 Option 82',
-    kw: ['配置dhcp snooping', 'dhcp snooping配置', 'dhcp snooping', 'option 82', '私接 dhcp', 'dhcp 欺骗', '信任端口', '拿不到地址', '开了 snooping 上不了网', '获取不到 ip', '一直正在获取地址'],
+    kw: [
+      '配置dhcp snooping', 'dhcp snooping配置', 'dhcp snooping', 'option 82', '私接 dhcp', 'dhcp 欺骗',
+      '信任端口', '拿不到地址', '开了 snooping 上不了网', '获取不到 ip', '一直正在获取地址'
+    ],
     cmds: [
       ['华为 / H3C 配置',
         'dhcp enable\ndhcp snooping enable                              # 全局开\nvlan 10\n dhcp snooping enable                             # 按 VLAN 开\n# 关键：上联口必须是信任口，否则 DHCP 报文全被丢\ninterface GigabitEthernet0/0/24\n dhcp snooping trusted\n# 用户口保持非信任（默认就是非信任）\n# Option 82：把端口/VLAN 信息带给服务器，便于定位和分配\n dhcp option82 insert enable\n dhcp option82 circuit-id format type3'],
@@ -163,7 +189,10 @@ const BATCH46_EXTRA = [
     id: 'port-security',
     devs: ['Switch'],
     name: '端口安全 / IP Source Guard / DAI（防私接与防欺骗）',
-    kw: ['端口安全', 'ip source guard', 'dai', 'arp 欺骗', '私接路由器', 'mac 限制', '防私接', '冒用 ip', '偷用 ip', '盗用地址', '防私接设备', '防 arp 攻击'],
+    kw: [
+      '端口安全', 'ip source guard', 'dai', 'arp 欺骗', '私接路由器', 'mac 限制',
+      '防私接', '冒用 ip', '偷用 ip', '盗用地址', '防私接设备', '防 arp 攻击'
+    ],
     cmds: [
       ['华为 / H3C',
         'interface GigabitEthernet0/0/1\n port-security enable\n port-security max-mac-num 2                    # 只允许 2 个 MAC\n port-security protect-action restrict          # 超限丢弃并告警\n port-security aging-time 10\n# IP Source Guard：绑定表校验源 IP\nip source check user-bind enable\n# DAI：动态 ARP 检测\narp anti-attack check user-bind enable\n# 静态绑定（关键设备）\nuser-bind static ip-address 10.1.10.20 mac-address 0011-2233-4455 interface GE0/0/1 vlan 10'],
@@ -182,7 +211,10 @@ const BATCH46_EXTRA = [
     id: 'lacp-trouble',
     devs: ['Switch', 'Router', '服务器'],
     name: '链路聚合（LACP / Eth-Trunk）不 UP 排障',
-    kw: ['链路聚合', 'lacp', 'eth-trunk', 'port-channel', '聚合不 up', '捆绑', '双网卡', '捆一起', '两条线绑一起', '聚合起不来', '双线不加速', '捆了还是慢'],
+    kw: [
+      '链路聚合', 'lacp', 'eth-trunk', 'port-channel', '聚合不 up', '捆绑',
+      '双网卡', '捆一起', '两条线绑一起', '聚合起不来', '双线不加速', '捆了还是慢'
+    ],
     cmds: [
       ['华为 / H3C 配置',
         'interface Eth-Trunk 1\n mode lacp-static                              # 推荐，别用 manual\n load-balance src-dst-ip\n quit\ninterface GigabitEthernet0/0/1\n eth-trunk 1\n# 批量加成员\ninterface range GigabitEthernet0/0/1 to 0/0/4\n eth-trunk 1\n# 验证\ndisplay eth-trunk 1\ndisplay lacp peer'],

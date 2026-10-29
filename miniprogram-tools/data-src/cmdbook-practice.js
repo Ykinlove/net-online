@@ -18,7 +18,11 @@ const PRACTICE = [
     id: 'pr-mgmt-ip',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: '管理 IP / 管理 VLAN 与带外管理口',
-    kw: ['管理ip', '管理地址', '带外管理', 'meth', '管理口', '远程登录', 'vlanif管理', '带内管理', '配管理ip', '管理ip怎么配', '配带外管理', '管理vlan', '管理vlan怎么配', '管理vlan配置'],
+    kw: [
+      '管理ip', '管理地址', '带外管理', 'meth', '管理口', '远程登录',
+      'vlanif管理', '带内管理', '配管理ip', '管理ip怎么配', '配带外管理', '管理vlan',
+      '管理vlan怎么配', '管理vlan配置'
+    ],
     cmds: [
       ['华为（带内管理）', 'vlan batch 10\n!\ninterface Vlanif 10\n ip address 10.1.10.2 255.255.255.0\n description MGMT\n!\nip route-static 0.0.0.0 0.0.0.0 10.1.10.1\n!\ndisplay ip interface brief\nping 10.1.10.1'],
       ['华为（带外管理）', '! 盒式设备的 MEth 独立管理口（不走业务 VLAN）\ninterface MEth0\n ip address 192.168.0.2 255.255.255.0\n description OOB-MGMT\n!\ndisplay interface MEth0']
@@ -59,7 +63,10 @@ const PRACTICE = [
     id: 'pr-console-vty',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: 'console/vty 线路参数（超时 / 权限 / 踢人）',
-    kw: ['console', 'vty', '超时', 'exec-timeout', '踢用户', '在线用户', '空闲超时', '登录线路', '登不进去', 'console登录', 'console口'],
+    kw: [
+      'console', 'vty', '超时', 'exec-timeout', '踢用户', '在线用户',
+      '空闲超时', '登录线路', '登不进去', 'console登录', 'console口'
+    ],
     cmds: [
       ['华为 VRP8', '! console 本地口\nuser-interface console 0\n authentication-mode aaa\n!\n! vty 远程登录线路（0-4 共 5 条）\nuser-interface vty 0 4\n authentication-mode aaa\n protocol inbound ssh\n exec-timeout 10 0\n acl 2000 inbound\n!\n! 看谁在线 + 踢人\ndisplay users\nfree user-interface vty 1']
     ],
@@ -396,7 +403,12 @@ const PRACTICE = [
     id: 'pr-fw-session',
     devs: ['防火墙'],
     name: '会话表维护与黑名单（限速 / 封 IP）',
-    kw: ['会话表', '防火墙封ip', '黑名单', '限速', '攻击防护', 'session limit', '攻击', '有人攻击', '封ip', '防攻击', '被攻击','有人攻击','攻击怎么封','封某个 ip','紧急封 ip','封停 ip','被攻击','遭受攻击','攻击怎么封'],
+    kw: [
+      '会话表', '防火墙封ip', '黑名单', '限速', '攻击防护', 'session limit',
+      '攻击', '有人攻击', '封ip', '防攻击', '被攻击', '有人攻击',
+      '攻击怎么封', '封某个 ip', '紧急封 ip', '封停 ip', '被攻击', '遭受攻击',
+      '攻击怎么封'
+    ],
     cmds: [
       ['华为 USG VRP', '! 1. 看会话（排查链接数打满/异常连接）\ndisplay firewall session table\n display firewall session table source-ip 10.1.1.100 verbose\n display firewall session table statistics\n!\n! 2. 基于 ACL 封单个 IP（黑名单，丢包不建会话）\nacl number 3000\n rule deny ip source 203.0.113.9 0\n!\nfirewall defend blacklist item IP-BLOCK source-ip 203.0.113.9\n!\n! 3. 单 IP 连接数/新建速率限制\ndefend attack per-ip tcp-syn 100\n defend connection max-per-ip 1000\n!\n! 4. 清理会话\ndisplay firewall session table\n reset firewall session table source-ip 203.0.113.9']
     ],
@@ -1042,7 +1054,11 @@ const PRACTICE = [
     id: 'pr-diag-capture',
     devs: ['Switch', 'Router', '防火墙'],
     name: '设备本地抓包（capture-packet，转发问题实锤）',
-    kw: ['抓包', '设备抓包', 'capture', '本地抓包', '看报文', '收发报文', '报文', '转发抓包', 'capture-packet', '镜像抓包', '在线抓包','设备上能抓包','能不能抓包','设备抓包吗'],
+    kw: [
+      '抓包', '设备抓包', 'capture', '本地抓包', '看报文', '收发报文',
+      '报文', '转发抓包', 'capture-packet', '镜像抓包', '在线抓包', '设备上能抓包',
+      '能不能抓包', '设备抓包吗'
+    ],
     cmds: [
       ['华为 VRP8', '! 1. 关掉分页，否则长输出卡死（排障第一步）\nscreen-length 0 temporary\n!\n! 2. 在入/出方向挂抓包点：一条链路抓两头的收和发\ncapture-packet interface GigabitEthernet0/0/1 destination file flash:/cap1.pcap\n!\n! 3. 带过滤抓：只抓 10.1.1.0/24 到 10.1.2.100 的 TCP 80\nacl number 3000\n rule 5 permit tcp source 10.1.1.0 0.0.0.255 destination 10.1.2.100 0 destination-port eq 80\n#\ncapture-packet interface GigabitEthernet0/0/1 destination file flash:/cap2.pcap\n#\n capture-packet acl 3000\n capture-packet limit captured-packets 100\n capture-packet limit captured-octets 200000\n#\n!\n! 4. 三层抓：直接抓目的 IP 的报文（定位丢在哪台设备）\ncapture-packet ip destination 10.1.2.100 destination file flash:/cap3.pcap\n!\n! 5. 实时看抓了多少\ndisplay capture-packet status\n!\n! 6. 抓完停止并下载\ndisplay capture-packet packets-captured\nundo capture-packet interface GigabitEthernet0/0/1\n!\n! 7. 下载到本地用 Wireshark 看（SFTP 拉 flash:/cap1.pcap）\n!\n! 8. 清理：抓包文件占 flash，抓完就删\ndelete /unreserved flash:/cap1.pcap']
     ],
@@ -1062,7 +1078,10 @@ const PRACTICE = [
     id: 'pr-diag-pipe',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: 'display 管道符全家桶（output 过滤 / 分页 / 存文件）',
-    kw: ['管道符', '过滤输出', 'display过滤', 'include', 'exclude', 'section', 'begin', '分页', 'screen-length', '输出过滤', 'grep'],
+    kw: [
+      '管道符', '过滤输出', 'display过滤', 'include', 'exclude', 'section',
+      'begin', '分页', 'screen-length', '输出过滤', 'grep'
+    ],
     cmds: [
       ['华为 VRP8', '! 0. 排障第一步：关分页（否则长输出卡终端）\nscreen-length 0 temporary\n!\n! 1. include：只看含关键词的行\ndisplay interface | include GigabitEthernet0/0/1\n display ip routing-table | include 10.1.2.0\n!\n! 2. exclude：过滤掉含关键词的行（看干净列表）\ndisplay current-configuration | exclude USER-INFO\n!\n! 3. begin：从关键词那行开始显示\ndisplay current-configuration | begin interface Vlanif10\n!\n! 4. section：只显示关键词所在段落（配接口/配 ACL 神器）\ndisplay current-configuration | section interface GigabitEthernet0/0/1\n!\n! 5. by-limit：从第 N 行开始显示\ndisplay mac-address | by-limit 100\n!\n! 6. 组合拳：先 section 再 include\ndisplay current-configuration | section acl 3000 | include rule\n!\n! 7. 大表统计：| count 数行数（批量脚本判断用）\ndisplay arp all | count\n!\n! 8. 输出重定向到文件（大批量取证用）\ndisplay current-configuration > flash:/backup.cfg\n!\n! 9. 恢复分页（操作完别人的终端记得改回来）\nscreen-length 24']
     ],
@@ -1102,7 +1121,11 @@ const PRACTICE = [
     id: 'pr-voice-e2e',
     devs: ['Switch', 'Router', '语音网关'],
     name: 'VoIP 语音端到端（SIP 电话从上线到能打）',
-    kw: ['voip', 'sip', '语音', 'ip电话', 'ipphone', '语音网关', '电话不通', '电话注册不上', '注册不上', 'sip注册', '语音vlan', 'option120', '电话杂音'],
+    kw: [
+      'voip', 'sip', '语音', 'ip电话', 'ipphone', '语音网关',
+      '电话不通', '电话注册不上', '注册不上', 'sip注册', '语音vlan', 'option120',
+      '电话杂音'
+    ],
     cmds: [
       ['华为 VRP8', '! 1. 语音 VLAN：电话和电脑分开走\nvlan 100\n!\ninterface GigabitEthernet0/0/1\n port hybrid untagged vlan 100\n port hybrid pvid vlan 100\n voice-vlan 100 enable\n!\n! 2. DHCP 给电话发网关/DNS（Option 120 告诉它 SIP 服务器在哪）\ndhcp enable\nip pool VOICE\n network 192.168.100.0 mask 255.255.255.0\n gateway-list 192.168.100.1\n option 120 as 192.168.100.1\n dns-list 8.8.8.8\n!\ninterface Vlanif100\n ip address 192.168.100.1 255.255.255.0\n dhcp select global\n!\n! 3. 语音 QoS：电话口信任 DSCP 优先转发（防杂音）\ninterface GigabitEthernet0/0/1\n qos trust dscp\n!\n! 4. 语音网关对接 SIP 服务器/IMS\nvoice\n voip-params dial-plan\n #\n!\n! 5. 看注册状态\ndisplay sip register-status\n display voice call-status\n!\n! 6. 抓语音流（SIP 走 UDP 5060，RTP 走 UDP）\ncapture-packet ip destination 192.168.200.10 destination file flash:/sip.pcap\n!\n! 7. 语音质量：抖动/丢包是杂音主因\nqos queue voice']
     ],
@@ -1182,7 +1205,11 @@ const PRACTICE = [
     id: 'pr-wlan-mesh',
     devs: ['AP', 'AC'],
     name: '无线 Mesh/桥接部署（电梯/仓库/室外补盲）',
-    kw: ['mesh', '无线桥接', 'wds', '中继', 'ap中继', '补盲', '没信号', '信号弱', '电梯覆盖', '仓库覆盖', '室外ap', 'mesh组网', 'ap-to-ap'],
+    kw: [
+      'mesh', '无线桥接', 'wds', '中继', 'ap中继', '补盲',
+      '没信号', '信号弱', '电梯覆盖', '仓库覆盖', '室外ap', 'mesh组网',
+      'ap-to-ap'
+    ],
     cmds: [
       ['华为 AC', '! 1. Mesh 模板：射频角色决定谁是根谁是叶\nwlan\n mesh-profile name MESH-WAREHOUSE\n #\n!\n! 2. 根 AP（Root，接网线上行）\nwlan\n ap-group name MESH-ROOT\n  radio 1\n   work-mode root\n   mesh-profile MESH-WAREHOUSE\n  #\n #\n!\n! 3. 叶 AP（Leaf，无线回传，电梯/仓库用）\nwlan\n ap-group name MESH-LEAF\n  radio 1\n   work-mode leaf\n   mesh-profile MESH-WAREHOUSE\n  #\n #\n!\n! 4. Mesh 链路射频参数：回传专用信道/带宽\nradio-2g-profile name MESH-RADIO\n channel 6\n bandwidth 20\n!\nradio-5g-profile name MESH-RADIO-5G\n channel 149\n bandwidth 40\n!\n! 5. 绑定：AP 上线指定模板和角色\nwlan\n ap auth-mode mac-auth\n ap-id 100 ap-mac <根AP MAC>\n ap-group MESH-ROOT\n!\n ap-id 101 ap-mac <叶AP MAC>\n ap-group MESH-LEAF\n!\n!\n! 6. 看 Mesh 链路质量（ hop 跳数/信噪比/速率）\ndisplay mesh link all\n display mesh neighbor all\n!\n! 7. 叶 AP 状态\ndisplay ap all\n!\n! 8. 排障：链路断了看 RSSI/SNR\ndisplay mesh radio statistics\n!\n! 9. 防环：Mesh 之间也要开破环\nmesh-loop-protection enable']
     ],
@@ -1222,7 +1249,10 @@ const PRACTICE = [
     id: 'pr-qinq-stack',
     devs: ['Switch', 'Router'],
     name: 'VLAN Stack 灵活 QinQ（按内层 VLAN 精细分流）',
-    kw: ['qinq', 'vlan stack', '灵活qinq', '双层vlan', 'vlan映射', 'stack vlan', 'qinq配置', 'vlan stacking', '外层vlan', '内层vlan', '不同楼', 'vlan冲突'],
+    kw: [
+      'qinq', 'vlan stack', '灵活qinq', '双层vlan', 'vlan映射', 'stack vlan',
+      'qinq配置', 'vlan stacking', '外层vlan', '内层vlan', '不同楼', 'vlan冲突'
+    ],
     cmds: [
       ['华为 VRP8', '! 场景：园区/楼宇接入，不同楼用不同外层 Tag 隔离\n!\n! 1. 基本 QinQ：所有内层 VLAN 统一加一个外层 Tag\ninterface GigabitEthernet0/0/1\n port link-type dot1q-tunnel\n port default vlan 10\n!\n! 2. VLAN Stack：按内层 VLAN 加不同外层 Tag（灵活分流）\ninterface GigabitEthernet0/0/2\n port link-type dot1q-tunnel\n port vlan-stacking vlan 10 stack-vlan 100\n port vlan-stacking vlan 20 stack-vlan 200\n!\n! 3. 上联口透传双层 Tag\ninterface 10GE1/0/1\n port link-type trunk\n port trunk allow-pass vlan 100 200\n!\n! 4. 城域网/MPLS 场景：外层 Tag 标识用户，内层是用户自己的 VLAN\nqinq termination\n!\n! 5. 看 QinQ 表\ndisplay port vlan-stacking\n!\n! 6. 抓包看双层 Tag（外层 S-VLAN 在前）\n!\n! 7. 排障：不通先看外层 Tag 透传没\ndisplay vlan 100\n!\n! 8. 剥离：出口把外层 Tag 剥掉还给用户 VLAN\nport vlan-stacking vlan 100 stack-vlan 10']
     ],
@@ -1232,7 +1262,11 @@ const PRACTICE = [
     id: 'pr-usb-ztp',
     devs: ['Switch', 'Router', '防火墙'],
     name: 'USB / ZTP 开局（没有 console 线也能开局）',
-    kw: ['ztp', 'usb开局', '即插即用', '自动开局', '无console开局', 'u盘开局', 'dhcp开局', '出厂初始化', '裸机开局', '远程开局', '批量配置', '自动配置', '批量部署'],
+    kw: [
+      'ztp', 'usb开局', '即插即用', '自动开局', '无console开局', 'u盘开局',
+      'dhcp开局', '出厂初始化', '裸机开局', '远程开局', '批量配置', '自动配置',
+      '批量部署'
+    ],
     cmds: [
       ['华为 VRP8', '! 方式一：USB 开局（现场没电脑/没 console 线）\n! 1. U 盘 FAT32 格式，放好两个文件：\n!    - 版本文件 .cc（放 U 盘根目录）\n!    - 配置文件 .cfg（zip 内或指定路径）\n! 2. 设备上电前插 U 盘\n! 3. 上电后设备自动识别 USB 中的版本和配置\ndisplay usb\n!\n! 4. 确认加载\ndisplay startup\n display version\n!\n! 5. 拔 U 盘、保存、重启验证\ndevice boot-file usb flash:/<版本文件.cc>\nsave\n!\n! 方式二：ZTP（设备从工厂发出直接插线自动配置）\n! 1. DHCP 服务器预置 option 148/67：告诉设备去哪个 ZTP 服务器\n!    option 148 as 10.1.9.100\n!\n! 2. ZTP 服务器（iMaster NCE / 第三方）按 SN 下发对应配置\n! 3. 设备上电自动获取配置上线\ndisplay ztp status\n display ztp configuration\n!\n! 4. 失败兜底：ZTP 不通保留出厂配置，本地可登\n!\n! 方式三：无中生生人配置（现场裸机，用默认管理口 + Web）\n! 默认管理 IP 192.168.1.1 / Web 初始化向导\n!\n! 开局后统一动作\nundo zhone enable\nsave']
     ],
@@ -1242,7 +1276,10 @@ const PRACTICE = [
     id: 'pr-wlan-acdiscover',
     devs: ['AC', 'AP', 'DHCP 服务器'],
     name: 'AP 发现 AC 机制（option43/60/138，上线第一步）',
-    kw: ['ap发现', 'ac发现', 'option43', 'option 43', 'capwap', 'ap上线', 'dhcp选项', 'ap注册不上', 'ap获取不到地址', '发现ac', 'option138', 'option60'],
+    kw: [
+      'ap发现', 'ac发现', 'option43', 'option 43', 'capwap', 'ap上线',
+      'dhcp选项', 'ap注册不上', 'ap获取不到地址', '发现ac', 'option138', 'option60'
+    ],
     cmds: [
       ['华为 AC', '! 1. AP 发现 AC 的四种方式（按优先级自动选）\n!    ① 静态 AC IP：AP 上手工指定（适合小规模）\n!    ② DHCP option 43：AP 拿 DHCP 地址时同时拿 AC 列表（主流）\n!    ③ DNS 解析：AP 解析固定域名拿 AC 地址\n!    ④ 广播/组播发现：同二层广播找 AC（仅同网段）\n!\n! 2. DHCP 服务器配 option 43（华为格式：AC IP 列表十六进制拼）\n! 示例：两个 AC 10.1.10.1 和 10.1.10.2\n! option 43 hex 020A0A0A0101020A0A0A0102\n! 拆解：02=子选项个数(2), 0A=长度(10), 0A0A0101=10.10.1.1\n! 注意：0A0A0101 是 10.10.1.1，不是 10.1.10.1——字节别写反！\n!\n! 3. DHCP option 138/60（部分厂商用，华为 AC 也支持 option 60 携带）\noption 138 ip 10.1.10.1\n!\n! 4. AP 侧：AP 拿到的 AC 列表\ndisplay ac-list\n!\n! 5. AP 侧：CAPWAP 隧道状态（正常 established）\ndisplay capwap link state\n!\n! 6. AP 侧：发现过程日志（排查注册不上看这个）\ndisplay ap-startup\n!\n! 7. AC 侧：AP 有没有连上来\ndisplay ap all\n!\n! 8. AC 侧：AP 状态异常看版本匹配\ndisplay ap-version\n!\n! 9. 排障三板斧\ndisplay capwap statistics\n display ap unauth-record']
     ],
@@ -1292,7 +1329,11 @@ const PRACTICE = [
     id: 'pr-l3-vrrp-track',
     devs: ['Router', 'Switch'],
     name: 'VRRP 优先级 + Track 联动（网关主备精细化）',
-    kw: ['vrrp配置', 'vrrp优先级', 'track联动', '网关切换', '网关倒换', '倒换', '切换慢', 'vrrp抢占', 'vrrp不切换', 'vrrp排障', '主备网关', 'vrrp vip', '双网关'],
+    kw: [
+      'vrrp配置', 'vrrp优先级', 'track联动', '网关切换', '网关倒换', '倒换',
+      '切换慢', 'vrrp抢占', 'vrrp不切换', 'vrrp排障', '主备网关', 'vrrp vip',
+      '双网关'
+    ],
     cmds: [
       ['华为 VRP8', '! 1. 基础 VRRP：两台设备同一个虚拟网关 IP\ninterface Vlanif10\n vrrp vrid 10 virtual-ip 10.1.10.254\n vrrp vrid 10 priority 120\n vrrp vrid 10 preempt-mode timer delay 10\n!\n! 2. 上行链路探测：上行断了自动降优先级（核心！）\nbfd UP-DETECT bind peer-ip 10.1.10.1\n!\ninterface Vlanif10\n vrrp vrid 10 track bfd-session UP-DETECT reduced 60\n!\n! 3. 接口联动：本机上联口 down 就降级\nvrrp vrid 10 track interface GigabitEthernet0/0/1 reduced 60\n!\n! 4. 抢占延迟：防链路翻动时频繁抢主\nvrrp vrid 10 preempt-mode timer delay 30\n!\n! 5. 验证：状态、主备、VIP\ndisplay vrrp\n display vrrp statistics\n!\n! 6. 排障：主备不切换\ndisplay vrrp interface Vlanif10\n!\n! 7. 两端配置一致性检查（vrid/vip 必须一致）\ndisplay current-configuration interface Vlanif10\n!\n! 8. 双 VRRP 组：不同网段走不同主（负载分担）\ninterface Vlanif20\n vrrp vrid 20 virtual-ip 10.1.20.254\n vrrp vrid 20 priority 80']
     ],
@@ -1312,7 +1353,10 @@ const PRACTICE = [
     id: 'pr-sys-k8s',
     devs: ['Linux 服务器', '容器', 'Linux', '服务器'],
     name: 'K8s/容器网络排查（CNI / Calico / flannel）',
-    kw: ['k8s', 'kubernetes', '容器网络', 'cni', 'calico', 'flannel', 'pod不通', '容器排障', 'service不通', 'ingress不通', 'k8s网络'],
+    kw: [
+      'k8s', 'kubernetes', '容器网络', 'cni', 'calico', 'flannel',
+      'pod不通', '容器排障', 'service不通', 'ingress不通', 'k8s网络'
+    ],
     cmds: [
       ['Linux', '! 1. Pod 网络：看 Pod IP 和节点\nkubectl get pod -A -o wide\n!\n! 2. Pod 不通：先确认 Pod IP 在哪个节点、节点间路由通不通\nkubectl describe pod <POD>\n ip route get <POD-IP>\n ping <POD-IP>!\n! 3. CNI 插件状态（Calico/flannel  Pod 健康）\nkubectl get pod -n kube-system | grep -E "calico|flannel|cilium"\n kubectl logs -n kube-system <CNI-POD> --tail=50\n!\n! 4. Service 不通：kube-proxy/ipvs 规则\nkubectl get svc\n ipvsadm -Ln\n iptables -t nat -L KUBE-SERVICES -n | head\n!\n! 5. DNS 不通：CoreDNS 是否健康\nkubectl get pod -n kube-system -l k8s-app=kube-dns\n kubectl exec -it <POD> -- nslookup kubernetes.default\n!\n! 6. 进出流量抓包\nkubectl exec -it <POD> -- tcpdump -i eth0 -nn\n!\n! 7. 节点网络：Pod 网段和节点网段冲突是经典坑\nip route\n!\n! 8. NetworkPolicy：策略挡了流量\nkubectl get networkpolicy -A\n kubectl describe networkpolicy <NP>\n!\n! 9. kube-proxy 模式（iptables/ipvs）\nkubectl logs -n kube-system kube-proxy-xxx | grep mode\n!\n! 10. 排障顺序：Pod→Service→DNS→Ingress→出口']
     ],
@@ -1372,7 +1416,11 @@ const PRACTICE = [
     id: 'pr-net-ipplan',
     devs: ['网络规划','Switch','Router'],
     name: 'IP 地址规划与子网划分（VLSM 按需分配）',
-    kw: ['ip规划', '子网划分', 'vlsm', '地址规划', '网段划分', '掩码计算', '子网计算', '地址分配', 'ip地址规划', '编址', '网段不够', '地址不够', 'ip不够分'],
+    kw: [
+      'ip规划', '子网划分', 'vlsm', '地址规划', '网段划分', '掩码计算',
+      '子网计算', '地址分配', 'ip地址规划', '编址', '网段不够', '地址不够',
+      'ip不够分'
+    ],
     cmds: [
       ['华为 VRP8', '! 一、办公网按部门分段（VLSM 大小按需切）\n! 大部门 200 人 → /24；小部门 50 人 → /26；互联段 → /30\nvlan batch 10 20 30\n!\ninterface Vlanif10\n ip address 10.1.10.1 255.255.255.0    ! 技术部 200人 /24\n!\ninterface Vlanif20\n ip address 10.1.20.1 255.255.255.192  ! 财务 50人 /26\n!\ninterface GigabitEthernet0/0/1\n ip address 10.1.99.1 255.255.255.252   ! 设备互联 /30\n!\n! 二、服务器/网络设备管理段单独留\ninterface LoopBack0\n ip address 10.1.255.1 255.255.255.255  ! 管理/路由协议用 /32\n!\n! 三、DHCP 池对应网段\nip pool DEPT-FIN\n network 10.1.20.0 mask 255.255.255.192\n gateway-list 10.1.20.1\n!\n! 四、预留：每个网段留 .1-.10 给网络设备/服务器\n! 预留原则：网关 .1、设备管理 .2-.10、终端从 .50 起（DHCP 排除段）\ndhcp enable\nip pool DEPT-TECH\n network 10.1.10.0 mask 255.255.255.0\n gateway-list 10.1.10.1\n excluded-ip-address 10.1.10.2 10.1.10.50\n!\n! 五、验证：地址用没冲突\ndisplay ip interface brief\n ping 10.1.20.1\n!\n! 六、汇总路由：对外只宣告汇总段\nbgp 65001\n network 10.1.0.0 255.255.0.0']
     ],
@@ -1382,7 +1430,11 @@ const PRACTICE = [
     id: 'pr-ops-monitor-system',
     devs: ['网管平台', 'Linux 服务器', '服务器', 'Linux'],
     name: '网络监控体系搭建（Zabbix / Prometheus / 告警联动）',
-    kw: ['监控', 'zabbix', 'prometheus', 'grafana', '告警', '监控搭建', '网络监控', 'telemetry监控', '巡检自动化', '监控告警', '发到手机', '手机告警', '短信告警', '微信告警', '钉钉告警', '告警推送', '告警通知'],
+    kw: [
+      '监控', 'zabbix', 'prometheus', 'grafana', '告警', '监控搭建',
+      '网络监控', 'telemetry监控', '巡检自动化', '监控告警', '发到手机', '手机告警',
+      '短信告警', '微信告警', '钉钉告警', '告警推送', '告警通知'
+    ],
     cmds: [
       ['Zabbix', '! 一、Zabbix 侧（传统 SNMP 监控，覆盖广）\n! 1. 加主机：SNMP v2c/v3，填设备 IP + 团体字\n! 2. 模板：华为通用模板（ICMP/SNMP接口/CPU/内存）\n! 3. 触发器：接口 down > 5min、CPU > 80%、丢包率 > 1%\n! 4. 自动发现：LLDP 拓扑、接口列表自动监控\n!\n! 二、Prometheus 侧（Telemetry/Exporter，秒级）\n# 设备侧 gRPC Telemetry → 采集器\n! 5. snmp_exporter / telemetry collector 配置\n! 6. 抓指标：接口流量/错包/CPU/BGP 邻居状态\n!\n! 三、Grafana 看板\n! 7. 全网链路利用率 Top10\n! 8. 告警趋势、可用率报表\n!\n! 四、告警通道（关键：告警必须到人）\n! 9. 钉钉/企业微信/短信 webhook\n! 10. 分级：P1 电话 + P2 微信 + P3 邮件\n!\n! 五、设备侧配合（被监控的前提）\ndisplay snmp-agent community\n display snmp-agent target-host\n!\n! 六、监控自身也要被监控\nsystemctl status zabbix-server']
     ],
@@ -1412,7 +1464,11 @@ const PRACTICE = [
     id: 'pr-net-toolbox',
     devs: ['客户端工具','其他设备'],
     name: '网络工程师工具箱（软件 + 在线工具 + 设备脚本）',
-    kw: ['工具箱', '工具推荐', '软件', 'securecrt', 'xshell', 'putty', 'wireshark', '在线工具', '子网计算器', '排障工具', 'ip计算', '有什么工具', '用什么工具', '排障神器'],
+    kw: [
+      '工具箱', '工具推荐', '软件', 'securecrt', 'xshell', 'putty',
+      'wireshark', '在线工具', '子网计算器', '排障工具', 'ip计算', '有什么工具',
+      '用什么工具', '排障神器'
+    ],
     cmds: [
       ['通用', '! 一、终端登录（每天用 8 小时的生产力）\n! SecureCRT/Xshell：多标签+脚本+日志留痕（企业级）\n! PuTTY：轻量单机用，串口直连首选\n! MobaXterm：带 X11/ SFTP 一体化\n! 手机端：JuiceSSH/Server Auditor 应急\n!\n! 二、抓包分析\n! Wireshark：协议解析全能王（过滤 ip.addr== / tcp.port==）\n! tcpdump：服务器上远程抓（tcpdump -i any -nn port 80 -w cap.pcap）\n! 手机抓包：tPacketCapture（免 root）\n!\n! 三、扫描诊断\n! Advanced IP Scanner/Nmap：找设备 IP\n! PingInfoView：批量 ping 全网段存活\n! Angry IP Scanner：跨平台\n!\n! 四、在线工具（收藏夹常备）\n! 子网计算：ipcalc / 子网掩码计算器（VLSM 分配）\n! MAC 查询：macvendorlookup（查厂商）\n! ASN/路由：bgp.he.net（看公网路由）\n! IP 归属：ipip.net / ipinfo.io\n! 端口查询：canyouseeme.org（映射生效没）\n! Whois/反查：whois.domaintools.com\n!\n! 五、配置辅助\n! 华为命令速查（本小程序）\n! 文本对比：Beyond Compare（配置改前改后 diff）\n! 流程图：draw.io / Visio（拓扑图）\n!\n! 六、压测/拨测\n! iperf3：测真实带宽（服务端 iperf3 -s，客户端 iperf3 -c）\n! smoke ping：持续探测留证据']
     ],
@@ -1442,7 +1498,10 @@ const PRACTICE = [
     id: 'pr-diag-display-master',
     devs: ['Switch', 'Router', '防火墙', 'AC'],
     name: '华为必会 display 全景速查（按场景分组）',
-    kw: ['display速查', '必会display', 'display命令', '常用display', '查看命令', 'display大全', '速查表', 'display list', '命令速查'],
+    kw: [
+      'display速查', '必会display', 'display命令', '常用display', '查看命令', 'display大全',
+      '速查表', 'display list', '命令速查'
+    ],
     cmds: [
       ['华为 VRP8', '! 一、设备状态类（每天看）\ndisplay version                  ! 版本/序列号/uptime\ndisplay device                   ! 单板在位\ndisplay cpu-usage                 ! CPU\ndisplay memory-usage              ! 内存\ndisplay power / display fan       ! 电源/风扇\ndisplay temperature               ! 温度\ndisplay alarm active              ! 当前告警\ndisplay clock                     ! 时间\n!\n! 二、接口类（排障第一现场）\ndisplay interface brief           ! 所有接口状态+速率\ndisplay interface <接口>          ! 单口详情（错包/流量）\ndisplay ip interface brief        ! 三层口 IP 状态\ndisplay transceiver diagnosis interface <接口>  ! 收发光\ndisplay qos queue statistics interface <接口>   ! 队列丢包\n!\n! 三、表项类（转发排查）\ndisplay mac-address               ! MAC 表\ndisplay arp all                   ! ARP 表\ndisplay ip routing-table          ! 路由表\ndisplay fib                       ! 转发面（FIB）\ndisplay vlan                      ! VLAN\ndisplay ip pool                   ! DHCP 池\ndisplay session all               ! 防火墙会话\n!\n! 四、协议状态类\ndisplay ospf peer / display ospf routing\ndisplay bgp peer / display bgp routing-table\ndisplay stp brief\n display vrrp\n display eth-trunk <号>\n!\n! 五、日志与配置类\ndisplay trapbuffer                ! 陷阱日志\ndisplay logbuffer                 ! 系统日志\ndisplay current-configuration     ! 当前配置\ndisplay saved-configuration       ! 保存的配置\ndisplay startup                   ! 启动文件\n!\n! 六、安全类\ndisplay acl all / display acl <号>\ndisplay security-policy\n display dhcp snooping\n display ip source check\n!\n! 七、无线类\ndisplay ap all / display ap run-info\ndisplay station all / display station roam-record\n!\n! 八、文件与维护\ndisplay usb / display flash:\n display patch-information\n display diagnostic-information   ! 一键诊断（报障给厂商）']
     ],
@@ -1462,7 +1521,10 @@ const PRACTICE = [
     id: 'pr-dc-evpn-trouble',
     devs: ['Switch'],
     name: 'EVPN VXLAN 排障（路由类型 / ESI / DF 选举）',
-    kw: ['evpn排障', 'evpn不通', 'vxlan排障', 'esi', 'df选举', 'evpn路由', 'evpn邻居', 'type5', 'type2', '分布式网关排障', 'mac ip通告'],
+    kw: [
+      'evpn排障', 'evpn不通', 'vxlan排障', 'esi', 'df选举', 'evpn路由',
+      'evpn邻居', 'type5', 'type2', '分布式网关排障', 'mac ip通告'
+    ],
     cmds: [
       ['华为 CE 系列', '! 1. 先看控制面：EVPN 邻居建没建（BGP EVPN address-family）\ndisplay bgp evpn peer\n!\n! 2. 看 EVPN 路由收没收到（按路由类型统计）\ndisplay bgp evpn all routing-table\n display bgp evpn all routing-table type-5\n!\n! 3. 看具体 MAC/IP 路由（Type 2）\ndisplay evpn mac routing-table\n display evpn arp routing-table\n!\n! 4. 看 VNI 和 BD 绑定、实例关联\ndisplay evpn instance\n display vxlan vni\n!\n! 5. ESI 与 DF 选举：多归一场合谁是 DF（指定转发者）\ndisplay evpn esi\n display evpn df election\n!\n! 6. 隧道状态\ndisplay vxlan tunnel\n!\n! 7. 转发面：VTEP 学到的远端 MAC\ndisplay mac-address\n!\n! 8. 排障：控制面 OK 但不通\ndisplay vxlan statistics\n!\n! 9. 排障：邻居起不来（EVPN 是 MP-BGP 的一个 family）\ndisplay bgp evpn peer verbose\n!\n! 10. 路由策略：EVPN 路由被过滤了没\ndisplay bgp evpn all routing-table peer\n!\n! 11. 抓包：VTEP 之间 UDP 4789\ndisplay vxlan vni 5010']
     ],
@@ -1482,7 +1544,11 @@ const PRACTICE = [
     id: 'pr-sys-logserver',
     devs: ['Linux 服务器', '网管平台', '服务器', 'Linux'],
     name: '日志/trap 服务器搭建（syslog + SNMP trap 集中）',
-    kw: ['日志服务器', 'syslog', 'trap集中', '日志集中', 'syslog搭建', 'rsyslog', 'trap接收', '日志审计', '日志留存', 'elk','trap收不到','日志收不到','收不到日志','trap 不上送','告警收不到'],
+    kw: [
+      '日志服务器', 'syslog', 'trap集中', '日志集中', 'syslog搭建', 'rsyslog',
+      'trap接收', '日志审计', '日志留存', 'elk', 'trap收不到', '日志收不到',
+      '收不到日志', 'trap 不上送', '告警收不到'
+    ],
     cmds: [
       ['Linux', '! 一、rsyslog 搭建（企业最常用）\n! 1. 安装\napt install rsyslog\n!\n! 2. 配置接收（UDP/TCP 514，设备侧发过来）\n! /etc/rsyslog.conf:\n! module(load="imudp")          ! UDP 接收\n! input(type="imudp" port="514")\n! module(load="imtcp")          ! TCP 接收（可靠）\n! input(type="imtcp" port="514")\n! $template RemoteLogs,"/var/log/network/%HOSTNAME%/%$YEAR%/%$MONTH%/%$DAY%.log"\n! *.* ?RemoteLogs\n!\n! 3. 按设备分目录存（一台设备一个目录，好查）\n! 4. 日志轮转（防磁盘爆）\n! /etc/logrotate.d/network-logs: daily/rotate 180/compress\n!\n! 5. 重启生效\nsystemctl restart rsyslog\n ss -ulnp | grep 514\n!\n! 二、设备侧配合（华为）\n! 发 syslog 到服务器\ninfo-center loghost 10.1.9.20\n info-center loghost source-ip 10.1.9.1\n!\n! 发 trap\nsnmp-agent target-host trap address udp-domain 10.1.9.20 udp-port 162 params securityname public\n!\n! 三、验证\ntail -f /var/log/network/<设备名>/$(date +%Y)/$(date +%m)/$(date +%d).log\n tcpdump -i any port 514\n!\n! 四、日志分析（可选进阶）\n! ELK/Graylog：采集+索引+告警\n! 告警规则：接口 down / BGP down / 登录失败\n!\n! 五、等保要求：日志留存 180 天\n! du -sh /var/log/network']
     ],
@@ -1502,7 +1568,10 @@ const PRACTICE = [
     id: 'pr-win-server',
     devs: ['Windows Server', 'Windows', '服务器'],
     name: 'Windows Server DHCP/DNS 服务端配置',
-    kw: ['windows server', 'dhcp服务器', 'dns服务器', 'ad域网络', '域控', 'windows dhcp', 'windows dns', 'scope', '作用域', '域网络排障'],
+    kw: [
+      'windows server', 'dhcp服务器', 'dns服务器', 'ad域网络', '域控', 'windows dhcp',
+      'windows dns', 'scope', '作用域', '域网络排障'
+    ],
     cmds: [
       ['Windows Server', '! 一、DHCP 服务端（PowerShell）\n! 1. 安装角色\nInstall-WindowsFeature DHCP -IncludeManagementTools\n!\n! 2. 新建作用域\nAdd-DhcpServerv4Scope -Name "OFFICE-10" -StartRange 10.1.10.50 -EndRange 10.1.10.200 -SubnetMask 255.255.255.0\n!\n! 3. 配网关/DNS/租期\nSet-DhcpServerv4OptionValue -ScopeId 10.1.10.0 -OptionId 3 -Value "10.1.10.1"\nSet-DhcpServerv4OptionValue -ScopeId 10.1.10.0 -OptionId 6 -Value "10.1.9.10"\nSet-DhcpServerv4Scope -ScopeId 10.1.10.0 -LeaseDuration 0.08:00:00\n!\n! 4. 保留（固定 IP 给打印机/服务器）\nAdd-DhcpServerv4Reservation -ScopeId 10.1.10.0 -IPAddress 10.1.10.88 -ClientId "AA-BB-CC-DD-EE-FF" -Name "PRINTER-01"\n!\n! 5. 排除段（设备管理段不发）\nAdd-DhcpServerv4ExclusionRange -ScopeId 10.1.10.0 -StartRange 10.1.10.1 -EndRange 10.1.10.49\n!\n! 6. 中继对接（华为 DHCP 中继场景）\n! 交换机上配 dhcp relay 指向本服务器，无需在服务器配中继\n!\n! 7. 看租约/排障\nGet-DhcpServerv4Lease -ScopeId 10.1.10.0\n Get-DhcpServerv4Statistics\n!\n! 二、DNS 服务端\n! 8. 内部域名解析（AD 依赖 DNS）\nAdd-DnsServerPrimaryZone -ZoneName "corp.local" -ReplicationScope "Forest"\n!\n! 9. 转发器（内外网分流解析）\nAdd-DnsServerForwarder -IPAddress 114.114.114.114\n!\n! 10. 排障：解析记录\nResolve-DnsName www.corp.local\n Get-DnsServerResourceRecord -ZoneName "corp.local"\n!\n! 11. 客户端验证\nipconfig /all | findstr DNS\n nslookup www.corp.local\n!\n! 12. 服务状态\nGet-Service DHCPServer, DNS\n systemctl status iscsid  # 别混']
     ],
@@ -1512,7 +1581,11 @@ const PRACTICE = [
     id: 'pr-optic-select',
     devs: ['光模块', 'Switch', 'Router'],
     name: '光模块选型速查（速率 / 距离 / 波长 / 介质）',
-    kw: ['光模块选型', '光模块型号', '单模', '多模', 'om3', 'om4', 'aoc', 'dac', '高速线', '光模块距离', '波长', 'sfp', 'qsfp', '模块不兼容'],
+    kw: [
+      '光模块选型', '光模块型号', '单模', '多模', 'om3', 'om4',
+      'aoc', 'dac', '高速线', '光模块距离', '波长', 'sfp',
+      'qsfp', '模块不兼容'
+    ],
     cmds: [
       ['华为', '! 选型决策表（按距离+速率）\n!\n! 电口（DAC/AOC 高速线）\n! 机内/机柜间（<5m）：DAC 高速铜缆（SFP+ 10G / QSFP+ 40G）\n! 机柜间（<10m）：AOC 有源光缆（省模块钱，即插即用）\n!\n! 多模（OM3/OM4，机房内几百米）\n! 850nm 波长，LC 接口\n! 10G SR：OM3 300m / OM4 400m\n! 25G SR：OM4 100m\n! 40G SR4：OM4 150m（并行 4 芯）\n! 100G SR4：OM4 100m\n!\n! 单模（OS2，楼宇间/园区几公里）\n! 1310nm 波长，LC 接口\n! 10G LR：10km\n! 25G LR：10km\n! 100G LR4：10km\n! 100G ER4：40km\n!\n! 长距（城域）\n! 100G ZR：80-100km（相干）\n!\n! 兼容性原则\n! 1. 华为设备用华为原厂或认证模块（第三方模块设备告警但不影响用）\n! 2. 两端必须同速率同波长同距离档位\n! 3. 单模多模不能混用（纤芯粗细不同）\n! 4. 一端 SR 一端 LR 可以通（LR 收 SR 的光，功率够）\n!\n! 查看与验证\ndisplay transceiver interface <接口>\n display version\n!\n! 常见不匹配\n! 40G 模块插 100G 口：物理不兼容（QSFP28 口能插 QSFP+ 但降速）\n! 1310nm 配 850nm：不通\n! 单模模块配多模纤：距离暴跌（功率够近距能通，远距不行）']
     ],
@@ -1622,7 +1695,10 @@ const PRACTICE = [
     id: 'pr-vpn-client',
     devs: ['防火墙', '客户端'],
     name: '远程接入客户端排障（SSL/IPsec 连不上 / 慢）',
-    kw: ['vpn客户端', 'sslvpn连不上', 'vpn连不上', 'easyvpn', 'anyconnect', 'vpn慢', 'vpn掉线', 'vpn认证失败', 'vpn隧道', '远程办公'],
+    kw: [
+      'vpn客户端', 'sslvpn连不上', 'vpn连不上', 'easyvpn', 'anyconnect', 'vpn慢',
+      'vpn掉线', 'vpn认证失败', 'vpn隧道', '远程办公'
+    ],
     cmds: [
       ['华为 USG 防火墙 + 客户端', '! 服务端侧\n! 1. 看 SSL VPN 网关状态和在线用户\ndisplay sslvpn gateway\n display sslvpn session\n!\n! 2. 看 IPsec 在线用户和 IKE 状态\ndisplay ike sa\n display ipsec sa\n!\n! 3. 认证失败：看认证日志\ndisplay aaa statistics access-type authen\n!\n! 4. 地址池够不够（池满 = 新用户连不上）\ndisplay ip pool\n!\n! 5. 授权资源：用户能访问哪些网段\ndisplay sslvpn policy\n!\n! 客户端侧\n! 6. 客户端日志（AnyConnect/OpenVPN 都有详细日志）\n! 日志级别调到 Debug\n!\n! 7. 客户端报错对照\n!    超时连不上 = 服务端不通/端口挡\n!    认证失败 = 账号密码/二次认证/证书\n!    连上没网 = 地址池/路由/分LAN下发\n!    时断时续 = DPD/NAT-T/运营商 QoS\n!\n! 8. 分LAN下发：客户端只走内网流量（split tunnel）\ndisplay sslvpn split-tunnel\n!\n! 9. 抓包：IKE 阶段1/2\ndisplay ike error\n!\n! 10. 排障黄金组合\n! 换网络测试（手机热点 vs 宽带）\n! 换设备测试（同事电脑 vs 本机）\n! 服务端日志 + 客户端日志对时间']
     ],

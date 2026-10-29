@@ -9,7 +9,10 @@ const CCIE_EXTRA = [
     id: 'ccie-dmvpn-p2',
     devs: ['Router'],
     name: 'DMVPN Phase 2 完整配置（Hub + Spoke + IPSec）',
-    kw: ['dmvpn phase 2', 'dmvpn p2', 'dmvpn二阶段', '分支互联', 'spoke to spoke', 'ngre', 'mgre', 'nhrp map', 'dmvpn配置', '多点gre'],
+    kw: [
+      'dmvpn phase 2', 'dmvpn p2', 'dmvpn二阶段', '分支互联', 'spoke to spoke', 'ngre',
+      'mgre', 'nhrp map', 'dmvpn配置', '多点gre'
+    ],
     cmds: [
       ['思科（Hub）', 'crypto keyring DMVPN-KEYRING\n pre-shared-key address 0.0.0.0 0.0.0.0 key cisco123\n!\ncrypto isakmp profile DMVPN-ISAKMP-PROFILE\n keyring DMVPN-KEYRING\n match identity address 0.0.0.0\n!\ncrypto ipsec transform-set DMVPN-TS esp-aes 256 esp-sha-hmac\n mode tunnel\n!\ncrypto ipsec profile DMVPN-IPSEC-PROFILE\n set transform-set DMVPN-TS\n set ikev1-profile DMVPN-ISAKMP-PROFILE\n!\ninterface Tunnel0\n description DMVPN-HUB\n ip address 172.16.0.1 255.255.255.0\n no ip redirects\n ip mtu 1400\n ip nhrp authentication cisco\n ip nhrp map multicast dynamic\n ip nhrp network-id 1\n ip nhrp server-only\n ip ospf network broadcast\n ip ospf priority 255\n ip tcp adjust-mss 1360\n delay 1000\n tunnel source GigabitEthernet0/0\n tunnel mode gre multipoint\n tunnel key 100\n tunnel protection ipsec profile DMVPN-IPSEC-PROFILE\n!\nrouter ospf 1\n network 172.16.0.0 0.0.0.255 area 0'],
       ['思科（Spoke）', 'crypto keyring DMVPN-KEYRING\n pre-shared-key address 202.1.1.1 key cisco123\n!\ncrypto isakmp profile DMVPN-ISAKMP-PROFILE\n keyring DMVPN-KEYRING\n match identity address 202.1.1.1\n!\ncrypto ipsec transform-set DMVPN-TS esp-aes 256 esp-sha-hmac\n mode tunnel\n!\ncrypto ipsec profile DMVPN-IPSEC-PROFILE\n set transform-set DMVPN-TS\n set ikev1-profile DMVPN-ISAKMP-PROFILE\n!\ninterface Tunnel0\n description DMVPN-SPOKE\n ip address 172.16.0.100 255.255.255.0\n no ip redirects\n ip mtu 1400\n ip nhrp authentication cisco\n ip nhrp map 172.16.0.1 202.1.1.1\n ip nhrp map multicast 202.1.1.1\n ip nhrp nhs 172.16.0.1\n ip nhrp network-id 1\n ip nhrp shortcut\n ip ospf network broadcast\n ip ospf priority 0\n ip tcp adjust-mss 1360\n tunnel source GigabitEthernet0/0\n tunnel mode gre multipoint\n tunnel key 100\n tunnel protection ipsec profile DMVPN-IPSEC-PROFILE']
@@ -31,7 +34,10 @@ const CCIE_EXTRA = [
     id: 'ccie-flexvpn',
     devs: ['Router'],
     name: 'FlexVPN IKEv2 站点到站点（虚拟模板 + 自动寻址）',
-    kw: ['flexvpn', 'ikev2 vpn', 'ikev2 站点到站点', '虚拟模板vpn', 'ip address negotiated', 'ikev2 profile', 'site-to-site ikev2'],
+    kw: [
+      'flexvpn', 'ikev2 vpn', 'ikev2 站点到站点', '虚拟模板vpn', 'ip address negotiated', 'ikev2 profile',
+      'site-to-site ikev2'
+    ],
     cmds: [
       ['思科（Hub）', 'crypto ikev2 keyring FLEX-KEYRING\n peer SPOKES\n  address 0.0.0.0 0.0.0.0\n  pre-shared-key local cisco123\n  pre-shared-key remote cisco123\n!\ncrypto ikev2 authorization policy FLEX-AUTH\n pool FLEX-POOL\n def-domain cisco.com\n!\ncrypto ikev2 profile FLEX-PROFILE\n match identity remote address 0.0.0.0\n authentication local pre-share\n authentication remote pre-share\n keyring local FLEX-KEYRING\n aaa authorization group psk list FLEX-AUTH default\n virtual-template 1\n!\nip local pool FLEX-POOL 172.16.1.1 172.16.1.254\n!\ninterface Virtual-Template1 type tunnel\n ip unnumbered GigabitEthernet0/0\n ip ospf 1 area 0\n tunnel protection ipsec profile default'],
       ['思科（Spoke）', 'crypto ikev2 keyring FLEX-KEYRING\n peer HUB\n  address 202.1.1.1\n  pre-shared-key local cisco123\n  pre-shared-key remote cisco123\n!\ncrypto ikev2 profile FLEX-PROFILE\n match identity remote address 202.1.1.1 255.255.255.255\n authentication local pre-share\n authentication remote pre-share\n keyring local FLEX-KEYRING\n!\ninterface Tunnel0\n ip address negotiated\n tunnel source GigabitEthernet0/0\n tunnel mode ipsec ipv4\n tunnel destination 202.1.1.1\n tunnel protection ipsec profile FLEX-PROFILE']
@@ -53,7 +59,11 @@ const CCIE_EXTRA = [
     id: 'ccie-vxlan-multisite',
     devs: ['Switch', 'Router'],
     name: 'VXLAN BGP EVPN 多站点（Border Leaf DCI 互联）',
-    kw: ['vxlan多站点', 'evpn多站点', '多站点', 'dci', 'border leaf', 'rt重写', 'rewrite-evpn-rt', '跨站点vxlan', '多fabric','两个数据中心','跨数据中心','数据中心互联','两个 dc 互联'],
+    kw: [
+      'vxlan多站点', 'evpn多站点', '多站点', 'dci', 'border leaf', 'rt重写',
+      'rewrite-evpn-rt', '跨站点vxlan', '多fabric', '两个数据中心', '跨数据中心', '数据中心互联',
+      '两个 dc 互联'
+    ],
     cmds: [
       ['思科 Nexus', 'nv overlay evpn\nfeature bgp\nfeature interface-vlan\n!\ninterface loopback0\n ip address 10.1.1.1/32\n!\ninterface Ethernet1/1\n  no switchport\n  mtu 9216\n  ip address 172.20.1.1/30\n  ip ospf network point-to-point\n  ip router ospf underlay area 0.0.0.0\n!\nrouter ospf underlay\n!\nrouter bgp 65001\n  address-family l2vpn evpn\n  template peer DCI-PEER\n    remote-as 65002\n    update-source loopback0\n    ebgp-multihop 2\n    address-family l2vpn evpn\n      send-community\n      send-community extended\n      rewrite-evpn-rt-as-needed\n  neighbor 10.2.2.2\n    inherit peer-session DCI-PEER\n    address-family l2vpn evpn\n      send-community\n      send-community extended\n      rewrite-evpn-rt-as-needed']
     ],
@@ -109,7 +119,10 @@ const CCIE_EXTRA = [
     id: 'ccie-restconf',
     devs: ['Router', 'Switch', '防火墙'],
     name: 'RESTCONF / YANG API（HTTPS 管理设备）',
-    kw: ['restconf', 'yang api', 'restconf配置', 'api调设备', 'application/yang-data+json', 'netconf api', 'yang-data', 'https管理设备'],
+    kw: [
+      'restconf', 'yang api', 'restconf配置', 'api调设备', 'application/yang-data+json', 'netconf api',
+      'yang-data', 'https管理设备'
+    ],
     cmds: [
       ['思科（启用）', 'configure terminal\n ip http secure-server\n restconf\n!\ncrypto pki trustpoint TP-SELF-SIGNED\n enrollment selfsigned\n subject-name cn=IOS-XE\n revocation-check none\n rsakeypair SELF\n!\ncrypto pki enroll TP-SELF-SIGNED'],
       ['思科（客户端调用）', 'curl -i -k -u admin:cisco -H "Accept: application/yang-data+json" \\\n https://10.1.1.1/restconf/data/ietf-interfaces:interfaces\n\ncurl -i -k -u admin:cisco -H "Content-Type: application/yang-data+json" -X PUT \\\n -d \'{"ietf-interfaces:interface":{"name":"Lo0","enabled":true}}\' \\\n https://10.1.1.1/restconf/data/ietf-interfaces:interfaces/interface=Lo0']
@@ -132,7 +145,11 @@ const CCIE_EXTRA = [
     id: 'ccie-netflow',
     devs: ['Router', 'Switch'],
     name: 'Flexible NetFlow（流量采集送分析平台）',
-    kw: ['netflow', 'flexible netflow', 'flow monitor', 'flow exporter', '流量采集', '网络流量分析', 'flow record', '谁在占用带宽', '看谁占带宽', '谁占带宽', '占带宽', '带宽占用', '谁占了带宽', '流量排名'],
+    kw: [
+      'netflow', 'flexible netflow', 'flow monitor', 'flow exporter', '流量采集', '网络流量分析',
+      'flow record', '谁在占用带宽', '看谁占带宽', '谁占带宽', '占带宽', '带宽占用',
+      '谁占了带宽', '流量排名'
+    ],
     cmds: [
       ['思科（定义与绑定）', 'flow record NF-RECORD\n match ipv4 source address\n match ipv4 destination address\n match ipv4 protocol\n match transport source-port\n match transport destination-port\n collect counter bytes\n collect counter packets\n collect timestamp sys-uptime first\n!\nflow exporter NF-EXPORTER\n destination 10.1.1.200\n source GigabitEthernet0/0\n transport udp 2055\n template data timeout 60\n!\nflow monitor NF-MONITOR\n record NF-RECORD\n exporter NF-EXPORTER\n cache timeout active 60\n!\ninterface GigabitEthernet0/0\n ip flow monitor NF-MONITOR input'],
       ['思科（采样降负载）', 'sampler NF-SAMPLER\n mode random 1 out-of 100\n!\ninterface GigabitEthernet0/1\n ip flow monitor NF-MONITOR input sampler NF-SAMPLER']
@@ -216,7 +233,10 @@ const CCIE_EXTRA = [
     id: 'ccie-sd-access',
     devs: ['Switch', 'Router'],
     name: 'SD-Access Fabric（LISP 控制面 + VXLAN 数据面）',
-    kw: ['sd-access', 'sd access', 'fabric', 'lisp', 'sda', 'campus fabric', 'dna center', '意图 based network', '虚拟网络'],
+    kw: [
+      'sd-access', 'sd access', 'fabric', 'lisp', 'sda', 'campus fabric',
+      'dna center', '意图 based network', '虚拟网络'
+    ],
     cmds: [
       ['思科（架构三要素）', '! 三个角色节点：\n! Control-Plane：Map-Server / Map-Resolver / PxGrid（策略同步）\n! Border：Fabric 与传统网络 / 外部域互联（VRF-lite、LISP 代理）\n! Edge：接入交换机，策略执行点（SGT/ SGACL / VN 隔离）\n! 数据面：VXLAN（L3 VNI 做 VN 间路由，L2 VNI 同子网）\n! 控制面：LISP（EID→RLOC 映射，替代 BGP EVPN）'],
       ['思科（关键排错命令）', 'show fabric summary\nshow lisp session\nshow lisp dynamic-eid detail\nshow lisp ipv4 map-cache\nshow sda summary']

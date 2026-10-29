@@ -3,7 +3,11 @@ const BATCH100_EXTRA = [
     id: 'console-password',
     devs: ['Switch', 'Router', '防火墙'],
     name: 'console 口密码（配置 / 修改 / 清除）',
-    kw: ['console密码', 'console 密码', 'console口密码', '改console密码', 'console口密码忘了', 'console密码怎么改', 'console认证', 'console口设置密码', '串口密码', '远程改console密码', '登录密码', '线路密码', 'console密码忘了怎么改', 'console不需要密码', 'console免密', '免密登录console'],
+    kw: [
+      'console密码', 'console 密码', 'console口密码', '改console密码', 'console口密码忘了', 'console密码怎么改',
+      'console认证', 'console口设置密码', '串口密码', '远程改console密码', '登录密码', '线路密码',
+      'console密码忘了怎么改', 'console不需要密码', 'console免密', '免密登录console'
+    ],
     cmds: [
       ['华为 VRP', 'system-view\nuser-interface console 0\n authentication-mode password\n set authentication password cipher Huawei@123'],
       ['思科 IOS', 'configure terminal\nline console 0\n password Cisco@123\n login'],

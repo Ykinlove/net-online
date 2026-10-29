@@ -24,7 +24,11 @@ const BATCH47_EXTRA = [
     id: 'fault-evidence',
     devs: ['Switch', 'Router', '防火墙', '服务器', '其他设备'],
     name: '故障取证与责任定界（怎么举证不被甩锅）',
-    kw: ['取证', '举证', '定界', '甩锅', '责任划分', '故障报告', '报障证据', '定界报告', '证明', '怎么证明', '不是我们的问题', '责任在谁', '谁的问题', '证据'],
+    kw: [
+      '取证', '举证', '定界', '甩锅', '责任划分', '故障报告',
+      '报障证据', '定界报告', '证明', '怎么证明', '不是我们的问题', '责任在谁',
+      '谁的问题', '证据'
+    ],
     cmds: [
       ['必须留的四类证据',
         '① 时间线：设备日志 + NTP 时间戳（没配 NTP 的证据基本无效）\n② 数据：抓包文件（.pcap）、接口计数、光功率读数、CPU/内存曲线\n③ 配置：故障前配置备份 + 故障后对比（证明没改过什么）\n④ 第三方：运营商报障单号、厂商 TAC case 号、变更单号\n# 缺任何一类，责任就会往你身上推'],
@@ -43,7 +47,11 @@ const BATCH47_EXTRA = [
     id: 'l2-attack',
     devs: ['Switch'],
     name: '二层攻击手法与防护（VLAN 跳跃 / CAM 溢出 / STP 攻击）',
-    kw: ['vlan 跳跃', 'vlan hopping', '双层标签', 'cam 表溢出', 'mac 洪泛', 'stp 攻击', 'dtp', '二层攻击','伪造 mac','伪造mac','假冒 mac','仿冒 mac','伪装 mac 地址','伪造mac地址','伪造 mac 地址','假冒mac地址','仿冒mac地址','伪造地址'],
+    kw: [
+      'vlan 跳跃', 'vlan hopping', '双层标签', 'cam 表溢出', 'mac 洪泛', 'stp 攻击',
+      'dtp', '二层攻击', '伪造 mac', '伪造mac', '假冒 mac', '仿冒 mac',
+      '伪装 mac 地址', '伪造mac地址', '伪造 mac 地址', '假冒mac地址', '仿冒mac地址', '伪造地址'
+    ],
     cmds: [
       ['VLAN 跳跃（双标签 / DTP）',
         '攻击原理：\n① 双标签（QinQ 攻击）：外层打本征 VLAN，内层打目标 VLAN，交换机剥外层后转发到内层\n② DTP 协商：伪造 DTP 报文让端口变成 trunk，直接访问所有 VLAN\n防护：\nswitchport trunk encapsulation dot1q\nswitchport nonegotiate                    # 关掉 DTP 协商\nswitchport mode access                    # 用户口强制 access\nswitchport access vlan 10\n# 华为 / H3C：端口默认不协商 DTP，但要把 native VLAN 改掉\nport hybrid pvid vlan 999 / port trunk pvid vlan 999   # 别用 VLAN 1'],
@@ -85,7 +93,11 @@ const BATCH47_EXTRA = [
     id: 'nvme-of',
     devs: ['服务器', 'Switch', '其他设备'],
     name: 'NVMe over Fabrics 与存储网络低时延',
-    kw: ['nvme', 'nvme-of', '存储网络', '全闪存', '低时延', 'fc san', '巨帧', '存储多路径', '闪存', 'ssd', '存储组网', '存储时延', '存储怎么组网'],
+    kw: [
+      'nvme', 'nvme-of', '存储网络', '全闪存', '低时延', 'fc san',
+      '巨帧', '存储多路径', '闪存', 'ssd', '存储组网', '存储时延',
+      '存储怎么组网'
+    ],
     cmds: [
       ['三种存储网络怎么选',
         'FC SAN：专用网络，稳定成熟，时延 ~100us，成本高，需要 HBA 和光纤交换机\n   → 传统核心数据库、双活存储\niSCSI：跑在以太网上，通用便宜，时延 ~200-500us，吃 CPU\n   → 中小规模、备份、虚拟化\nNVMe-oF：跑在以太网（RoCEv2）或 FC 上，时延 ~50-100us，全闪存首选\n   → 高性能数据库、AI 训练、实时分析\n# 选型先看时延要求，再看预算，最后看运维能力'],

@@ -8,7 +8,10 @@ const BATCH40_EXTRA = [
     id: 'vpn-choice',
     devs: ['Router', '防火墙'],
     name: 'VPN 技术选型（IPsec / SSL / WireGuard / 零信任）',
-    kw: ['vpn 选型', 'vpn 怎么选', '选什么 vpn', 'vpn 区别', 'ipsec', 'ssl vpn', 'wireguard', 'openvpn', '站点到站点', '远程接入', 'vpn 对比'],
+    kw: [
+      'vpn 选型', 'vpn 怎么选', '选什么 vpn', 'vpn 区别', 'ipsec', 'ssl vpn',
+      'wireguard', 'openvpn', '站点到站点', '远程接入', 'vpn 对比'
+    ],
     cmds: [
       ['四种场景先分清', '① 站点到站点（固定分支互联）→ IPsec / GRE over IPsec\n② 员工远程接入（人连公司）→ SSL VPN / 零信任\n③ 临时互联（几天）→ WireGuard / OpenVPN\n④ 多云多分支统一编排 → SD-WAN 自带隧道\n# 选错场景是最大的浪费：拿 SSL VPN 做分支互联，性能会很难看'],
       ['IPsec 的优势与代价', '优势：标准化、所有厂商都支持、性能好（硬件加速）\n代价：配置复杂（IKE/提议/ACL/感兴趣流）、NAT 后要 NAT-T\n# 关键坑：感兴趣流（ACL）两端必须镜像，写反了就是"隧道 up 但业务不通"'],

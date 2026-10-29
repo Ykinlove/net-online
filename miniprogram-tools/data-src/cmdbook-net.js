@@ -32,7 +32,11 @@ const NET_EXTRA = [
     id: 'port-shutdown',
     devs: ['Switch', 'Router'],
     name: '关闭 / 开启端口',
-    kw: ['关端口', '启用端口', 'shutdown', '停用接口', '禁用端口', '关闭不用的端口', '关掉不用的端口', '禁用不用的端口', '闲置端口关掉', '屏蔽端口', '屏蔽某个端口', '封掉端口', '停掉端口'],
+    kw: [
+      '关端口', '启用端口', 'shutdown', '停用接口', '禁用端口', '关闭不用的端口',
+      '关掉不用的端口', '禁用不用的端口', '闲置端口关掉', '屏蔽端口', '屏蔽某个端口', '封掉端口',
+      '停掉端口'
+    ],
     cmds: [
       ['华为', 'interface GigabitEthernet 0/0/1\n shutdown\n（开启用 undo shutdown）'],
       ['思科', 'interface GigabitEthernet 0/1\n shutdown\n（开启用 no shutdown）'],
@@ -240,7 +244,10 @@ const NET_EXTRA = [
     id: 'dhcp-snooping',
     devs: ['Switch'],
     name: 'DHCP Snooping（防私接路由）',
-    kw: ['dhcp snooping', '防私接路由器', 'dhcp欺骗', '伪造dhcp', '防止私接路由器', '私接路由', '配置dhcp snooping', 'dhcp snooping配置'],
+    kw: [
+      '配置dhcp snooping', 'dhcp snooping配置', 'dhcp snooping', '防私接路由器', 'dhcp欺骗', '伪造dhcp',
+      '防止私接路由器', '私接路由'
+    ],
     cmds: [
       ['华为', 'dhcp enable\ndhcp snooping enable\ninterface GigabitEthernet 0/0/24\n dhcp snooping trusted'],
       ['思科', 'ip dhcp snooping\nip dhcp snooping vlan 10\ninterface GigabitEthernet 0/24\n ip dhcp snooping trust'],
@@ -422,7 +429,11 @@ const NET_EXTRA = [
     id: 'ipsg',
     devs: ['Switch'],
     name: 'IP 源防护 IPSG（防私改 IP）',
-    kw: ['ipsg', 'ip源防护', '防私改ip', 'ip仿冒', 'ip verify', '防止私改ip', '防止私改', '私自改ip', '私改ip', '改ip地址', 'ip防篡改', '防止改ip', '私设ip', '防止私设ip', '防止私设', '私设ip地址', '乱设ip', '手动设ip'],
+    kw: [
+      'ipsg', 'ip源防护', '防私改ip', 'ip仿冒', 'ip verify', '防止私改ip',
+      '防止私改', '私自改ip', '私改ip', '改ip地址', 'ip防篡改', '防止改ip',
+      '私设ip', '防止私设ip', '防止私设', '私设ip地址', '乱设ip', '手动设ip'
+    ],
     cmds: [
       ['华为', 'interface GigabitEthernet 0/0/1\n ip source check user-bind enable'],
       ['思科', 'interface GigabitEthernet 0/1\n ip verify source port-security'],
@@ -552,7 +563,11 @@ const NET_EXTRA = [
     id: 'port-rate-limit',
     devs: ['Switch'],
     name: '端口限速（入方向）',
-    kw: ['配置qos限速', '限速怎么配', '端口限速', '限速交换机', 'car', 'qos lr', '限制带宽', '限制网速', '网速限制', '限带宽', '带宽不够', '配置限速', '带宽限制'],
+    kw: [
+      '配置qos限速', '限速怎么配', '端口限速', '限速交换机', 'car', 'qos lr',
+      '限制带宽', '限制网速', '网速限制', '限带宽', '带宽不够', '配置限速',
+      '带宽限制'
+    ],
     cmds: [
       ['华为', 'interface GigabitEthernet 0/0/1\n qos lr inbound cir 10240'],
       ['思科', 'interface GigabitEthernet 0/1\n srr-queue bandwidth limit 20\n（或 policy-map + police 做精确限速）'],
@@ -617,7 +632,10 @@ const NET_EXTRA = [
     id: 'port-link-type',
     devs: ['Switch'],
     name: '端口链路类型（Access / Trunk / Hybrid）',
-    kw: ['hybrid', 'hybrid口', '链路类型', '端口模式', 'access口', 'access trunk hybrid 区别', 'pvid', 'untag', 'tag', '配access', 'access口怎么配', 'access口配置'],
+    kw: [
+      'hybrid', 'hybrid口', '链路类型', '端口模式', 'access口', 'access trunk hybrid 区别',
+      'pvid', 'untag', 'tag', '配access', 'access口怎么配', 'access口配置'
+    ],
     cmds: [
       ['华为', 'interface GigabitEthernet 0/0/1\n port link-type access\n port default vlan 10\ninterface GigabitEthernet 0/0/2\n port link-type trunk\n port trunk allow-pass vlan 10 20\ninterface GigabitEthernet 0/0/3\n port link-type hybrid\n port hybrid pvid vlan 10\n port hybrid untagged vlan 10\n port hybrid tagged vlan 20 30\ndisplay port vlan'],
       ['思科', 'interface GigabitEthernet0/1\n switchport mode access\n switchport access vlan 10\ninterface GigabitEthernet0/2\n switchport trunk encapsulation dot1q\n switchport mode trunk\n switchport trunk allowed vlan 10,20\nshow interfaces switchport'],

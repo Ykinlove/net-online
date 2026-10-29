@@ -4,7 +4,8 @@
 const TPLS = [
   /* ============ 开局模板 ============ */
   {
-    id: 'tpl-switch-base',kw:['交换机开局', '新设备开局', '开局配置', '设备上架配置'], 
+    id: 'tpl-switch-base',
+    kw: ['交换机开局', '新设备开局', '开局配置', '设备上架配置'],
     cat: '开局模板',
     name: '新交换机开局标准模板',
     vendor: '华为 VRP8',
@@ -12,7 +13,8 @@ const TPLS = [
     note: '五件套一次配全：命名（角色-位置-编号）、时钟 NTP（日志时间线靠它）、管理地址（固定段别用 DHCP）、本地账号兜底、SSH。上线前 save 并归档基线。'
   },
   {
-    id: 'tpl-vlan-if',kw:['vlanif', 'vlan网关', '三层交换vlan', '网关配置'], 
+    id: 'tpl-vlan-if',
+    kw: ['vlanif', 'vlan网关', '三层交换vlan', '网关配置'],
     cat: '开局模板',
     name: '三层交换机 VLAN 间路由模板',
     vendor: '华为 VRP8',
@@ -20,7 +22,8 @@ const TPLS = [
     note: 'Vlanif  up 才算网关生效；dhcp select interface 让交换机自己当 DHCP（小规模省一台服务器）。跨网段不通先查 Vlanif up 没 up、 trunk 放行没放行。'
   },
   {
-    id: 'tpl-trunk-uplink',kw:['trunk', '上联口配置', '透传vlan'], 
+    id: 'tpl-trunk-uplink',
+    kw: ['trunk', '上联口配置', '透传vlan'],
     cat: '开局模板',
     name: '上联 trunk 模板（逐条放行 VLAN）',
     vendor: '华为 VRP8',
@@ -30,7 +33,8 @@ const TPLS = [
 
   /* ============ 二层模板 ============ */
   {
-    id: 'tpl-eth-trunk',kw:['聚合', '端口聚合', 'eth-trunk', '双上联'], 
+    id: 'tpl-eth-trunk',
+    kw: ['聚合', '端口聚合', 'eth-trunk', '双上联'],
     cat: '二层模板',
     name: '链路聚合模板（LACP 双上联）',
     vendor: '华为 VRP8',
@@ -38,7 +42,8 @@ const TPLS = [
     note: 'lacp-static 比手工模式稳（协商失败自动退出聚合，不会黑洞）。堆叠场景加 least active-link 2：成员少于 2 条整个 trunk down，防单链路跑流量。'
   },
   {
-    id: 'tpl-port-sec',kw:['端口安全', 'mac绑定', '防私接', 'mac认证'], 
+    id: 'tpl-port-sec',
+    kw: ['端口安全', 'mac绑定', '防私接', 'mac认证'],
     cat: '二层模板',
     name: '端口安全模板（MAC 绑定防乱接）',
     vendor: '华为 VRP8',
@@ -46,7 +51,8 @@ const TPLS = [
     note: 'protect 动作（丢新 MAC 的包不关口）适合办公区——换台电脑不用跑弱电间；restrict 会计数告警；shutdown 最狠适合会议室。换电脑频繁的场景配 recover automatic 自动恢复。'
   },
   {
-    id: 'tpl-stp-edge',kw:['stp', '生成树', '边缘端口', '根桥'], 
+    id: 'tpl-stp-edge',
+    kw: ['stp', '生成树', '边缘端口', '根桥'],
     cat: '二层模板',
     name: 'STP 部署模板（edge 口 + 根桥指定）',
     vendor: '华为 VRP8',
@@ -56,7 +62,8 @@ const TPLS = [
 
   /* ============ 三层模板 ============ */
   {
-    id: 'tpl-static-route',kw:['默认路由', '缺省路由', '静态路由', '浮动路由', '黑洞路由', '路由配置'], 
+    id: 'tpl-static-route',
+    kw: ['默认路由', '缺省路由', '静态路由', '浮动路由', '黑洞路由', '路由配置'],
     cat: '三层模板',
     name: '静态路由模板（默认 / 浮动 / 黑洞）',
     vendor: '华为 VRP8',
@@ -64,7 +71,8 @@ const TPLS = [
     note: 'preference 越小越优，默认 60。备份链路 preference 调大（如 100）平时不出现，主链路一断自动顶上——比动态协议省事，链路少的路由器首选。'
   },
   {
-    id: 'tpl-ospf-basic',kw:['ospf', 'ospf单区域', 'ospf配置'], 
+    id: 'tpl-ospf-basic',
+    kw: ['ospf', 'ospf单区域', 'ospf配置'],
     cat: '三层模板',
     name: 'OSPF 单区域模板',
     vendor: '华为 VRP8',
@@ -72,7 +80,8 @@ const TPLS = [
     note: 'network 用反码（255.255.255.0 → 0.0.0.255），写成正掩码是经典错误。邻居起不来按顺序查：底层 ping → 区域号 → 掩码 → 认证 → RID 冲突 → silent-interface。'
   },
   {
-    id: 'tpl-vrrp',kw:['vrrp', '网关双机', '网关热备', '主备网关'], 
+    id: 'tpl-vrrp',
+    kw: ['vrrp', '网关双机', '网关热备', '主备网关'],
     cat: '三层模板',
     name: 'VRRP 双机热备模板（主备网关）',
     vendor: '华为 VRP8',
@@ -82,7 +91,8 @@ const TPLS = [
 
   /* ============ DHCP 模板 ============ */
   {
-    id: 'tpl-dhcp-pool',kw:['dhcp地址池', '地址池配置', 'dhcp服务'], 
+    id: 'tpl-dhcp-pool',
+    kw: ['dhcp地址池', '地址池配置', 'dhcp服务'],
     cat: 'DHCP 模板',
     name: 'DHCP 地址池模板（接口 / 全局）',
     vendor: '华为 VRP8',
@@ -90,7 +100,8 @@ const TPLS = [
     note: '地址池别把 .1（网关）和 .254 包进去——留 .10-.50 给服务器打印机固定分配。监控池使用率：display ip pool | include used，到 80% 就该扩段了。'
   },
   {
-    id: 'tpl-dhcp-relay',kw:['dhcp中继', '中继配置', '跨网段获取地址'], 
+    id: 'tpl-dhcp-relay',
+    kw: ['dhcp中继', '中继配置', '跨网段获取地址'],
     cat: 'DHCP 模板',
     name: 'DHCP 中继模板（跨网段获取）',
     vendor: '华为 VRP8',
@@ -100,7 +111,8 @@ const TPLS = [
 
   /* ============ 安全模板 ============ */
   {
-    id: 'tpl-acl-basic',kw:['acl', 'acl配置', '访问控制列表'], 
+    id: 'tpl-acl-basic',
+    kw: ['acl', 'acl配置', '访问控制列表'],
     cat: '安全模板',
     name: 'ACL 基础模板（定义 + 应用）',
     vendor: '华为 VRP8',
@@ -108,7 +120,8 @@ const TPLS = [
     note: 'ACL 最后有条隐式 deny all——只想封一个 IP 要写 rule permit any 兜底，否则全断。步长留 10 的倍数，后面好插规则。应用后 display 看匹配计数涨没涨。'
   },
   {
-    id: 'tpl-fw-policy',kw:['防火墙策略', '安全策略', '域间策略', '放行策略'], 
+    id: 'tpl-fw-policy',
+    kw: ['防火墙策略', '安全策略', '域间策略', '放行策略'],
     cat: '安全模板',
     name: '防火墙域间策略模板（最小化放行）',
     vendor: '华为 USG VRP',
@@ -116,7 +129,8 @@ const TPLS = [
     note: '五要素缺一不可，匹配不上就走默认拒绝。排障三板斧：statistics 看命中数、display rule all 看顺序（被前面命中就不往下走）、session table 看会话。别图省事改默认动作为 permit。'
   },
   {
-    id: 'tpl-ipsec',kw:['ipsec', 'vpn配置', '站点互联', 'ipsec vpn'], 
+    id: 'tpl-ipsec',
+    kw: ['ipsec', 'vpn配置', '站点互联', 'ipsec vpn'],
     cat: '安全模板',
     name: 'IPsec VPN 站点互联模板',
     vendor: '华为 VRP8',
@@ -124,7 +138,8 @@ const TPLS = [
     note: '六步顺序别乱。排障铁律：先看 ike sa（一阶段没过=密钥/套件/对端地址/中间NAT），再看 ipsec sa（二阶段没过=感兴趣流两侧不对称/PFS组不一致）。ACL 是触发不是过滤，写反了通的不加不加的通。'
   },
   {
-    id: 'tpl-snooping',kw:['dhcp snooping', 'ipsg', '防私接', 'arp防护'], 
+    id: 'tpl-snooping',
+    kw: ['dhcp snooping', 'ipsg', '防私接', 'arp防护'],
     cat: '安全模板',
     name: 'DHCP Snooping + IPSG 模板（防私接）',
     vendor: '华为 VRP8',
@@ -134,7 +149,8 @@ const TPLS = [
 
   /* ============ NAT 模板 ============ */
   {
-    id: 'tpl-nat',kw:['nat', 'nat上网', '上网配置', 'easy ip', '内网上网'], 
+    id: 'tpl-nat',
+    kw: ['nat', 'nat上网', '上网配置', 'easy ip', '内网上网'],
     cat: 'NAT 模板',
     name: 'NAT 上网模板（Easy IP + Server）',
     vendor: '华为 VRP8',
@@ -144,7 +160,8 @@ const TPLS = [
 
   /* ============ 运维模板 ============ */
   {
-    id: 'tpl-mgmt-acl',kw:['管理面加固', '只准网管机登录', '登录限制'], 
+    id: 'tpl-mgmt-acl',
+    kw: ['管理面加固', '只准网管机登录', '登录限制'],
     cat: '运维模板',
     name: '管理面加固模板（只准网管机登录）',
     vendor: '华为 VRP8',
@@ -152,7 +169,8 @@ const TPLS = [
     note: '管理面三件套：ACL 限源、只开 SSH 不开 telnet、console 也要认证。改完先测网管机还能登，再踢自己——先想后路再动手。SNMP 同理，community 配 ACL。'
   },
   {
-    id: 'tpl-log-snmp',kw:['日志配置', 'snmp配置', '纳管', 'syslog'], 
+    id: 'tpl-log-snmp',
+    kw: ['日志配置', 'snmp配置', '纳管', 'syslog'],
     cat: '运维模板',
     name: '日志 + SNMP 纳管模板',
     vendor: '华为 VRP8',
@@ -160,7 +178,8 @@ const TPLS = [
     note: '日志存 6 个月以上（等保审计要查）。SNMP 共同体务必配 ACL + cipher 密文，公网裸奔等于送设备信息。trap enable 不开，接口 down 告警网管收不到。'
   },
   {
-    id: 'tpl-backup',kw:['定时备份', '配置备份', '自动备份'], 
+    id: 'tpl-backup',
+    kw: ['定时备份', '配置备份', '自动备份'],
     cat: '运维模板',
     name: '定时备份模板（配置不外流）',
     vendor: '华为 VRP8',
@@ -170,7 +189,8 @@ const TPLS = [
 
   /* ============ 项目场景模板 ============ */
   {
-    id: 'tpl-proj-office',kw:['办公网', 'vlan规划', '按部门划分'], 
+    id: 'tpl-proj-office',
+    kw: ['办公网', 'vlan规划', '按部门划分'],
     cat: '项目场景',
     name: '办公网 VLAN 规划模板（按部门）',
     vendor: '华为 VRP8',
@@ -178,7 +198,8 @@ const TPLS = [
     note: '部门 VLAN 分开 + 财务区 ACL 收紧 + 访客区单独 VAP/端口。管理 VLAN 99 只放行网管机访问。IP 规划：.1 网关、.254 测试、.10-.50 固定分配。'
   },
   {
-    id: 'tpl-proj-school',kw:['宿舍网', '校园网', '学生网接入'], 
+    id: 'tpl-proj-school',
+    kw: ['宿舍网', '校园网', '学生网接入'],
     cat: '项目场景',
     name: '宿舍网接入模板（限速 + 防私接）',
     vendor: '华为 VRP8',
@@ -186,7 +207,8 @@ const TPLS = [
     note: '一间宿舍一个口。Portal 限单账号在线数 1（一号一终端），CAR 限速防抢占，Snooping+IPSG 让私接小路由器发不出假地址。绑定表按月清理（换床率高）。'
   },
   {
-    id: 'tpl-proj-video',kw:['监控网', '视频专网', '组播'], 
+    id: 'tpl-proj-video',
+    kw: ['监控网', '视频专网', '组播'],
     cat: '项目场景',
     name: '监控专网模板（隔离 + 组播）',
     vendor: '华为 VRP8',
@@ -194,7 +216,8 @@ const TPLS = [
     note: '流量估算先行：1080P 约 4Mbps/路，200 路 = 800Mbps，上联千兆起且留 40% 余量。NVR 存储 90 天 ≈ 388GB/路。摄像头固定 IP 走绑定防掉线换 IP。'
   },
   {
-    id: 'tpl-proj-guest',kw:['访客wifi', '访客网络', 'guest', 'portal认证'], 
+    id: 'tpl-proj-guest',
+    kw: ['访客wifi', '访客网络', 'guest', 'portal认证'],
     cat: '项目场景',
     name: '访客网络模板（Portal + 隔离）',
     vendor: '华为 AC VRP',
@@ -204,7 +227,8 @@ const TPLS = [
 
   /* ============ 多厂商开局模板（第 23 轮补充） ============ */
   {
-    id: 'tpl-cisco-base',kw:['思科开局', 'cisco开局', 'ios开局'], 
+    id: 'tpl-cisco-base',
+    kw: ['思科开局', 'cisco开局', 'ios开局'],
     cat: '开局模板',
     name: '思科 IOS 交换机开局模板',
     vendor: '思科 IOS',
@@ -212,7 +236,8 @@ const TPLS = [
     note: '二层交换机用 ip default-gateway 出管理网，三层交换机要改写成 ip route 0.0.0.0 0.0.0.0 <GW-IP>。crypto key 生成完 SSH 才起得来，顺序别倒。'
   },
   {
-    id: 'tpl-h3c-base',kw:['h3c开局', 'comware开局', '华三开局'], 
+    id: 'tpl-h3c-base',
+    kw: ['h3c开局', 'comware开局', '华三开局'],
     cat: '开局模板',
     name: 'H3C Comware7 开局模板',
     vendor: 'H3C Comware7',
@@ -220,7 +245,8 @@ const TPLS = [
     note: 'H3C 三个必踩点：① Vlan-interface 带横线（不是 Vlanif）② local-user 必须 class manage 才登得上 ③ save force 免得交互卡住。'
   },
   {
-    id: 'tpl-ruijie-base',kw:['锐捷开局', 'rgos开局'], 
+    id: 'tpl-ruijie-base',
+    kw: ['锐捷开局', 'rgos开局'],
     cat: '开局模板',
     name: '锐捷 RGOS 开局模板',
     vendor: '锐捷 RGOS',
@@ -228,7 +254,8 @@ const TPLS = [
     note: '锐捷跟思科九成一样，差异在 interface VLAN 10（中间有空格）、clock timezone 只写数字、保存用 write。'
   },
   {
-    id: 'tpl-zte-base',kw:['中兴开局', 'zxr10开局'], 
+    id: 'tpl-zte-base',
+    kw: ['中兴开局', 'zxr10开局'],
     cat: '开局模板',
     name: '中兴 ZXR10 开局模板',
     vendor: '中兴 ZXR10',
@@ -236,7 +263,8 @@ const TPLS = [
     note: 'ZXR10 的 SVI 是 interface vlan10 连写、查看用 show（不是 display）、保存用 write。型号/版本间命令略有差异，拿不准时先在设备上敲 ? 补全看。'
   },
   {
-    id: 'tpl-junos-base',kw:['juniper开局', 'junos开局', 'juniper配置'], 
+    id: 'tpl-junos-base',
+    kw: ['juniper开局', 'junos开局', 'juniper配置'],
     cat: '开局模板',
     name: 'Juniper Junos 开局模板（set 一次到底）',
     vendor: 'Juniper Junos',
@@ -244,7 +272,8 @@ const TPLS = [
     note: 'Junos 开局三步：set 一串 → show | compare 核对 → commit 生效。密码哈希用 set system root-authentication plain-text-password 交互输入更省事。'
   },
   {
-    id: 'tpl-eos-base',kw:['arista开局', 'eos开局'], 
+    id: 'tpl-eos-base',
+    kw: ['arista开局', 'eos开局'],
     cat: '开局模板',
     name: 'Arista EOS 交换机开局模板',
     vendor: 'Arista EOS',
@@ -253,7 +282,8 @@ const TPLS = [
   },
   /* ============ IPv6 / 无线 / 路由 / 割接 ============ */
   {
-    id: 'tpl-v6-dual',kw:['ipv6', 'ipv6双栈', '双栈配置', 'v6开局'], 
+    id: 'tpl-v6-dual',
+    kw: ['ipv6', 'ipv6双栈', '双栈配置', 'v6开局'],
     cat: 'IPv6 模板',
     name: 'IPv6 双栈开局模板（IPv4 不动，加一层 v6）',
     vendor: '华为 VRP8',
@@ -261,7 +291,8 @@ const TPLS = [
     note: '三个必做项：① 全局 ipv6 ② 接口 ipv6 enable ③ undo ipv6 nd ra halt——RA 默认是停的，不关掉终端永远拿不到地址、也学不到默认路由。'
   },
   {
-    id: 'tpl-wlan-ac',kw:['ac开局', '无线开局', 'ap上线', '放ssid'], 
+    id: 'tpl-wlan-ac',
+    kw: ['ac开局', '无线开局', 'ap上线', '放ssid'],
     cat: '无线模板',
     name: '华为 AC 开局模板（AP 上线 + 放 SSID）',
     vendor: '华为 AC VRP',
@@ -269,7 +300,8 @@ const TPLS = [
     note: 'AP 上不了线先查三处：capwap source 指对没有、AP 和 AC 三层通不通（option 43 / DNS）、国家码建没建。VAP 三件套（ssid / security / vap）少一个 SSID 就发不出来。'
   },
   {
-    id: 'tpl-ospf-multi',kw:['ospf多区域', 'abr汇总', '接口认证'], 
+    id: 'tpl-ospf-multi',
+    kw: ['ospf多区域', 'abr汇总', '接口认证'],
     cat: '三层模板',
     name: 'OSPF 多区域模板（含 ABR 汇总与接口认证）',
     vendor: '华为 VRP8',
@@ -277,7 +309,8 @@ const TPLS = [
     note: '所有非骨干区域必须挂到 area 0（否则邻居起不来）；ABR 上做 abr-summary 把明细压成一条，分支再多核心路由表也不炸。认证两端 key-id 和密钥必须一致。'
   },
   {
-    id: 'tpl-cutover-back',kw:['割接', '割接回退', '回退方案', '变更方案'], 
+    id: 'tpl-cutover-back',
+    kw: ['割接', '割接回退', '回退方案', '变更方案'],
     cat: '运维模板',
     name: '割接回退清单模板（改之前先写好退路）',
     vendor: '华为 VRP8',
@@ -287,7 +320,8 @@ const TPLS = [
 
   /* ============ 策略 / 认证 / 运维模板（第 25 轮补充） ============ */
   {
-    id: 'tpl-qos-limit',kw:['端口限速', '限速配置', '带宽限制', 'car'], 
+    id: 'tpl-qos-limit',
+    kw: ['端口限速', '限速配置', '带宽限制', 'car'],
     cat: 'QoS 模板',
     name: '端口限速模板（入向 car / 出向整形）',
     vendor: '华为 VRP8',
@@ -295,7 +329,8 @@ const TPLS = [
     note: '入向只能丢（CAR），出向可以排队（整形），所以「对外限速」优先在出方向做。cbs 给太小会把突发全丢掉——经验值取「速率 × 10ms」，20M 约 250000 字节。'
   },
   {
-    id: 'tpl-mirror',kw:['端口镜像', '抓包配置', '镜像口', 'rspan'], 
+    id: 'tpl-mirror',
+    kw: ['端口镜像', '抓包配置', '镜像口', 'rspan'],
     cat: '运维模板',
     name: '端口镜像模板（本地抓包 / 远程 RSPAN）',
     vendor: '华为 VRP8',
@@ -303,7 +338,8 @@ const TPLS = [
     note: '观察口不能再承载业务；远程镜像要求整条路径放行 RSPAN VLAN（含 trunk 允许列表）。只抓入向就写 inbound——both 会把带宽翻倍，观察口容易拥塞丢包。'
   },
   {
-    id: 'tpl-stack',kw:['堆叠', '堆叠配置', 'istack'], 
+    id: 'tpl-stack',
+    kw: ['堆叠', '堆叠配置', 'istack'],
     cat: '二层模板',
     name: '堆叠模板（iStack 双机 + 交叉连线）',
     vendor: '华为 VRP8',
@@ -311,7 +347,8 @@ const TPLS = [
     note: '堆叠线要交叉接（A 的 1 口接 B 的 2 口、A 的 2 口接 B 的 1 口），单根能起但没冗余。renumber 改完必须重启才生效，两台要错开 1~2 分钟重启，避免抢主。H3C 对应 irf member + irf-port。'
   },
   {
-    id: 'tpl-dual-wan',kw:['双出口', '双线路', '主备出口', '分流出口'], 
+    id: 'tpl-dual-wan',
+    kw: ['双出口', '双线路', '主备出口', '分流出口'],
     cat: '三层模板',
     name: '双出口模板（主备 + 源分流 + 链路探测）',
     vendor: '华为 VRP8',
@@ -319,7 +356,8 @@ const TPLS = [
     note: '双出口三件套：主备 preference + 源地址分流 PBR + NQA 探测。只做前两个，主链路断了不会自动切——因为静态路由不会因为链路 down 就失效（除非接的是能感知的物理口）。'
   },
   {
-    id: 'tpl-dot1x',kw:['802.1x', '有线认证', 'dot1x', '认证前放行'], 
+    id: 'tpl-dot1x',
+    kw: ['802.1x', '有线认证', 'dot1x', '认证前放行'],
     cat: '安全模板',
     name: '802.1X 有线接入认证模板（RADIUS + 认证前放行）',
     vendor: '华为 VRP8',
@@ -327,7 +365,8 @@ const TPLS = [
     note: '上线顺序很关键：先拿 IP 再认证，所以 DHCP 必须放行（free-rule）。第一次部署先在测试口开，确认客户端能过认证再批量下发，否则整层楼一起断网。'
   },
   {
-    id: 'tpl-snmpv3',kw:['snmpv3', 'snmp加密', 'snmp认证', 'trap配置'], 
+    id: 'tpl-snmpv3',
+    kw: ['snmpv3', 'snmp加密', 'snmp认证', 'trap配置'],
     cat: '运维模板',
     name: 'SNMPv3 纳管模板（认证 + 加密 + Trap）',
     vendor: '华为 VRP8',
@@ -337,7 +376,8 @@ const TPLS = [
 
   /* ============ 数据中心 / 上云 / 运维流水线模板（第 26 轮补充） ============ */
   {
-    id: 'tpl-roce',kw:['roce', '无损网络', 'pfc', 'ecn'], 
+    id: 'tpl-roce',
+    kw: ['roce', '无损网络', 'pfc', 'ecn'],
     cat: '数据中心模板',
     name: 'RoCE 无损网络模板（PFC + ECN）',
     vendor: '华为 CE',
@@ -345,7 +385,8 @@ const TPLS = [
     note: 'PFC 只对无损队列开，全场开容易 PFC 风暴。ECN 门限 30~40% 起标、70% 全标。端到端要一致——服务器网卡侧也要开 PFC/ECN，只配交换机等于没配。'
   },
   {
-    id: 'tpl-cloud-connect',kw:['云专线', 'bgp对接', '云上专线'], 
+    id: 'tpl-cloud-connect',
+    kw: ['云专线', 'bgp对接', '云上专线'],
     cat: '三层模板',
     name: '云专线对接模板（BGP + 双线主备）',
     vendor: '华为 VRP8',
@@ -353,7 +394,8 @@ const TPLS = [
     note: '上云前三查：① 网段是否与云 VPC 重叠（重叠必须改规划）② MTU 是否被隧道吃掉 ③ 云侧路由表/安全组是否放行本地网段。BGP 起不来先看 TCP 179 通不通。'
   },
   {
-    id: 'tpl-bastion',kw:['堡垒机', 'tacacs+', '命令审计'], 
+    id: 'tpl-bastion',
+    kw: ['堡垒机', 'tacacs+', '命令审计'],
     cat: '安全模板',
     name: '堡垒机对接模板（TACACS+ 命令审计）',
     vendor: '华为 VRP8',
@@ -361,7 +403,8 @@ const TPLS = [
     note: '审计要落地必须走 TACACS+（支持逐条命令授权与记录），RADIUS 做不到命令级。救援账号一定要留，否则堡垒机一挂全线进不去——但密码要单独封存、用完改。'
   },
   {
-    id: 'tpl-monitor-full',kw:['监控接入', '监控配置', 'snmp监控', '告警接入'], 
+    id: 'tpl-monitor-full',
+    kw: ['监控接入', '监控配置', 'snmp监控', '告警接入'],
     cat: '运维模板',
     name: '监控接入模板（SNMP + Syslog + Trap 全套）',
     vendor: '华为 VRP8',
@@ -369,7 +412,8 @@ const TPLS = [
     note: '监控三件套：指标（SNMP）、事件（Syslog）、告警（Trap）。三样都接之前先把 NTP 配好——时间不对，事后分析日志根本对不上。'
   },
   {
-    id: 'tpl-backup-git',kw:['自动备份', 'git备份', '备份流水线'], 
+    id: 'tpl-backup-git',
+    kw: ['自动备份', 'git备份', '备份流水线'],
     cat: '运维模板',
     name: '配置自动备份流水线（拉取 + Git 版本化）',
     vendor: '通用脚本',
@@ -377,7 +421,8 @@ const TPLS = [
     note: '备份要落在另一台机器（设备 flash 会跟着设备一起坏）。进 Git 后「谁在什么时候改了哪一行」变成 git diff 一眼可见，割接前打个 tag 就是基线。仓库别放公网。'
   },
   {
-    id: 'tpl-inspect',kw:['巡检', '巡检报表', '定期检查'], 
+    id: 'tpl-inspect',
+    kw: ['巡检', '巡检报表', '定期检查'],
     cat: '运维模板',
     name: '巡检报表模板（采集 + CSV + 趋势对比）',
     vendor: '通用脚本',
@@ -387,7 +432,8 @@ const TPLS = [
 
   /* ============ 服务器 / 交付 / 加固模板（第 27 轮补充） ============ */
   {
-    id: 'tpl-bond',kw:['双网卡绑定', 'bond配置', '网卡冗余'], 
+    id: 'tpl-bond',
+    kw: ['双网卡绑定', 'bond配置', '网卡冗余'],
     cat: '运维模板',
     name: '服务器双网卡绑定模板（LACP / 主备）',
     vendor: 'Linux',
@@ -395,7 +441,8 @@ const TPLS = [
     note: '想省事选 mode 1（主备，交换机不用配）；要带宽叠加选 mode 4（两端都要 LACP）。两块网卡要接不同交换机（或堆叠/M-LAG 的两台）才叫链路冗余。'
   },
   {
-    id: 'tpl-lb-health',kw:['健康检查', '负载均衡', 'lb配置'], 
+    id: 'tpl-lb-health',
+    kw: ['健康检查', '负载均衡', 'lb配置'],
     cat: '运维模板',
     name: '负载均衡健康检查模板（四层 / 七层）',
     vendor: 'Nginx / HAProxy',
@@ -403,7 +450,8 @@ const TPLS = [
     note: '四层探测只看端口能不能连——后端进程卡死但端口还在，流量照样打过去。有 HTTP 服务就一定要用七层探测（探测一个 /health 返回 200）。'
   },
   {
-    id: 'tpl-dhcp-option43',kw:['option 43', 'ap跨三层', 'ap上线'], 
+    id: 'tpl-dhcp-option43',
+    kw: ['option 43', 'ap跨三层', 'ap上线'],
     cat: 'DHCP 模板',
     name: 'AP 跨三层上线模板（DHCP Option 43）',
     vendor: '华为 VRP8',
@@ -411,7 +459,8 @@ const TPLS = [
     note: 'AP 跨三层上线只有两条路：Option 43 或 DNS 解析（AP 默认找 huawei.com 之类的域名）。Option 43 的写法厂商差异大——华为子选项 2 直接写 IP，思科要转十六进制（10.1.1.10 → 0a01010a）。'
   },
   {
-    id: 'tpl-hardening',kw:['加固', '安全基线', '等保配置', '设备加固'], 
+    id: 'tpl-hardening',
+    kw: ['加固', '安全基线', '等保配置', '设备加固'],
     cat: '安全模板',
     name: '网络设备加固基线模板（等保三级）',
     vendor: '华为 VRP8',
@@ -419,7 +468,8 @@ const TPLS = [
     note: '等保检查最常被挑的三项：Telnet 没关、SNMP 还在 v2c public、日志没外发。这三条十分钟能改完，但整改报告要写两周——上线前就配好。'
   },
   {
-    id: 'tpl-microburst',kw:['微突发', 'microburst', '缓存基线'], 
+    id: 'tpl-microburst',
+    kw: ['微突发', 'microburst', '缓存基线'],
     cat: '运维模板',
     name: '微突发（Microburst）观测与缓存基线',
     vendor: '华为 VRP8 + Cisco IOS-XE',
@@ -427,7 +477,8 @@ const TPLS = [
     note: '微突发最容易误判成带宽不足。判据只有一个：平均利用率不到 30% 却持续丢包，那就是突发，扩带宽没用，得整形。'
   },
   {
-    id: 'tpl-carrier-ticket',kw:['运营商报障', '电路定界', '运营商排障'], 
+    id: 'tpl-carrier-ticket',
+    kw: ['运营商报障', '电路定界', '运营商排障'],
     cat: '项目场景',
     name: '运营商电路报障与定界清单',
     vendor: '通用 / 华为 VRP8',
@@ -435,7 +486,8 @@ const TPLS = [
     note: '运营商最常回的一句是「我方测试正常」。破解办法不是吵，是把光功率、环回、分段 ping 三张证据一起甩过去——有数据的工单从来不会被挂起。'
   },
   {
-    id: 'tpl-sdwan-sla',kw:['sd-wan', 'sdwan', 'sla选路'], 
+    id: 'tpl-sdwan-sla',
+    kw: ['sd-wan', 'sdwan', 'sla选路'],
     cat: '项目场景',
     name: 'SD-WAN 应用级 SLA 选路策略',
     vendor: '华为 SD-WAN / 通用 CLI',
@@ -443,7 +495,8 @@ const TPLS = [
     note: 'SD-WAN 项目失败八成不是选路算法不行，是阈值没设迟滞。开会时链路抖一下就切、切回来又抖，用户体验比单一专线还差。'
   },
   {
-    id: 'tpl-voice-qos',kw:['语音qos', '视频qos', '端到端qos'], 
+    id: 'tpl-voice-qos',
+    kw: ['语音qos', '视频qos', '端到端qos'],
     cat: 'QoS 模板',
     name: '语音视频端到端 QoS（接入→出口）',
     vendor: '华为 VRP8',
@@ -451,7 +504,8 @@ const TPLS = [
     note: '语音质量问题九成出在「只配了接入层」：话机标记对了，中间核心没 trust DSCP，出接口又把 EF 重标成 0，一路白做。QoS 要跳跳配，不能只配一头。'
   },
   {
-    id: 'tpl-dc-underlay',kw:['spine-leaf', 'underlay', '数据中心组网'], 
+    id: 'tpl-dc-underlay',
+    kw: ['spine-leaf', 'underlay', '数据中心组网'],
     cat: '数据中心模板',
     name: '数据中心 Spine-Leaf Underlay 规划模板',
     vendor: 'Arista EOS / 华为 CE',
@@ -459,7 +513,8 @@ const TPLS = [
     note: 'Underlay 出问题 90% 是三件事：MTU 没统一、BFD 没开、ECMP 哈希不散。三者上线当天都不会报错，等你上生产跑大流量才炸。'
   },
   {
-    id: 'tpl-tshoot-card',kw:['故障定界', '排障速查', '分层排除'], 
+    id: 'tpl-tshoot-card',
+    kw: ['故障定界', '排障速查', '分层排除'],
     cat: '运维模板',
     name: '故障定界速查卡（分层排除法）',
     vendor: '通用',
@@ -467,7 +522,8 @@ const TPLS = [
     note: '排障慢通常不是技术不够，是跳步——物理层还 down 着就去查路由表。这张卡贴工位，按顺序走，绝大多数故障 5 分钟内能定界。'
   },
   {
-    id: 'tpl-iot-vlan',kw:['物联网', '摄像头接入', '门禁接入', 'iot隔离'], 
+    id: 'tpl-iot-vlan',
+    kw: ['物联网', '摄像头接入', '门禁接入', 'iot隔离'],
     cat: '安全模板',
     name: '物联网（摄像头 / 门禁 / 仪表）接入隔离模板',
     vendor: '华为 VRP8',
@@ -475,7 +531,8 @@ const TPLS = [
     note: '物联网段最大的风险是「默认密码设备被控后横向扫全公司」。隔离三件套：单独 VLAN、端口隔离、只放行平台 IP——这三条加上去，即使设备被控也炸不开。'
   },
   {
-    id: 'tpl-5g-backup',kw:['4g备份', '5g备份', '备份线路切换'], 
+    id: 'tpl-5g-backup',
+    kw: ['4g备份', '5g备份', '备份线路切换'],
     cat: '项目场景',
     name: '4G/5G 备份线路自动切换模板',
     vendor: '华为 VRP8',
@@ -483,7 +540,8 @@ const TPLS = [
     note: '备份链路最常见的失败不是切不过去，是「切过去以后再也没切回来」，或者切过去发现 MTU 不对业务照样不通。上线当天一定要做一次真拔线测试。'
   },
   {
-    id: 'tpl-rack-baseline',kw:['机柜上架', '端口基线', '机柜配置'], 
+    id: 'tpl-rack-baseline',
+    kw: ['机柜上架', '端口基线', '机柜配置'],
     cat: '运维模板',
     name: '新机柜上架与端口基线模板',
     vendor: '华为 VRP8',
@@ -491,7 +549,8 @@ const TPLS = [
     note: '新机柜最容易被跳过的是「服务器口开 edged-port」和「双电源分插」。前者影响服务器重启后多久能通网，后者决定一次 UPS 故障会不会带走整个机柜。'
   },
   {
-    id: 'tpl-capacity-collect',kw:['容量采集', '带宽基线', '流量采集'], 
+    id: 'tpl-capacity-collect',
+    kw: ['容量采集', '带宽基线', '流量采集'],
     cat: '运维模板',
     name: '容量采集与带宽基线命令集',
     vendor: '华为 VRP8 / Linux',
@@ -499,7 +558,8 @@ const TPLS = [
     note: '扩容申请被驳回，多数是因为报告里只有「平均利用率」。改成 P95 + 峰值时段 + 触顶预估，同样的数据，通过率完全不一样——这是网络工程师向上沟通最实用的一招。'
   },
   {
-    id: 'tpl-nat-server-mix',kw:['nat server', '源nat', '回流处理', 'nat混合'], 
+    id: 'tpl-nat-server-mix',
+    kw: ['nat server', '源nat', '回流处理', 'nat混合'],
     cat: 'NAT 模板',
     name: 'NAT Server + 源 NAT 混合（含回流处理）',
     vendor: '华为 VRP8',
@@ -507,7 +567,8 @@ const TPLS = [
     note: 'NAT 三件套最容易漏的是「回流」——外网能开、内网打不开，客户投诉时最难解释。最省事的解法不是配 hairpin，而是内网 DNS 直接解析到私网地址。'
   },
   {
-    id: 'tpl-ipv6-dualstack',kw:['ipv6接入', 'ipv6地址', 'ra配置', 'dhcpv6'], 
+    id: 'tpl-ipv6-dualstack',
+    kw: ['ipv6接入', 'ipv6地址', 'ra配置', 'dhcpv6'],
     cat: 'IPv6 模板',
     name: 'IPv6 双栈接入模板（地址 / RA / DHCPv6）',
     vendor: '华为 VRP8',
@@ -515,7 +576,8 @@ const TPLS = [
     note: 'IPv6 上线最常见的两个坑：一是忘了 undo ipv6 nd ra halt，终端拿不到地址；二是接入口没禁 RA，被人插一台路由器就把整段流量劫走。'
   },
   {
-    id: 'tpl-ac-side',kw:['ac旁挂', '旁挂组网', 'ac配置'], 
+    id: 'tpl-ac-side',
+    kw: ['ac旁挂', '旁挂组网', 'ac配置'],
     cat: '无线模板',
     name: 'AC 旁挂组网模板（AP 上线 + 业务下发）',
     vendor: '华为 VRP8',
@@ -523,7 +585,8 @@ const TPLS = [
     note: 'AP 上不了线，九成在三处：Option 43 没配、CAPWAP 源接口选错 VLAN、中间链路没放行管理 VLAN。先看 online-fail-record，比盲猜快得多。'
   },
   {
-    id: 'tpl-qos-priority',kw:['业务优先', '出口限速', '优先级配置'], 
+    id: 'tpl-qos-priority',
+    kw: ['业务优先', '出口限速', '优先级配置'],
     cat: 'QoS 模板',
     name: '关键业务优先 + 出口限速模板',
     vendor: '华为 VRP8',
@@ -531,7 +594,8 @@ const TPLS = [
     note: 'QoS 最容易做错的是「分类太细」和「出口限速设成满值」。前者配完自己都记不清，后者等于在拥堵时先丢语音。留 5~10% 余量这条，比任何队列参数都管用。'
   },
   {
-    id: 'tpl-mlag-tor',kw:['m-lag', 'mlag', '双活tor', '服务器双归'], 
+    id: 'tpl-mlag-tor',
+    kw: ['m-lag', 'mlag', '双活tor', '服务器双归'],
     cat: '数据中心模板',
     name: 'M-LAG 双活 ToR 模板（服务器双归接入）',
     vendor: '华为 VRP8',

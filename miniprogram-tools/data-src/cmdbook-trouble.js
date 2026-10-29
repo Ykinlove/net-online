@@ -6,7 +6,11 @@ const TROUBLE_EXTRA = [
     id: 'tb-port-down',
     devs: ['Switch', 'Router', '防火墙'],
     name: '端口 down 排查（物理还是协议）',
-    kw: ['端口down', '口不up', '接口起不来', 'link不通', '网线插了不亮', '网线插上不亮', '插上还是不亮', '口不亮', '网线插上了还是不亮', '插了网线不亮', '网线插了没反应', '插上网线没反应', '网线插上没反应', '灯不亮', '端口不亮', '插上不亮', '接口不亮', '接口一直up down'],
+    kw: [
+      '端口down', '口不up', '接口起不来', 'link不通', '网线插了不亮', '网线插上不亮',
+      '插上还是不亮', '口不亮', '网线插上了还是不亮', '插了网线不亮', '网线插了没反应', '插上网线没反应',
+      '网线插上没反应', '灯不亮', '端口不亮', '插上不亮', '接口不亮', '接口一直up down'
+    ],
     cmds: [
       ['华为', 'display interface GigabitEthernet 0/0/1\ndisplay interface brief\ndisplay transceiver interface GigabitEthernet 0/0/1'],
       ['思科', 'show interfaces GigabitEthernet0/1\nshow interfaces status\nshow interfaces transceiver detail'],

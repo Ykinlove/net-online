@@ -130,7 +130,10 @@ const HCIE_EXTRA = [
     id: 'hcie-vxlan-evpn',
     devs: ['Switch', 'Router'],
     name: 'VXLAN + BGP EVPN 基础（控制面 + 数据面）',
-    kw: ['vxlan evpn', 'bgp evpn', 'vni', 'nve', '头端复制', 'hcie', 'evpn rt', 'rt匹配', 'rt不通', 'evpn的rt', 'vpn-target', 'route-distinguisher'],
+    kw: [
+      'vxlan evpn', 'bgp evpn', 'vni', 'nve', '头端复制', 'hcie',
+      'evpn rt', 'rt匹配', 'rt不通', 'evpn的rt', 'vpn-target', 'route-distinguisher'
+    ],
     cmds: [
       ['华为', 'bridge-domain 10\n vxlan vni 5010\n evpn\n  route-distinguisher 10:1\n  vpn-target 100:10\ninterface Nve1\n source 2.2.2.2\n vni 5010 head-end peer-list protocol bgp\nbgp 100\n l2vpn-family evpn\n  peer 3.3.3.3 enable\n  peer 3.3.3.3 advertise irb'],
       ['思科', 'feature nv overlay\nfeature vn-segment-vlan-based\nfeature bgp\nvlan 10\n vn-segment 5010\ninterface nve1\n no shutdown\n source-interface loopback0\n member vni 5010\n  ingress-replication protocol bgp\nrouter bgp 100\n address-family l2vpn evpn\n  neighbor 3.3.3.3 activate\n  neighbor 3.3.3.3 send-community extended'],

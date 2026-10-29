@@ -36,7 +36,10 @@ const NEWTECH_EXTRA = [
     id: 'wlan-wifi7',
     devs: ['AC', 'AP'],
     name: 'Wi-Fi 7 要点（MLO / 320MHz / 6GHz）',
-    kw: ['wifi7', 'wi-fi 7', '802.11be', 'mlo', '320mhz', '6ghz', 'wifi6e', '新一代无线', 'wifi6', 'wifi 6', 'wifi 7', '802.11ax'],
+    kw: [
+      'wifi7', 'wi-fi 7', '802.11be', 'mlo', '320mhz', '6ghz',
+      'wifi6e', '新一代无线', 'wifi6', 'wifi 6', 'wifi 7', '802.11ax'
+    ],
     cmds: [
       ['三个前提', '① AP 与 AC 都支持 802.11be（Wi-Fi 7）\n② 当地法规开放 6GHz（国内仅部分频段可用）\n③ 终端也支持，否则回落 Wi-Fi 6\n# 先确认型号与软件版本，再谈配置'],
       ['验证（华为）', 'display ap all                 # AP 型号与在线状态\ndisplay radio all              # 各射频频宽 / 信道 / 功率\ndisplay station all            # 终端协商协议与速率\ndisplay ap performance all     # 空口质量与干扰'],
