@@ -1,0 +1,233 @@
+.home { padding-bottom: calc(40 * var(--u)); }
+
+/* 搜索入口 */
+.search-entry {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  height: calc(92 * var(--u));
+  padding: 0 calc(22 * var(--u));
+  margin-bottom: calc(22 * var(--u));
+  box-sizing: border-box;
+  background: #fffdf6;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  border-radius: calc(10 * var(--u));
+  box-shadow: 0 calc(7 * var(--u)) 0 rgba(44, 62, 80, 0.18);
+}
+.search-entry-hover {
+  transform: translateY(calc(4 * var(--u)));
+  box-shadow: 0 calc(3 * var(--u)) 0 rgba(44, 62, 80, 0.18);
+}
+.se-ico { flex: none; font-size: calc(27 * var(--u)); }
+.se-ph {
+  flex: 1;
+  font-size: calc(26 * var(--u));
+  color: #9fb0c0;
+}
+
+/* 配置模板入口 */
+.tpl-entry {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--u));
+  padding: calc(18 * var(--u)) calc(22 * var(--u));
+  margin-bottom: calc(22 * var(--u));
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #fff8e6 0%, #fffdf6 70%);
+  border: calc(4 * var(--u)) solid #c9a455;
+  border-radius: calc(10 * var(--u));
+  box-shadow: 0 calc(7 * var(--u)) 0 rgba(201, 164, 85, 0.22);
+}
+.tpl-entry-hover {
+  transform: translateY(calc(4 * var(--u)));
+  box-shadow: 0 calc(3 * var(--u)) 0 rgba(201, 164, 85, 0.22);
+}
+.tpl-entry-ico { flex: none; font-size: calc(34 * var(--u)); }
+.tpl-entry-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--u));
+}
+.tpl-entry-t {
+  font-size: calc(27 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+}
+.tpl-entry-s {
+  font-size: calc(20 * var(--u));
+  color: #a08c5f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tpl-entry-arrow {
+  flex: none;
+  font-size: calc(34 * var(--u));
+  color: #c9a455;
+}
+
+/* 答案之书 */
+.answer-card {
+  background: linear-gradient(135deg, #fff8e6 0%, #fffdf6 60%);
+  border-color: #c9a455;
+}
+.answer-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: calc(14 * var(--u));
+}
+.answer-label {
+  font-size: calc(23 * var(--u));
+  font-weight: 800;
+  color: #c97a14;
+  letter-spacing: calc(1 * var(--u));
+}
+.answer-refresh {
+  margin-left: auto;
+  font-size: calc(21 * var(--u));
+  color: #a08a5e;
+}
+.answer-text {
+  display: block;
+  font-size: calc(30 * var(--u));
+  font-weight: 700;
+  line-height: 1.7;
+  color: #3c4a58;
+  letter-spacing: calc(0.5 * var(--u));
+}
+
+
+
+/* 主操作 */
+.hero-actions {
+  display: flex;
+  gap: calc(18 * var(--u));
+  margin-bottom: calc(22 * var(--u));
+}
+.hero-btn {
+  flex: 1;
+  padding: calc(26 * var(--u)) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  background: #ffd86b;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  border-radius: calc(10 * var(--u));
+  box-shadow: 0 calc(8 * var(--u)) 0 rgba(44, 62, 80, 0.25);
+}
+.hero-btn-2 { background: #bfe3ff; }
+.hero-btn-hover { transform: translateY(calc(5 * var(--u))); box-shadow: 0 calc(3 * var(--u)) 0 rgba(44, 62, 80, 0.25); }
+.hero-ico { font-size: calc(40 * var(--u)); }
+.hero-txt { font-size: calc(26 * var(--u)); font-weight: 800; color: #2c3e50; }
+
+/* 日历 */
+.cal-nav {
+  margin-left: auto;
+  width: calc(46 * var(--u));
+  height: calc(46 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(32 * var(--u));
+  color: #5a6b7d;
+  background: #eef6ff;
+  border: calc(2 * var(--u)) solid #c2d4e3;
+  border-radius: calc(6 * var(--u));
+}
+.cal-nav + .cal-nav { margin-left: calc(10 * var(--u)); }
+.cal-week {
+  display: flex;
+  padding-bottom: calc(8 * var(--u));
+}
+.cal-wd {
+  width: 14.28%;
+  text-align: center;
+  font-size: calc(20 * var(--u));
+  color: #9fb0c0;
+  font-weight: 700;
+}
+.cal-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+.cal-cell {
+  width: 14.28%;
+  height: calc(84 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.cal-empty { opacity: 0; }
+.cal-day {
+  font-size: calc(23 * var(--u));
+  line-height: 1.15;
+  color: #3c4a58;
+  font-weight: 600;
+}
+.cal-sub {
+  margin-top: calc(3 * var(--u));
+  font-size: calc(15 * var(--u));
+  line-height: 1.15;
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: #9fb0c0;
+}
+/* 农历普通日：浅灰 */
+.cal-sub.lunar { color: #a9bccd; }
+/* 节气：青绿 */
+.cal-sub.term { color: #2f8f6b; font-weight: 700; }
+/* 节日：红金 */
+.cal-sub.fest { color: #c74a3a; font-weight: 700; }
+/* 今天：把农历日名加深一档，免得压在深色圆点旁看不清 */
+.cal-today .cal-sub.lunar { color: #6f8092; font-weight: 700; }
+.cal-today .cal-day {
+  color: #fff;
+  background: #2c3e50;
+  width: calc(40 * var(--u));
+  height: calc(40 * var(--u));
+  line-height: calc(40 * var(--u));
+  text-align: center;
+  border-radius: 50%;
+  font-weight: 800;
+}
+.cal-dot {
+  position: absolute;
+  top: calc(4 * var(--u));
+  right: calc(14 * var(--u));
+  width: calc(8 * var(--u));
+  height: calc(8 * var(--u));
+  border-radius: 50%;
+  background: #f5a623;
+}
+.cal-foot {
+  margin-top: calc(14 * var(--u));
+  padding-top: calc(14 * var(--u));
+  border-top: calc(2 * var(--u)) dashed #d9e4ee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cal-foot-txt {
+  font-size: calc(20 * var(--u));
+  font-weight: 700;
+  letter-spacing: calc(0.5 * var(--u));
+  color: #c97a14;
+  background: #fff3d6;
+  border: calc(2 * var(--u)) solid #e8c98a;
+  border-radius: calc(22 * var(--u));
+  padding: calc(4 * var(--u)) calc(20 * var(--u));
+}
+
+/* 今日待办样式已随模块迁到 mine.wxss */
+
+.home-foot {
+  text-align: center;
+  padding: calc(26 * var(--u)) 0 calc(10 * var(--u));
+  font-size: calc(20 * var(--u));
+  color: #a9bccd;
+}

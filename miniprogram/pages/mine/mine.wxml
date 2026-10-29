@@ -1,0 +1,79 @@
+<view class="page mine">
+
+  <!-- 等级：只显示 Lv + 进度，不写任何说明文字 -->
+  <view class="card lv-card">
+    <view class="lv-hero">
+      <text class="lv-big">Lv.{{lv.level}}</text>
+      <view class="bar"><view class="bar-fill" style="width:{{lv.pct}}%"></view></view>
+    </view>
+  </view>
+
+  <!-- 人物卡 -->
+  <view class="char-card">
+    <image class="char-bg" src="{{bgImage}}" mode="aspectFill"></image>
+    <view class="char-shade"></view>
+    <image class="char-img" src="{{charImage}}" mode="aspectFit"></image>
+    <view class="char-info">
+      <text class="char-name">{{nickname || '未命名工程师'}}</text>
+      <text wx:if="{{oneLineDesc}}" class="char-desc">{{oneLineDesc}}</text>
+      <view class="char-chips">
+        <text wx:if="{{stage}}" class="chip-mini">{{stage}}</text>
+        <text wx:if="{{org}}" class="chip-mini">{{org}}</text>
+        <text wx:if="{{major}}" class="chip-mini">{{major}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 关键词 -->
+  <view class="card kw-card">
+    <view class="kw-line">
+      <text class="kw-label">兴趣</text>
+      <view class="kw-list">
+        <text wx:for="{{interests}}" wx:key="*this" class="chip">{{item}}</text>
+        <text wx:if="{{!interests.length}}" class="muted">还没有</text>
+      </view>
+    </view>
+    <view class="kw-line">
+      <text class="kw-label">职业</text>
+      <view class="kw-list">
+        <text wx:for="{{careers}}" wx:key="*this" class="chip chip-gold">{{item}}</text>
+        <text wx:if="{{!careers.length}}" class="muted">还没有</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近记录 -->
+  <view class="card">
+    <view class="card-title-row">
+      <text class="card-title">🕘 最近记录</text>
+      <text class="card-more" bindtap="goCommands">全部 ›</text>
+    </view>
+    <view wx:if="{{!recent.length}}" class="empty">还没有记录，从「记一条命令」开始吧</view>
+    <view
+      wx:for="{{recent}}"
+      wx:key="_key"
+      class="recent-item"
+      bindtap="openCmd"
+      data-idx="{{index}}"
+    >
+      <view class="recent-main">
+        <text class="recent-title">{{item.title}}</text>
+        <text class="recent-meta">{{item.device}}</text>
+      </view>
+      <text class="recent-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 入口 -->
+  <view class="menu">
+    <view class="menu-row" bindtap="goSettings" hover-class="menu-row-hover">
+      <text class="menu-ico">⚙️</text>
+      <text class="menu-txt">设置</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="mine-foot">
+    <text class="foot-brand">🌐 Net 操作命令速记</text>
+  </view>
+</view>

@@ -1,0 +1,77 @@
+<view class="page ob">
+  <view class="ob-hero">
+    <text class="ob-title">🌐 建立你的工程师档案</text>
+    <text class="ob-sub">这些配置不会定义你，但会成为角色成长的初始养料</text>
+  </view>
+
+  <view class="card">
+    <view class="field">
+      <text class="field-label">昵称 <text class="req">*</text></text>
+      <input class="input" value="{{form.nickname}}" maxlength="20" placeholder="{{nickPh}}" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="nickname" bindinput="onInput" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">单位 / 学校</text>
+      <input class="input" value="{{form.org}}" maxlength="40" placeholder="" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="org" bindinput="onInput" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">专业 / 方向</text>
+      <input class="input" value="{{form.major}}" maxlength="40" placeholder="" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="major" bindinput="onInput" />
+    </view>
+
+    <view class="field">
+      <text class="field-label">年级 / 阶段</text>
+      <picker mode="selector" range="{{stages}}" value="{{stageIdx}}" bindchange="onStage">
+        <view class="picker-box">
+          <text class="{{form.stage ? '' : 'ph'}}">{{form.stage || '请选择'}}</text>
+          <text class="picker-caret">▾</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <text class="field-label">一句话描述</text>
+      <input class="input" value="{{form.oneLineDesc}}" maxlength="30" placeholder="" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="oneLineDesc" bindinput="onInput" />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="kw-head">
+      <text class="field-label">兴趣关键词</text>
+      <text class="kw-tip">{{interests.length}}/8</text>
+    </view>
+    <view class="kw-tags">
+      <view class="kw-chip" wx:for="{{interests}}" wx:key="*this">
+        <text class="kw-text">{{item}}</text>
+        <text class="kw-x" catchtap="removeKw" data-kind="interests" data-idx="{{index}}">×</text>
+      </view>
+      <text wx:if="{{!interests.length}}" class="kw-empty">还没有关键词，在下面输入后点添加</text>
+    </view>
+    <view class="kw-row">
+      <input class="input kw-input" value="{{kwInput.interests}}" maxlength="20" placeholder="" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-kind="interests" bindinput="onKwInput" bindconfirm="addKw" confirm-type="done" confirm-hold />
+      <view class="btn btn-sm kw-add" catchtap="addKw" data-kind="interests">添加</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="kw-head">
+      <text class="field-label">职业关键词</text>
+      <text class="kw-tip">{{careers.length}}/8</text>
+    </view>
+    <view class="kw-tags">
+      <view class="kw-chip chip-gold" wx:for="{{careers}}" wx:key="*this">
+        <text class="kw-text">{{item}}</text>
+        <text class="kw-x" catchtap="removeKw" data-kind="careers" data-idx="{{index}}">×</text>
+      </view>
+      <text wx:if="{{!careers.length}}" class="kw-empty">还没有关键词，在下面输入后点添加</text>
+    </view>
+    <view class="kw-row">
+      <input class="input kw-input" value="{{kwInput.careers}}" maxlength="20" placeholder="" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-kind="careers" bindinput="onKwInput" bindconfirm="addKw" confirm-type="done" confirm-hold />
+      <view class="btn btn-sm kw-add" catchtap="addKw" data-kind="careers">添加</view>
+    </view>
+  </view>
+
+  <view class="btn btn-primary btn-block ob-submit" bindtap="submit">{{editing ? '保存修改' : '保存并继续'}}</view>
+  <view class="ob-note">档案保存后可在「我的 → 设置」里修改</view>
+</view>

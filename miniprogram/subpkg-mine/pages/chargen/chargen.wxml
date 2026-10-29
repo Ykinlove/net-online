@@ -1,0 +1,49 @@
+<view class="page cg">
+  <view class="cg-preview">
+    <image class="cg-bg" src="/images/preset/bg/{{pickBg}}.jpg" mode="aspectFill"></image>
+    <image class="cg-char" src="/images/preset/char/{{pickChar}}.png" mode="aspectFit"></image>
+    <view class="cg-name">{{nickname || '你的工程师'}}</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title-row">
+      <text class="card-title">选择形象</text>
+    </view>
+    <view class="cg-grid">
+      <view
+        wx:for="{{chars}}"
+        wx:key="id"
+        class="cg-cell {{item.on ? 'on' : ''}} {{item.locked ? 'is-lock' : ''}}"
+        data-v="{{item.id}}"
+        bindtap="pickCharFn"
+      >
+        <image class="cg-cell-img" src="/images/preset/char/{{item.id}}.png" mode="aspectFit"></image>
+        <view wx:if="{{item.locked}}" class="cg-lock">
+          <text class="cg-lock-ico">🔒</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title-row">
+      <text class="card-title">选择背景</text>
+    </view>
+    <view class="cg-bg-row">
+      <view
+        wx:for="{{bgs}}"
+        wx:key="id"
+        class="cg-bg-cell {{item.on ? 'on' : ''}} {{item.locked ? 'is-lock' : ''}}"
+        data-v="{{item.id}}"
+        bindtap="pickBgFn"
+      >
+        <image class="cg-bg-img" src="/images/preset/bg/{{item.id}}.jpg" mode="aspectFill"></image>
+        <view wx:if="{{item.locked}}" class="cg-lock">
+          <text class="cg-lock-ico">🔒</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="btn btn-primary btn-block cg-submit" bindtap="confirm">就用这个形象</view>
+</view>

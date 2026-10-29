@@ -1,0 +1,78 @@
+.ob { padding-bottom: calc(60 * var(--u)); }
+.ob-hero {
+  padding: calc(16 * var(--u)) calc(4 * var(--u)) calc(26 * var(--u));
+  display: flex;
+  flex-direction: column;
+}
+.ob-title {
+  font-size: calc(38 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: calc(10 * var(--u));
+}
+.ob-sub {
+  font-size: calc(23 * var(--u));
+  color: #6b7d8f;
+  line-height: 1.6;
+}
+
+.picker-box {
+  display: flex;
+  align-items: center;
+  height: calc(92 * var(--u));
+  padding: 0 calc(24 * var(--u));
+  background-color: #ffffff;
+  border: calc(4 * var(--u)) solid #b9cfe0;
+  border-radius: calc(8 * var(--u));
+  font-size: calc(29 * var(--u));
+  color: #2c3e50;
+}
+.picker-box .ph { color: #9fb0c0; }
+.picker-caret { margin-left: auto; color: #8a99aa; font-size: calc(22 * var(--u)); }
+
+.kw-head { display: flex; align-items: baseline; }
+.kw-tip { margin-left: auto; font-size: calc(21 * var(--u)); color: #9fb0c0; }
+.kw-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(12 * var(--u));
+  padding: calc(6 * var(--u)) 0 calc(14 * var(--u));
+}
+.kw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  padding: calc(8 * var(--u)) calc(10 * var(--u)) calc(8 * var(--u)) calc(16 * var(--u));
+  font-size: calc(23 * var(--u));
+  font-weight: 700;
+  color: #2c3e50;
+  background: #eef6ff;
+  border: calc(3 * var(--u)) solid #9db6cc;
+  border-radius: calc(6 * var(--u));
+}
+.kw-chip:nth-child(3n+2) { background: #fff3d6; border-color: #d8b273; }
+.kw-chip:nth-child(3n+3) { background: #e9f9ee; border-color: #8ec3a3; }
+.kw-text { max-width: calc(300 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kw-x {
+  width: calc(30 * var(--u));
+  height: calc(30 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(24 * var(--u));
+  color: #7a8a9b;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+}
+.kw-empty { font-size: calc(22 * var(--u)); color: #9fb0c0; font-style: italic; }
+.kw-row { display: flex; align-items: center; gap: calc(12 * var(--u)); }
+.kw-input { flex: 1; }
+.kw-add { flex: none; height: calc(92 * var(--u)); padding: 0 calc(28 * var(--u)); }
+
+.ob-submit { margin-top: calc(8 * var(--u)); }
+.ob-note {
+  margin-top: calc(18 * var(--u));
+  text-align: center;
+  font-size: calc(21 * var(--u));
+  color: #9fb0c0;
+}

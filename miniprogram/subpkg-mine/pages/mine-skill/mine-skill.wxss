@@ -1,0 +1,61 @@
+.sk { padding-bottom: calc(60 * var(--u)); }
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  padding: calc(10 * var(--u)) 0;
+}
+.cat-name { flex: none; width: calc(130 * var(--u)); font-size: calc(23 * var(--u)); font-weight: 700; color: #2c3e50; }
+.cat-lv { flex: none; font-size: calc(21 * var(--u)); font-weight: 800; color: #c97a14; }
+.cat-n { flex: none; width: calc(44 * var(--u)); text-align: right; font-size: calc(20 * var(--u)); color: #a9bccd; }
+
+.tabs { display: flex; gap: calc(10 * var(--u)); margin-bottom: calc(16 * var(--u)); }
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: calc(12 * var(--u)) 0;
+  font-size: calc(22 * var(--u));
+  font-weight: 700;
+  color: #6b7d8f;
+  background: #f2f8fd;
+  border: calc(3 * var(--u)) solid #d5e4f0;
+  border-radius: calc(6 * var(--u));
+}
+.tab.on { color: #2c3e50; background: #ffd86b; border-color: #2c3e50; }
+
+.skill-item {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  padding: calc(18 * var(--u)) 0;
+  border-bottom: calc(2 * var(--u)) dashed #e2ecf4;
+}
+.skill-item:last-child { border-bottom: none; }
+.skill-main { flex: 1; display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.skill-name { font-size: calc(26 * var(--u)); font-weight: 800; color: #2c3e50; }
+.skill-goal { font-size: calc(21 * var(--u)); color: #8a99aa; }
+.skill-status {
+  align-self: flex-start;
+  margin-top: calc(4 * var(--u));
+  padding: calc(1 * var(--u)) calc(10 * var(--u));
+  font-size: calc(19 * var(--u));
+  font-weight: 700;
+  border-radius: calc(4 * var(--u));
+  background: #eef6ff;
+  color: #4a7fa8;
+}
+.skill-status.s-learning { background: #fff3d6; color: #c97a14; }
+.skill-status.s-lit { background: #e9f9ee; color: #2f7a55; }
+
+.skill-ops { display: flex; gap: calc(12 * var(--u)); flex: none; }
+.op {
+  font-size: calc(21 * var(--u));
+  font-weight: 700;
+  color: #4a7fa8;
+  padding: calc(6 * var(--u)) calc(12 * var(--u));
+  background: #eef6ff;
+  border: calc(2 * var(--u)) solid #c2d4e3;
+  border-radius: calc(6 * var(--u));
+}
+.op-danger { color: #a32e2a; background: #ffefee; border-color: #e6b4b1; }

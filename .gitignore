@@ -1,0 +1,37 @@
+# ---- 构建产物 / 一次性脚本产物 ----
+miniprogram-tools/chargen_new/
+miniprogram-tools/char_backup_old/
+miniprogram-tools/images_removed/
+miniprogram-tools/images_backup_orig/
+miniprogram-tools/img_backup_opt/
+miniprogram-tools/_backup_split/
+miniprogram-tools/data_snapshot_before.json
+
+# 根目录的 clone_work（另一个小程序的完整副本，14MB）
+clone_work/
+
+# chargen_preview：脚本与配置留档，生成的图片原料不留
+# （最终采用的图已经在 miniprogram/images/preset/char）
+chargen_preview/*.png
+chargen_preview/**/*.png
+chargen_preview/raw/
+chargen_preview/picked/
+
+# ---- 临时对比图 / 中间产物 ----
+miniprogram-tools/cmp_new_vs_old.png
+miniprogram-tools/preview_cmp.png
+miniprogram-tools/chars_sheet.png
+miniprogram-tools/chars_on_bg.png
+miniprogram-tools/character_02_before.png
+miniprogram-tools/_backup_cmdbook_before_rank.js
+miniprogram-tools/app.wxss.bak
+
+# ---- 根目录的参考网页（3MB+ 单文件，不进仓库）----
+reference.html
+published_check.html
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+*.log
+node_modules/

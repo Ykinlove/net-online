@@ -1,0 +1,70 @@
+.st { padding-bottom: calc(60 * var(--u)); }
+
+.group {
+  background: #fffdf6;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.16);
+  margin-bottom: calc(22 * var(--u));
+  overflow: hidden;
+}
+.group-title {
+  display: block;
+  padding: calc(16 * var(--u)) calc(22 * var(--u)) calc(10 * var(--u));
+  font-size: calc(21 * var(--u));
+  font-weight: 800;
+  color: #8a99aa;
+  letter-spacing: calc(1 * var(--u));
+}
+.group-tip {
+  display: block;
+  padding: calc(10 * var(--u)) calc(22 * var(--u)) calc(18 * var(--u));
+  font-size: calc(20 * var(--u));
+  color: #a9bccd;
+  line-height: 1.6;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  padding: calc(22 * var(--u)) calc(22 * var(--u));
+  border-top: calc(2 * var(--u)) dashed #e2ecf4;
+}
+.row-hover { background: #f4f9fd; }
+/* 标签占满剩余宽度，值/箭头自然靠右；没有 .row-value 的行箭头也贴在右边 */
+.row-label { flex: 1; font-size: calc(26 * var(--u)); font-weight: 700; color: #2c3e50; }
+.row-label.danger { color: #a32e2a; }
+.row-value {
+  flex: none;
+  font-size: calc(22 * var(--u));
+  color: #8a99aa;
+  max-width: calc(300 * var(--u));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+.row-arrow { flex: none; font-size: calc(28 * var(--u)); color: #c2d4e3; }
+
+/* 意见反馈：button 直接充当一行。
+   微信 button 内置样式优先级很高（padding-left/14px、text-align:center 等），
+   必须逐条 !important 压掉，否则整行会被推开或只覆盖到一半，出现「点字有反应、点箭头没反应」。 */
+.row-fb {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: calc(22 * var(--u)) !important;
+  background: transparent !important;
+  border: none !important;
+  border-top: calc(2 * var(--u)) dashed #e2ecf4 !important;
+  border-radius: 0 !important;
+  line-height: 1.5 !important;
+  font-size: calc(26 * var(--u)) !important;
+  font-weight: normal !important;
+  text-align: left !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+.row-fb::after { border: none !important; }
+.row-fb-hover { background: #f4f9fd !important; }

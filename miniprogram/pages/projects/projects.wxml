@@ -1,0 +1,134 @@
+<view class="page pj">
+
+  <view class="cmd-head">
+    <view class="cmd-title-wrap">
+      <text class="page-title">📁 项目记录</text>
+      <text class="cmd-sub">共 {{total}} 个项目</text>
+    </view>
+    <view class="cmd-actions">
+      <view class="icon-btn" bindtap="refresh" hover-class="icon-btn-hover">↻</view>
+      <view class="btn btn-sm btn-primary" bindtap="openAdd">+ 记项目</view>
+    </view>
+  </view>
+
+  <text class="cmd-diag {{diagErr ? 'is-err' : ''}}">{{diag}}</text>
+
+  <view wx:if="{{!shown.length}}" class="empty">
+    {{total ? '没有符合筛选的项目' : '还没有项目记录，点右上角「+ 记项目」开始'}}
+  </view>
+
+  <view
+    wx:for="{{shown}}"
+    wx:key="_key"
+    class="pj-card"
+    data-idx="{{index}}"
+    bindtap="openDetail"
+  >
+    <view class="pj-top">
+      <text class="pj-status {{item.statusClass}}">{{item.status}}</text>
+      <text class="pj-name">{{item.name}}</text>
+      <text class="pj-date">{{item.dateLabel}}</text>
+    </view>
+    <text wx:if="{{item.role}}" class="pj-role">角色：{{item.role}}</text>
+    <text class="pj-preview">{{item.preview}}</text>
+    <view wx:if="{{item.tagList.length}}" class="pj-tags">
+      <text wx:for="{{item.tagList}}" wx:for-item="tg" wx:key="*this" class="chip">{{tg}}</text>
+    </view>
+  </view>
+
+  <!-- 详情 -->
+  <view wx:if="{{detail}}" class="mask" bindtap="closeDetail">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">{{detail.name}}</text>
+        <text class="sheet-close" bindtap="closeDetail">×</text>
+      </view>
+      <view class="dt-meta">
+        <text class="chip">{{detail.status}}</text>
+        <text class="chip chip-gold">{{detail.dateLabel}}</text>
+        <text wx:if="{{detail.role}}" class="chip">角色 {{detail.role}}</text>
+      </view>
+      <scroll-view class="dt-code-wrap" scroll-y>
+        <text class="dt-code">{{detail.content || '（没有填写项目内容）'}}</text>
+      </scroll-view>
+      <text wx:if="{{detail.devices}}" class="dt-desc">涉及设备：{{detail.devices}}</text>
+      <text wx:if="{{detail.cmds}}" class="dt-desc">使用命令：{{detail.cmds}}</text>
+
+      <view class="dt-actions">
+        <view class="btn btn-ghost" bindtap="openEdit">编辑</view>
+        <view class="btn btn-danger" bindtap="askDelete">删除</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新增 / 编辑 -->
+  <view wx:if="{{formOpen}}" class="mask" bindtap="closeForm">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">{{editingId ? '编辑项目' : '记一个项目'}}</text>
+        <text class="sheet-close" bindtap="closeForm">×</text>
+      </view>
+
+      <view class="field">
+        <text class="field-label">项目名称 <text class="req">*</text></text>
+        <input class="input" value="{{form.name}}" maxlength="40" placeholder="比如：某校区核心交换机割接" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="name" bindinput="onFormInput" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">状态</text>
+        <view class="seg">
+          <view
+            wx:for="{{statusList}}"
+            wx:key="*this"
+            class="seg-item {{form.status === item ? 'on' : ''}}"
+            data-v="{{item}}"
+            bindtap="pickStatus"
+          >{{item}}</view>
+        </view>
+      </view>
+
+      <view class="field">
+        <text class="field-label">我在项目里的角色</text>
+        <input class="input" value="{{form.role}}" maxlength="20" placeholder="比如：实施 / 主责 / 配合" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="role" bindinput="onFormInput" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">项目内容</text>
+        <textarea class="textarea" value="{{form.content}}" placeholder="做了什么、遇到什么问题、怎么解决的" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="content" bindinput="onFormInput" auto-height />
+      </view>
+
+      <view class="field">
+        <text class="field-label">涉及设备</text>
+        <input class="input" value="{{form.devices}}" maxlength="60" placeholder="比如：S5560 / AC6005 / 华为光模块" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="devices" bindinput="onFormInput" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">项目标签（逗号分隔）</text>
+        <input class="input" value="{{form.tags}}" maxlength="60" placeholder="比如：割接,无线" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="tags" bindinput="onFormInput" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">项目起始日期</text>
+        <picker mode="date" value="{{form.startDate}}" bindchange="onStartDate">
+          <view class="picker-box">
+            <text class="{{form.startDate ? '' : 'ph'}}">{{form.startDate || '选择开始日期'}}</text>
+            <text class="picker-caret">▾</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="field">
+        <text class="field-label">项目结束日期（未完工可先不填）</text>
+        <picker mode="date" value="{{form.endDate}}" bindchange="onEndDate">
+          <view class="picker-box">
+            <text class="{{form.endDate ? '' : 'ph'}}">{{form.endDate || '选择结束日期'}}</text>
+            <text class="picker-caret">▾</text>
+          </view>
+        </picker>
+        <text wx:if="{{form.endDate}}" class="picker-clear" bindtap="clearEndDate">清除结束日期</text>
+      </view>
+
+      <view class="btn btn-primary btn-block" bindtap="saveForm">{{editingId ? '保存修改' : '保存'}}</view>
+    </view>
+  </view>
+</view>

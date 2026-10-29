@@ -1,0 +1,184 @@
+/* 第 31 轮：SD-WAN 实战 / 安全运营 / 国产化设备 / 运营商侧 / 面试向
+   这批解决的是「换了个牌子就不会敲」和「面试被追问就卡壳」两类问题。
+   SD-WAN 部分偏落地配置与坑，安全部分偏攻防演练里的网络侧视角，
+   国产化部分给 H3C / 锐捷 / 麒麟的对照命令，运营商部分补客户侧看不到的那半边。
+*/
+const BATCH31_EXTRA = [
+  {
+    id: 'sdwan-dia',
+    devs: ['Router', '防火墙'],
+    name: 'SD-WAN 本地上网（DIA / Local Breakout）与安全栈',
+    kw: ['sdwan', '本地上网', 'dia', '本地出口', 'breakout', '双出口', 'saas 加速', '云网关', '公网直出'],
+    cmds: [
+      ['什么流量该走本地出', '判据三条同时满足才放行：\n① 目标是公网 SaaS（O365 / Zoom / Salesforce / 公有云）\n② 合规允许该分支直接访问互联网\n③ 分支侧有安全能力（不然等于开门）\n# 反例：访问内部 ERP 走本地出 = 直接不通'],
+      ['华为 SD-WAN 本地出口思路', '# 控制器上给站点配「Internet 网关」角色，CPE 侧生成：\nip route-static 0.0.0.0 0 <本地网关>\ntraffic behavior DIA_BREAKOUT\n redirect ip-nexthop <本地网关>\n# 关键：内网网段必须走 IPsec 回总部，不能一起被兜底路由带走'],
+      ['分流策略（别用默认路由偷懒）', 'acl number 3010\n rule 5 deny ip destination 10.0.0.0 0.255.255.255\n rule 10 deny ip destination 172.16.0.0 0.15.255.255\n rule 15 deny ip destination 192.168.0.0 0.0.255.255\n rule 20 permit ip\n# 先排内网，再放公网——顺序反了就是把内网流量甩到互联网上'],
+      ['安全栈放哪（三种形态）', '① CPE 自带：vCPE 内置 FW/IPS/URL 过滤，成本低但性能有限\n② 云安全网关：流量引到就近 POP 清洗，时延 +5~15ms\n③ 本地安全设备：分支放一台小防火墙，运维最重但最可控'],
+      ['验证', 'tracert -d 8.8.8.8          # 第一跳应是本地网关，不是总部\n# 内网验证：tracert -d <总部服务器> 必须仍走 IPsec 隧道']
+    ],
+    tip: 'DIA 最常见的翻车是分流 ACL 顺序写反——默认路由把内网流量也带出去了，结果是「上网飞快，ERP 全挂」。ACL 第一条永远是 deny 内网网段。'
+  },
+  {
+    id: 'sdwan-ztp',
+    devs: ['Router', 'Switch'],
+    name: 'SD-WAN 零接触部署（ZTP）与证书上线',
+    kw: ['ztp', '零接触', 'sdwan 上线', '设备注册', '证书', '即插即用', '开局不用到现场', 'bootstrap'],
+    cmds: [
+      ['ZTP 全流程（4 步）', '① 设备序列号（SN）预先录入控制器\n② 设备上电 → DHCP 拿到地址 + 控制器地址（Option 43/67 或重定向 URL）\n③ 设备向控制器注册 → 校验 SN / 证书\n④ 下发 bootstrap 配置（WAN IP / 隧道 / 策略）→ 上线'],
+      ['DHCP 侧要配合什么', '# 华为 DHCP：\nip pool BRANCH\n option 148 ascii "controller=<IP>;port=10020"\n# 部分厂商用 Option 43 子选项，格式各家不同，先查白皮书'],
+      ['证书两种模式', '① 出厂预置证书（PKI）：最省事，但证书过期/被吊销要现场换\n② SCEP 自动申请：首次上线自动签发，需要能访问 CA\n# 生产环境建议：预置证书 + 自动续期，别用纯自签'],
+      ['上线失败排查顺序', 'display dhcp client                       # 拿到地址没\ndisplay ip route-table                     # 到控制器通不通\nping <控制器>\n# 通但注册失败 → 查 SN 是否录错、时间是否同步（时间错 5 分钟证书就验不过）'],
+      ['时间同步（最隐蔽的坑）', 'display clock\nntp-service unicast-server <NTP>\n# 证书校验依赖时间，设备出厂时间常常停在 2000 年，ZTP 会一直失败']
+    ],
+    tip: 'ZTP 失败八成是三个原因：SN 录错、设备时间不对、防火墙没放行控制器端口。现场同事抱着设备等两小时，很多时候只是机房没给 DHCP。'
+  },
+  {
+    id: 'sec-surface',
+    devs: ['防火墙', 'Switch'],
+    name: '攻防演练：网络侧暴露面自查',
+    kw: ['攻防演练', '暴露面', 'hw 行动', '红蓝对抗', '端口暴露', '自查', '资产清点', '外网暴露'],
+    cmds: [
+      ['第一步：从外网看自己', '# 换到公司外的网络（手机热点）做，别在内网测\nnmap -sS -Pn -p- --min-rate 2000 <公网IP>\n# 或在线资产测绘平台查本单位 IP 段\n# 目标：把「意料之外的开放端口」全部找出来'],
+      ['第二步：设备管理面有没有露在外面', 'display ip interface brief        # 找带公网地址的接口\ndisplay telnet server status\ndisplay current-configuration | include "http server"\n# SSH/HTTPS/Telnet 只要有一个对外，就等于是给人送入口'],
+      ['第三步：弱口令与默认账号', '# 逐个核对：admin/admin、admin/空、huawei/huawei、cisco/cisco\n# SNMP：public / private 必须换，v2c 至少改团体名 + ACL\nsnmp-agent community read cipher <NEW> acl 2000\nsnmp-agent sys-info version v3'],
+      ['第四步：日志与外联', 'display logbuffer | include login\n# 盯三件事：非工作时间的登录、同一 IP 高频失败、从内网发起的异常外联\n# 演练期间日志留存至少 6 个月，且要在攻击者拿不到的地方'],
+      ['收敛清单（按性价比排）', '① 关 Telnet / HTTP，只留 SSH + HTTPS\n② 管理面收到运维网段，ACL 兜死\n③ 换掉所有默认口令与 SNMP 团体名\n④ 升级有 CVE 的老固件\n⑤ 关闭不用的服务：FTP / TFTP / CDP 对外']
+    ],
+    tip: '演练被打穿通常不是因为 0day，是因为一条十年没关的 Telnet 加一个 admin/admin。自查时把自己当成攻击者，从外网往里看，而不是从里往外看。'
+  },
+  {
+    id: 'sec-eastwest',
+    devs: ['防火墙', 'Switch'],
+    name: '东西向流量管控与微隔离',
+    kw: ['东西向', '微隔离', '横向移动', 'vlan 隔离', 'port isolation', '内网横向', '安全域', 'acl 隔离'],
+    cmds: [
+      ['为什么东西向比南北向更危险', '南北向有防火墙，东西向常常是全通\n# 一台 PC 中招，横向扫一片——勒索病毒就是这么扩散的\n# 目标不是「全部禁掉」，是「只放业务需要的」'],
+      ['交换机层：端口隔离', 'interface GigabitEthernet 0/0/1\n port-isolate enable group 1\n# 同组端口之间二层不通，但都能上联——办公区最省事的做法'],
+      ['VLAN 间：ACL 而不是全通', 'acl number 3000\n rule 5 permit ip source 10.10.1.0 0.0.0.255 destination 10.10.2.0 0.0.0.255\n rule 10 deny ip source 10.10.1.0 0.0.0.255 destination 10.10.0.0 0.0.255.255\n# 白名单放行业务网段，其余 deny——顺序不能反'],
+      ['服务器区：按角色分域', 'Web 层 / 应用层 / 数据层 三段，只允许 上→下 单向访问\n# 数据库段绝不接受来自办公网的直连\n# 域控单独一段，只允许指定管理机访问 389/636/445'],
+      ['验证手段', 'display acl 3000                    # 看命中计数\n# 从一台主机用 nc 扫同网段其他主机端口，看是否被拦\nnc -zv 10.10.2.11 3306']
+    ],
+    tip: '微隔离不是买套软件就完事，前提是有资产台账和业务访问关系。没有台账就做隔离，上线当天必然打爆业务——先观察一个月流量再收紧。'
+  },
+  {
+    id: 'sec-dns-tunnel',
+    devs: ['防火墙', '服务器'],
+    name: 'DNS 隧道与隐蔽信道识别',
+    kw: ['dns 隧道', '隐蔽信道', 'dns 外联', 'c2', '数据外传', '异常 dns', 'dnslog'],
+    cmds: [
+      ['特征：什么样的 DNS 有问题', '① 单个域名下超长子域（>50 字符）且随机\n② TXT / NULL 记录查询占比异常高\n③ 同一域名查询频率稳定且周期性（心跳）\n④ 域名存活时间极短（新注册几天）'],
+      ['从 DNS 服务器侧看', '# Linux（BIND）查查询日志：\ngrep -c "query" /var/log/named/query.log\nawk \'{print $6}\' query.log | awk -F. \'{print $(NF-1)"."$NF}\' | sort | uniq -c | sort -rn | head\n# 看哪个二级域名的查询量离谱'],
+      ['从防火墙侧看', 'display session table verbose | include 53\n# 关注：同一源 IP 大量 53 端口会话、会话包长偏大（正常 DNS 请求几十字节）\n# 出方向 UDP 53 只允许发往指定内网 DNS，其余一律封'],
+      ['收敛办法', '① 内网主机只能用内部 DNS，禁止直连 8.8.8.8\n② 防火墙只放行 内网→内部DNS 的 53，出方向 53 全封\n③ 对可疑域名做 DNS sinkhole（解析到黑洞）\n④ 部署 DNS 日志留存与告警（新域名首见告警最有效）'],
+      ['应急时怎么确认', '# 把可疑域名在隔离环境 dig 一下，看返回记录类型与 TTL\ndig TXT <可疑域名> @<内网DNS>\n# 若返回一大段 base64 样子的 TXT，基本可以确认是隧道']
+    ],
+    tip: 'DNS 隧道难防是因为 DNS 几乎不可能全封。真正有效的不是检测算法，是「只允许走内网 DNS」这一条策略——把出口收窄，隧道就没路可走。'
+  },
+  {
+    id: 'vendor-h3c',
+    devs: ['Switch', 'Router'],
+    name: 'H3C（新华三）命令对照与差异点',
+    kw: ['h3c', '新华三', 'comware', '国产交换机', 'h3c 命令', '命令对照', 'comware7'],
+    cmds: [
+      ['基础查看（和华为极像）', 'display current-configuration\ndisplay interface brief\ndisplay ip routing-table\ndisplay version\n# 90% 的 display 命令可以直接照搬华为习惯'],
+      ['明确不同：保存与文件', 'save                            # 华为也是 save，但 H3C 会追问是否覆盖\nstartup saved-configuration <文件名>\n# H3C 部分型号用 startup saved-configuration 而非 startup system-software'],
+      ['明确不同：接口与链路类型', 'interface GigabitEthernet1/0/1\n port link-type trunk\n port trunk permit vlan all\n# 华为是 port link-type trunk + port trunk allow-pass vlan all\n# 就差一个 permit / allow-pass，最容易记混'],
+      ['明确不同：链路聚合', 'interface Bridge-Aggregation 1\n link-aggregation mode dynamic\ninterface GigabitEthernet1/0/1\n port link-aggregation group 1\n# 华为是 Eth-Trunk + eth-trunk 1'],
+      ['明确不同：IRF 堆叠', 'irf domain 10\nirf member 1 priority 32\nirf-port 1/2\n port group interface Ten-GigabitEthernet1/0/49\n# 华为对应的是 iStack / CSS，概念一样名字全变'],
+      ['排障常用', 'display transceiver diagnosis interface GigabitEthernet1/0/1\ndisplay mac-address\ndisplay stp brief 或 display spanning-tree\n# STP 部分 H3C 用 display stp，检查命令记不住就 <命令> ? 一层层问']
+    ],
+    tip: '华为转 H3C 只记三个坑就够用：trunk 放行是 permit 不是 allow-pass、聚合是 Bridge-Aggregation 不是 Eth-Trunk、堆叠是 IRF 不是 iStack。其余基本照抄。'
+  },
+  {
+    id: 'vendor-ruijie',
+    devs: ['Switch'],
+    name: '锐捷（Ruijie）命令对照与 VSU',
+    kw: ['锐捷', 'ruijie', 'rgos', 'vsu', '国产交换机', '锐捷命令', '命令对照'],
+    cmds: [
+      ['基础查看（偏 Cisco 风格）', 'show running-config\nshow interfaces status\nshow ip route\nshow version\n# 锐捷的 show 与 Cisco 高度一致，比 H3C 更「思科味」'],
+      ['接口配置', 'interface GigabitEthernet 0/1\n switchport mode trunk\n switchport trunk allowed vlan all\n# 和 Cisco 一模一样，从思科转过来几乎零成本'],
+      ['VSU（虚拟交换单元，对应 VSS/IRF）', 'switch virtual domain 1\n switch 1\n  switch 1 priority 200\n  switch 1 domain 1\nvsl-port\n port-member interface TenGigabitEthernet 0/49\n# 两台合成一台逻辑设备，双主检测（BPDU/双主口）必须配'],
+      ['双主检测（必配，否则脑裂）', 'switch virtual domain 1\n dual-active detection bpddu enable\n dual-active interface TenGigabitEthernet 0/47\n# 不配的后果：VSL 断了以后两台都认为自己是主，IP 冲突全网瘫'],
+      ['排障常用', 'show interfaces counters errors\nshow mac-address-table\nshow spanning-tree\nshow lldp neighbors\nshow transceiver interface GigabitEthernet 0/1'],
+      ['和华为/Cisco 的对照速记', 'show running-config  ↔  display current-configuration\nswitchport mode     ↔  port link-type\nVSU                 ↔  IRF / VSS / CSS\ninterface Gi0/1     ↔  interface GigabitEthernet0/0/1']
+    ],
+    tip: '锐捷在教育和政企里很多，命令几乎就是 Cisco 的方言。真正要单独记的只有 VSU 双主检测——不配这个，堆叠断一根线就能让整个校园网瘫。'
+  },
+  {
+    id: 'vendor-kylin',
+    devs: ['Linux', '服务器'],
+    name: '国产化系统（麒麟 / 统信）网络排查',
+    kw: ['麒麟', '统信', 'uos', 'kylin', '国产化', '国产操作系统', '信创', '网卡配置'],
+    cmds: [
+      ['先看发行版与内核', 'cat /etc/os-release\nuname -r\n# 麒麟 V10 基于 CentOS/RHEL 系，统信 UOS 基于 Debian 系——包管理和防火墙工具不一样'],
+      ['网卡与 IP（统一用 ip 命令）', 'ip addr show\nip route show\nip -s link show eth0        # 看错包/丢包计数\n# 麒麟用 NetworkManager：nmcli connection show / nmcli c up eth0'],
+      ['防火墙（两套并存，别搞混）', '# 麒麟 V10 常见 firewalld：\nsystemctl status firewalld\nfirewall-cmd --list-all\nfirewall-cmd --add-port=8080/tcp --permanent && firewall-cmd --reload\n# UOS 可能是 ufw 或 iptables，先 systemctl status 确认'],
+      ['服务与自启', 'systemctl list-unit-files --state=enabled\nsystemctl status sshd\nsystemctl enable --now sshd\n# 信创环境常要求关闭 selinux / 调整内核参数，改前先记录原值'],
+      ['SELinux（麒麟默认可能是 enforcing）', 'getenforce\nsetenforce 0            # 临时\n# 永久：/etc/selinux/config 改 SELINUX=permissive\n# 但生产环境不建议直接关，用 semanage 放行端口更规范'],
+      ['抓包与连通性（工具可能没装）', 'ss -tunlp\nping / traceroute（麒麟可能叫 traceroute 或 tracepath）\ntcpdump -i eth0 -nn port 80\n# 最小化安装的镜像常常没有 tcpdump，提前准备好离线 rpm/deb']
+    ],
+    tip: '信创项目最容易翻车的地方是「最小化安装没工具」：tcpdump、telnet、nc 全都没有，现场断网还装不上。交付前把这些离线包装进 U 盘，比什么都实用。'
+  },
+  {
+    id: 'carrier-mpls',
+    devs: ['Router'],
+    name: '运营商 MPLS VPN 客户侧对接（CE-PE）',
+    kw: ['mpls', 'vpn', 'ce pe', 'vrf', '运营商专线', 'rd rt', '城域网', '跨省专线'],
+    cmds: [
+      ['概念对齐（客户只需管 CE 侧）', 'CE = 客户边缘设备（我们的路由器）\nPE = 运营商边缘设备（运营商管）\nP  = 运营商核心（完全看不到）\n# 我们配置只在 CE 上，PE 侧配置由运营商负责'],
+      ['三种常见对接方式', '① 静态路由：最简单，运营商给一段地址，CE 上写静态\n② EBGP：跨省多站点最常用，能自动收敛\n③ OSPF：少见，一般用于运营商代管场景'],
+      ['EBGP 对接写法', 'bgp 65001\n router-id 10.1.1.1\n peer 200.1.1.1 as-number 65000\n network 10.10.0.0 255.255.0.0\n# 注意：运营商 AS 号常见 65000 段，自己别撞号'],
+      ['VRF 场景（多业务隔离）', 'ip vpn-instance ERP\n ipv4-family\n  route-distinguisher 65001:100\n  vpn-target 65001:100 both\ndisplay ip vpn-instance\ndisplay bgp vpnv4 vpn-instance ERP routing-table\n# RD 保证路由唯一，RT 决定谁能导入导出'],
+      ['必查项（开通当天）', '① 电路号与两端地址是否一致（错一位就不通）\n② MTU：MPLS 会加 4~8 字节标签，端到端建议 1500 以内\n③ 双向路由是否都通（只通单向最常见）\n④ 光功率是否在范围内\n⑤ 运营商给的测试地址能否 ping 通'],
+      ['割接验证清单', 'ping -s 1472 <对端>        # 测 MTU，不分片\nping -c 100 <对端>         # 测丢包\ntracert <对端>             # 看路径跳数是否符合预期\n# 记录基线：时延、丢包、抖动，作为后续对比依据']
+    ],
+    tip: 'MPLS 专线交付最常见的问题是 MTU：标签压进去 4~8 字节，1500 的包就过不去，表现为「小包通、大包不通、网页打不开」。开通当天必做 ping -s 1472。'
+  },
+  {
+    id: 'carrier-pon',
+    devs: ['其他设备', 'Switch'],
+    name: 'PON / 光接入网链路问题判定',
+    kw: ['pon', 'olt', 'onu', '光猫', '光衰', '分光器', 'epon', 'gpon', '宽带不通'],
+    cmds: [
+      ['先分清设备角色', 'OLT：局端设备（运营商机房）\n分光器：1:8 / 1:16 / 1:32，每级带来衰减\nONU/光猫：用户侧\n# 客户侧只能看 ONU，OLT 侧数据要找运营商'],
+      ['光功率判据（最实用）', '正常收光：-8 ~ -27 dBm（GPON Class B+）\n低于 -27 dBm：光衰过大，检查熔接点/法兰/弯折\n高于 -8 dBm：光太强，可能烧模块，需加衰减器\n# 光猫管理页一般能直接看到 Rx Power'],
+      ['OLT 侧命令（让运营商查）', 'display ont info 0 1 0            # 华为 OLT\n display ont optical-info 0 1 0\ndisplay ont version 0 1 0\n# 报障时直接说「请查一下这个 ONT 的光功率和在线状态」，效率高很多'],
+      ['常见故障与定位', '① 光猫 LOS 红灯：光路断（尾纤断/分光器口坏/OLT 端口坏）\n② 光猫 PON 灯闪：正在注册，通常光衰大或数据没做\n③ 光猫全亮但上不了网：认证/VLAN/PPPoE 问题，不是光路'],
+      ['分光比与预算', '1:8 约 -10.5dB，1:16 约 -13.5dB，1:32 约 -16.5dB\n# 加上熔接点（每个约 0.1dB）、法兰（0.3dB）、光纤（0.35dB/km）\n# 总衰减超过 28dB 基本不通，改造优先减分光级数'],
+      ['客户侧能做的三件事', '① 换一根尾纤试（成本最低，解决一半问题）\n② 清洁法兰与接头（灰尘是隐形杀手）\n③ 记录光功率数值前后对比，报障时有据可依']
+    ],
+    tip: 'PON 故障九成在光路，不在数据。先看光功率再谈配置——LOS 红灯还去查 VLAN 的，纯属浪费时间。清洁接头这个动作，现场能解决将近三成的问题。'
+  },
+  {
+    id: 'interview-basic',
+    devs: ['Switch', 'Router'],
+    name: '面试高频：STP / OSPF / BGP 口头答法',
+    kw: ['面试', '面试题', 'stp 选举', 'ospf 邻居', 'bgp 邻居', '口头答法', '技术面试'],
+    cmds: [
+      ['STP 根桥选举（30 秒答完）', '顺序：最小 Bridge ID（优先级 + MAC）胜出\n优先级默认 32768，必须是 4096 的倍数\n# 追问「怎么保证某台是根」：spanning-tree priority 4096，且配在核心上'],
+      ['STP 端口角色判定', '① 根端口：非根桥上到根开销最小的口\n② 指定端口：每条链路上到根开销较小的一端\n③ 阻塞端口：剩下的\n# 开销看带宽：千兆 20000，万兆 2000（IEEE 标准）'],
+      ['OSPF 邻居卡在 ExStart', '原因：MTU 不一致（最常见）\n解决：两端 interface 下 mtu 配一致，或 ip ospf mtu-ignore\n# 追问「还有呢」：Router-ID 冲突、认证不一致、区域 ID 不一致'],
+      ['OSPF 七种状态（能背出来就赢一半）', 'Down → Init → 2-Way → ExStart → Exchange → Loading → Full\n# 关键节点：2-Way 是 DR/BDR 选举完成；Full 才是邻接关系建立'],
+      ['BGP 邻居状态（重点 Idle / Active）', 'Idle：还没开始 / 配置错误\nActive：正在尝试建 TCP，一直停在这里 = 179 不通\nConnect / OpenSent / OpenConfirm / Established\n# 卡 Active 就查：路由可达性、ACL 是否封 179、对端有没有配邻居'],
+      ['BGP 选路顺序（前五条够用）', '① Weight（Cisco 私有，最大优先）\n② Local Preference（本地优先，默认 100）\n③ 本地始发（network / aggregate）\n④ AS Path 最短\n⑤ Origin（IGP < EGP < Incomplete）\n# 面试答到这里基本就过了，后面 MED/EBGP 优先/eBGP 多跳是可选项']
+    ],
+    tip: '面试问协议不要背全表，背「卡住的状态 + 对应的原因」最有用。面试官真正想听的是你有没有真排过——能说出 ExStart 是 MTU 问题的人，一定上过生产。'
+  },
+  {
+    id: 'interview-trouble',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '面试高频：故障场景题的话术模板',
+    kw: ['面试', '排障思路', '场景题', '话术', '技术面试', '怎么排查', '开放题'],
+    cmds: [
+      ['拿到题先做三件事（别急着答）', '① 复述确认：「您说的是全网还是单点？什么时候开始的？」\n② 问影响面：「多少人受影响、有没有变更」\n③ 给结论路径：「我先按分层排除，从物理到应用」\n# 上来就报命令的，多半没真干过'],
+      ['万能框架：分层 + 对比 + 变更', '分层：物理 → 链路 → 网络 → 传输 → 应用\n对比：和正常时比、和正常设备比、和正常路径比\n变更：最近改过什么（80% 的故障由变更引起）\n# 三句话就能撑起任何场景题'],
+      ['典型题：某楼层全部断网', '答：① 先确认范围——同交换机下全断还是个别\n② 看接入交换机上联口状态与 CPU（环路会导致 CPU 打满）\n③ 若 CPU 高，查 STP 是否有拓扑震荡、是否有广播风暴\n④ 临时处置：拔掉可疑下联口逐个恢复\n⑤ 根因：多半是私接路由器/环路'],
+      ['典型题：能 ping 通但网页打不开', '答：① ping 通说明三层可达，问题在四层以上\n② 测端口：telnet <IP> 443，不通查 ACL/防火墙\n③ 通但慢：查 MTU（大包不通就是它）、DNS 解析\n④ 追问 MTU：ping -s 1472 -f，不通则链路 MTU 偏小'],
+      ['典型题：跨机房时通时不通', '答：① 间歇性故障优先怀疑链路质量与 ECMP 哈希\n② 查接口 CRC/错包是否增长（有增长 = 物理层）\n③ 查是否有双上行且 STP 震荡\n④ 长 ping 记录丢包规律：固定周期 = 协议震荡，随机 = 链路质量'],
+      ['收尾必须说的两句', '① 「先恢复业务，再定位根因」——生产环境优先级\n② 「事后补监控和告警」——体现你有闭环意识\n# 这两句是加分项，比多背十条命令管用']
+    ],
+    tip: '场景题考的从来不是命令，是「你会不会先问清楚再动手」。面试官最怕招进来一个上来就重启设备的人——先定界、再动手、最后闭环，这三步说清楚就赢了。'
+  }
+];
+
+module.exports = { BATCH31_EXTRA };

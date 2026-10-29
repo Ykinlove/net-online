@@ -1,0 +1,203 @@
+// utils/cmdbook-v6.js —— IPv6 进阶（地址 / ND / 路由 / 过渡 / 安全）
+// 库里已有：IPv6 地址配置、OSPFv3、DHCPv6、ND/RA 基础、NAT64，
+// 这里补 DAD、RA Guard、隧道过渡、前缀委派、IPv6 ACL 这些排障常用的部分。
+
+const V6_EXTRA = [
+  {
+    id: 'v6-addr-eui64',
+    devs: ['Switch', 'Router'],
+    name: 'IPv6 地址配置（手工 / EUI-64 自动生成）',
+    kw: ['ipv6地址', 'eui64', 'ipv6配地址', 'slaac地址'],
+    cmds: [
+      ['华为', 'ipv6\ninterface GigabitEthernet 0/0/1\n ipv6 enable\n ipv6 address 2001:db8:1::1/64\n ipv6 address 2001:db8:2::/64 eui-64'],
+      ['思科', 'ipv6 unicast-routing\ninterface GigabitEthernet0/1\n ipv6 enable\n ipv6 address 2001:DB8:1::1/64\n ipv6 address 2001:DB8:2::/64 eui-64'],
+      ['H3C', 'ipv6\ninterface GigabitEthernet 1/0/1\n ipv6 address 2001:db8:1::1/64\n ipv6 address auto link-local'],
+      ['锐捷', 'ipv6 unicast-routing\ninterface GigabitEthernet 0/1\n ipv6 enable\n ipv6 address 2001:DB8:1::1/64']
+    ],
+    tip: '华为/H3C 要先在系统视图敲 ipv6 打开 IPv6 总开关，思科/锐捷是 ipv6 unicast-routing。接口下只配地址不敲 ipv6 enable，链路本地地址不会生成，ND 就走不起来。'
+  },
+  {
+    id: 'v6-dad',
+    devs: ['Switch', 'Router'],
+    name: 'IPv6 地址冲突检测（DAD）',
+    kw: ['dad', '地址冲突检测', 'ipv6地址冲突', 'duplicate address'],
+    cmds: [
+      ['华为', 'display ipv6 interface GigabitEthernet 0/0/1\ndisplay ipv6 neighbors'],
+      ['思科', 'show ipv6 interface GigabitEthernet0/1\nshow ipv6 neighbors\nshow ipv6 interface GigabitEthernet0/1 | include duplicate'],
+      ['H3C', 'display ipv6 interface GigabitEthernet 1/0/1\ndisplay ipv6 neighbors'],
+      ['锐捷', 'show ipv6 interface GigabitEthernet 0/1\nshow ipv6 neighbors']
+    ],
+    tip: '接口刚配完地址是 tentative 状态，DAD 检测通过才变 preferred——这一两秒内 ping 不通是正常的，别急着当故障。真冲突时地址会标 duplicate，跟 IPv4 的 ARP 冲突一个道理。'
+  },
+  {
+    id: 'v6-ra-param',
+    devs: ['Router', 'Switch'],
+    name: 'RA 通告参数（终端拿不到地址就查这里）',
+    kw: ['ra通告', 'rs ra', '终端拿不到ipv6', '前缀通告', 'slaac'],
+    cmds: [
+      ['华为', 'interface GigabitEthernet 0/0/1\n undo ipv6 nd ra halt\n ipv6 nd prefix 2001:db8:1::/64 2592000 604800\n ipv6 nd ra-interval 30'],
+      ['思科', 'interface GigabitEthernet0/1\n no ipv6 nd ra suppress\n ipv6 nd prefix 2001:DB8:1::/64 2592000 604800\n ipv6 nd ra-interval 30'],
+      ['H3C', 'interface GigabitEthernet 1/0/1\n undo ipv6 nd ra halt\n ipv6 nd ra interval 30'],
+      ['锐捷', 'interface GigabitEthernet 0/1\n no ipv6 nd ra suppress']
+    ],
+    tip: '华为和 H3C 的 RA 默认是关的（ipv6 nd ra halt），不 undo 掉终端永远拿不到前缀——这是「IPv6 配了但手机没地址」最常见的原因。另外要确认没开 ra suppress。'
+  },
+  {
+    id: 'v6-nd-proxy',
+    devs: ['Router', 'Switch'],
+    name: 'ND 代理（同前缀被二层隔离）',
+    kw: ['nd代理', 'nd proxy', 'proxy-nd', 'ipv6代理', '跨网段ipv6', 'vlan间互通'],
+    cmds: [
+      ['华为', 'interface Vlanif 10\n ipv6 enable\n ipv6 nd proxy inter-access-vlan enable\n ipv6 nd proxy route enable'],
+      ['思科', 'interface Vlan10\n ipv6 enable\n ipv6 nd proxy-nd'],
+      ['H3C', 'interface Vlan-interface 10\n proxy-nd enable\n local-proxy-nd enable'],
+      ['锐捷', 'interface Vlan 10\n ipv6 enable\n ipv6 nd proxy-nd']
+    ],
+    tip: '四家写法完全不同：华为是 ipv6 nd proxy route / inter-access-vlan / inner-access-vlan enable 三类（路由式 / VLAN 间 / VLAN 内），H3C 是 proxy-nd enable、proxy-nd span-segment enable、local-proxy-nd enable，思科和锐捷是 ipv6 nd proxy-nd。思科这条要 IOS-XE 16.x 之后或 IOS-XR 7.6.1+，老的 2960/3560 上根本没有，只能靠改前缀规划解决。'
+  },
+  {
+    id: 'v6-ospfv3-area',
+    devs: ['Router', 'Switch'],
+    name: 'OSPFv3 多区域与接口启用',
+    kw: ['ospfv3', 'ipv6 ospf', 'ospfv3区域', 'ipv6动态路由'],
+    cmds: [
+      ['华为', 'ospfv3 1\n router-id 1.1.1.1\n area 0.0.0.0\ninterface GigabitEthernet 0/0/1\n ospfv3 1 area 0.0.0.0'],
+      ['思科', 'ipv6 router ospf 1\n router-id 1.1.1.1\ninterface GigabitEthernet0/1\n ipv6 ospf 1 area 0'],
+      ['H3C', 'ospfv3 1\n router-id 1.1.1.1\n area 0.0.0.0\ninterface GigabitEthernet 1/0/1\n ospfv3 1 area 0.0.0.0'],
+      ['锐捷', 'ipv6 router ospf 1\n router-id 1.1.1.1\ninterface GigabitEthernet 0/1\n ipv6 ospf 1 area 0']
+    ],
+    tip: 'OSPFv3 改成了「在接口上启用」，不再像 OSPFv2 那样在进程里 network 宣告。Router ID 还得手工配 IPv4 格式的，不配就选不出 DR。'
+  },
+  {
+    id: 'v6-acl',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'IPv6 ACL',
+    kw: ['ipv6 acl', 'ipv6访问控制', 'ipv6过滤'],
+    cmds: [
+      ['华为', 'acl ipv6 3000\n rule 5 deny ipv6 source 2001:db8:1::/64 destination 2001:db8:2::/64\n rule 10 permit ipv6'],
+      ['思科', 'ipv6 access-list V6ACL\n deny ipv6 2001:DB8:1::/64 2001:DB8:2::/64\n permit ipv6 any any\ninterface GigabitEthernet0/1\n ipv6 traffic-filter V6ACL in'],
+      ['H3C', 'acl ipv6 advanced 3000\n rule 5 deny ipv6 source 2001:db8:1:: 64 destination 2001:db8:2:: 64\n rule 10 permit ipv6 any any'],
+      ['锐捷', 'ipv6 access-list V6ACL\n deny ipv6 2001:DB8:1::/64 2001:DB8:2::/64\n permit ipv6 any any\ninterface GigabitEthernet 0/1\n ipv6 traffic-filter V6ACL in']
+    ],
+    tip: 'IPv6 ACL 默认还会放行 ND 和 RA 报文，但有些平台不会——配完 ACL 发现邻居全断，就是 ND 被拦了。稳妥做法是在 ACL 里显式 permit icmpv6。'
+  },
+  {
+    id: 'v6-tunnel-6to4',
+    devs: ['Router'],
+    name: 'IPv6 过渡隧道（6to4 / ISATAP / GRE6）',
+    kw: ['6to4', 'isatap', 'ipv6隧道', '过渡技术', 'gre6'],
+    cmds: [
+      ['华为', 'interface Tunnel 0/0/0\n tunnel-protocol ipv6-ipv4 6to4\n source 202.1.1.1\n ipv6 address 2002:cA01:0101::1/48'],
+      ['思科', 'interface Tunnel0\n tunnel mode ipv6ip 6to4\n tunnel source 202.1.1.1\n ipv6 address 2002:CA01:0101::1/48'],
+      ['H3C', 'interface Tunnel 0\n tunnel mode ipv6-ipv4 6to4\n source 202.1.1.1\n ipv6 address 2002:CA01:0101::1/48'],
+      ['锐捷', 'interface Tunnel 0\n tunnel mode ipv6ip 6to4\n tunnel source 202.1.1.1']
+    ],
+    tip: '6to4 的地址是把公网 IPv4 编进前缀（2002:公网IP::/48），自动算，不能手填。现在运营商基本都原生双栈了，过渡隧道只剩老网络改造时用。'
+  },
+  {
+    id: 'v6-dhcpv6-pd',
+    devs: ['Router'],
+    name: 'DHCPv6 前缀委派（PD）',
+    kw: ['前缀委派', 'dhcpv6 pd', 'pd', '下级路由器分前缀'],
+    cmds: [
+      ['华为', 'dhcpv6 pool pd1\n prefix-delegation 2001:db8:100::/48 56\ninterface GigabitEthernet 0/0/1\n dhcpv6 server pool pd1'],
+      ['思科', 'ipv6 dhcp pool PD\n prefix-delegation 2001:DB8:100::/48 56\ninterface GigabitEthernet0/1\n ipv6 dhcp server PD'],
+      ['H3C', 'dhcpv6 pool pd1\n prefix-delegation 2001:db8:100::/48 56'],
+      ['锐捷', 'ipv6 dhcp pool PD\n prefix-delegation 2001:DB8:100::/48 56']
+    ],
+    tip: 'PD 是给下级路由器分「一段前缀」而不是一个地址，家宽和企业分支都靠这个。委派长度写 /56 就是把 /48 切成 256 份，写小了分不出几个子网。'
+  },
+  {
+    id: 'v6-ra-guard',
+    devs: ['Switch'],
+    name: 'IPv6 RA Guard / Snooping（防私接路由发 RA）',
+    kw: ['ra guard', 'ipv6 snooping', '防私接路由', 'ra攻击'],
+    cmds: [
+      ['华为', 'ipv6 nd raguard policy p1\n device-role router\ninterface GigabitEthernet 0/0/1\n ipv6 nd raguard attach-policy p1'],
+      ['思科', 'ipv6 nd raguard policy ROUTER\n device-role router\ninterface GigabitEthernet0/1\n ipv6 nd raguard attach-policy ROUTER'],
+      ['H3C', 'ipv6 nd raguard policy p1\n device-role router\ninterface GigabitEthernet 1/0/1\n ipv6 nd raguard apply policy p1'],
+      ['锐捷', 'ipv6 nd raguard policy p1\n device-role host\ninterface GigabitEthernet 0/1\n ipv6 nd raguard attach-policy p1']
+    ],
+    tip: '接终端的口应该配 device-role host（把非法的 RA 全丢掉），接路由器的口才配 router。配反了本网段的正常 RA 会被拦，全网 IPv6 一起挂。'
+  },
+  {
+    id: 'v6-router-advertise-dns',
+    devs: ['Router'],
+    name: 'RA 里带 DNS（RDNSS）',
+    kw: ['rdnss', 'ra带dns', 'ipv6 dns', '终端dns'],
+    cmds: [
+      ['华为', 'interface GigabitEthernet 0/0/1\n ipv6 nd option ra dns 2400:3200::1'],
+      ['思科', 'interface GigabitEthernet0/1\n ipv6 nd ra dns server 2400:3200::1'],
+      ['H3C', 'interface GigabitEthernet 1/0/1\n ipv6 nd ra dns server 2400:3200::1'],
+      ['锐捷', 'interface GigabitEthernet 0/1\n ipv6 nd ra dns server 2400:3200::1']
+    ],
+    tip: 'IPv6 没有 DHCP 也能上网，靠 RA 带 DNS（RDNSS）。只发前缀不发 DNS，终端拿到了地址却解析不了域名——表现就是「IPv6 能 ping 通 IP，打不开网站」。'
+  },
+  {
+    id: 'v6-neighbor-trouble',
+    devs: ['Switch', 'Router'],
+    name: 'IPv6 邻居表异常（通不了先看邻居）',
+    kw: ['ipv6邻居', 'nd表', '邻居学不到', 'ipv6不通'],
+    cmds: [
+      ['华为', 'display ipv6 neighbors\ndisplay ipv6 interface GigabitEthernet 0/0/1'],
+      ['思科', 'show ipv6 neighbors\nshow ipv6 interface GigabitEthernet0/1'],
+      ['H3C', 'display ipv6 neighbors\ndisplay ipv6 interface GigabitEthernet 1/0/1'],
+      ['锐捷', 'show ipv6 neighbors\nshow ipv6 interface GigabitEthernet 0/1']
+    ],
+    tip: 'IPv6 用 ND 代替 ARP，邻居表里没有条目就等于 IPv4 的 ARP 没学到。常见原因是二层隔离、RA Guard 拦了 NS/NA，或者对端地址其实不在同一前缀。'
+  },
+  {
+    id: 'v6-mtu-pmtu',
+    devs: ['Router'],
+    name: 'IPv6 MTU 与 PMTU（大包不通）',
+    kw: ['ipv6 mtu', 'pmtu', 'icmpv6太大', 'ipv6大包不通'],
+    cmds: [
+      ['华为', 'interface GigabitEthernet 0/0/1\n mtu 1400\n ipv6 mtu 1400'],
+      ['思科', 'interface GigabitEthernet0/1\n ipv6 mtu 1400\n ipv6 tcp adjust-mss 1360'],
+      ['H3C', 'interface GigabitEthernet 1/0/1\n ipv6 mtu 1400'],
+      ['锐捷', 'interface GigabitEthernet 0/1\n ipv6 mtu 1400']
+    ],
+    tip: 'IPv6 中间设备不再分片，全靠源端按 PMTU 发包。ICMPv6「Packet Too Big」被防火墙拦掉，就会出现「小包通、大包死」——这时必须放开 ICMPv6 type 2，或直接在接口上压 MSS。'
+  },
+  {
+    id: 'v6-route-summary',
+    devs: ['Router'],
+    name: 'IPv6 路由汇总与默认路由',
+    kw: ['ipv6汇总', 'ipv6默认路由', 'ipv6路由聚合'],
+    cmds: [
+      ['华为', 'ipv6 route-static :: 0 2001:db8:1::2\nospfv3 1\n area 0.0.0.0\n  abr-summary 2001:db8:10:: 48'],
+      ['思科', 'ipv6 route ::/0 2001:DB8:1::2\nipv6 router ospf 1\n area 0 range 2001:DB8:10::/48'],
+      ['H3C', 'ipv6 route-static :: 0 2001:db8:1::2\nospfv3 1\n area 0.0.0.0\n  abr-summary 2001:db8:10:: 48'],
+      ['锐捷', 'ipv6 route ::/0 2001:DB8:1::2']
+    ],
+    tip: 'IPv6 默认路由是 ::/0（两个冒号），写成 0::/0 或 ::0/0 都不对。汇总跟 IPv4 一个道理，只能在 ABR/ASBR 上做。'
+  },
+  {
+    id: 'v6-dual-stack',
+    devs: ['Switch', 'Router'],
+    name: '双栈共存（同一接口跑 v4 + v6）',
+    kw: ['双栈', 'dual stack', 'ipv4 ipv6共存'],
+    cmds: [
+      ['华为', 'interface GigabitEthernet 0/0/1\n ip address 192.168.1.1 24\n ipv6 enable\n ipv6 address 2001:db8:1::1/64'],
+      ['思科', 'interface GigabitEthernet0/1\n ip address 192.168.1.1 255.255.255.0\n ipv6 address 2001:DB8:1::1/64'],
+      ['H3C', 'interface GigabitEthernet 1/0/1\n ip address 192.168.1.1 24\n ipv6 address 2001:db8:1::1/64'],
+      ['锐捷', 'interface GigabitEthernet 0/1\n ip address 192.168.1.1 255.255.255.0\n ipv6 address 2001:DB8:1::1/64']
+    ],
+    tip: '双栈不是配完就完事：IPv6 优先，DNS 返回 AAAA 就会先走 v6，v6 那条路有问题时终端会等超时才回落 v4，表现是「上网慢」。要么把 v6 修好，要么在 DNS 上先别发 AAAA。'
+  },
+  {
+    id: 'v6-ospfv3-trouble',
+    devs: ['Router'],
+    name: 'OSPFv3 邻居起不来',
+    kw: ['ospfv3邻居', 'ospfv3不通', 'ipv6 ospf邻居'],
+    cmds: [
+      ['华为', 'display ospfv3 peer\ndisplay ospfv3 interface GigabitEthernet 0/0/1'],
+      ['思科', 'show ospfv3 neighbor\nshow ospfv3 interface GigabitEthernet0/1'],
+      ['H3C', 'display ospfv3 peer\ndisplay ospfv3 interface GigabitEthernet 1/0/1'],
+      ['锐捷', 'show ipv6 ospf neighbor\nshow ipv6 ospf interface GigabitEthernet 0/1']
+    ],
+    tip: 'OSPFv3 用链路本地地址建邻居，所以接口上必须有 fe80:: 开头的地址——很多人把 ipv6 enable 漏了，全局地址配了也建不起邻居。'
+  }
+];
+
+module.exports = { V6_EXTRA };

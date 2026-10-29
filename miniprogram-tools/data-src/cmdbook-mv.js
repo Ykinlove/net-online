@@ -1,0 +1,163 @@
+/* 多厂商与自动化扩展批次（第 23 轮）
+   目的：现有 637 条里，华为/思科/H3C/锐捷四家之外几乎是空白——
+   中兴（ZXR10）、Juniper（Junos）、Arista（EOS）这三类设备在运营商、金融、互联网机房很常见，
+   但命令体系完全另一套（尤其 Junos 是 set + commit 两阶段），现场翻不到会卡住。
+   最后三条补自动化：Netmiko 批量下发、Ansible 网络模块、Git 管配置基线。
+
+   准确性说明：中兴命令依据 ZXR10 系列（ZXROS）主流语法，不同版本个别命令有差异，
+   已在 tip 里注明「以设备上 ? 补全为准」；Junos 按 Junos OS 15+ 语法；EOS 按 4.2x。
+*/
+const MV_EXTRA = [
+  {
+    id: 'mv-zte-basic',
+    devs: ['Switch', 'Router'],
+    name: '中兴 ZXR10 基础操作（登录 / 配置 / 保存）',
+    kw: ['中兴', 'zte', 'zxr10', '中兴交换机', '中兴路由器', '中兴配置', '中兴保存', '中兴命令'],
+    cmds: [
+      ['中兴', 'ZXR10> enable                        # 用户模式 → 特权模式\nZXR10# configure terminal            # 进入全局配置\nZXR10(config)# hostname SW-Access-01\nZXR10(config)# exit\nZXR10# write                          # 保存配置（中兴用 write）\nZXR10# show running-config            # 看当前配置'],
+      ['华为', '<Huawei> system-view\n[Huawei] sysname SW-Access-01\n[Huawei] quit\n<Huawei> save'],
+      ['思科', 'Router> enable\nRouter# configure terminal\nRouter(config)# hostname SW-Access-01\nRouter(config)# exit\nRouter# write memory']
+    ],
+    tip: '中兴 ZXR10 的 CLI 骨架跟思科几乎一样（enable / configure terminal / write），从思科转过去基本不用重学；跟华为的 system-view / save 反着记就行。个别版本保存命令是 save configuration，以设备上 ? 补全为准。'
+  },
+  {
+    id: 'mv-zte-vlan',
+    devs: ['Switch'],
+    name: '中兴 VLAN 与端口划分',
+    kw: ['中兴vlan', '中兴划分端口', '中兴trunk', '中兴access', 'zte vlan', '中兴交换机配vlan'],
+    cmds: [
+      ['中兴', 'ZXR10(config)# vlan 10\nZXR10(config-vlan)# name office\nZXR10(config-vlan)# exit\nZXR10(config)# interface gei_1/1\nZXR10(config-if-gei_1/1)# switchport mode access\nZXR10(config-if-gei_1/1)# switchport access vlan 10\nZXR10(config-if-gei_1/1)# exit\nZXR10(config)# show vlan'],
+      ['中兴（trunk 上联）', 'ZXR10(config)# interface gei_1/24\nZXR10(config-if-gei_1/24)# switchport mode trunk\nZXR10(config-if-gei_1/24)# switchport trunk vlan 10,20\nZXR10(config-if-gei_1/24)# exit'],
+      ['华为', '[Huawei] vlan 10\n[Huawei-vlan10] description office\n[Huawei] interface GigabitEthernet 0/0/1\n[Huawei-GigabitEthernet0/0/1] port link-type access\n[Huawei-GigabitEthernet0/0/1] port default vlan 10']
+    ],
+    tip: '中兴端口命名是 gei_1/1（斜杠前是槽位，不是 0/0/1），配错了会提示接口不存在。trunk 放行 VLAN 用 switchport trunk vlan 10,20，比思科的 allowed vlan 少个 allowed。'
+  },
+  {
+    id: 'mv-zte-l3',
+    devs: ['Switch', 'Router'],
+    name: '中兴 三层接口与静态路由',
+    kw: ['中兴三层', '中兴vlanif', '中兴静态路由', '中兴网关', 'zte 路由', '中兴interface vlan'],
+    cmds: [
+      ['中兴', 'ZXR10(config)# interface vlan10          # 注意：vlan 和编号之间没有空格\nZXR10(config-if-vlan10)# ip address 192.168.10.1 255.255.255.0\nZXR10(config-if-vlan10)# exit\nZXR10(config)# ip route 0.0.0.0 0.0.0.0 192.168.1.1\nZXR10(config)# show ip route'],
+      ['中兴（路由口）', 'ZXR10(config)# interface gei_2/1\nZXR10(config-if-gei_2/1)# no switchport      # 切成三层口\nZXR10(config-if-gei_2/1)# ip address 10.0.0.1 255.255.255.252'],
+      ['华为', '[Huawei] interface Vlanif 10\n[Huawei-Vlanif10] ip address 192.168.10.1 24\n[Huawei] ip route-static 0.0.0.0 0.0.0.0 192.168.1.1']
+    ],
+    tip: '中兴的 SVI 是 interface vlan10（连写），华为是 Vlanif 10（带空格）；中兴把物理口切成三层用 no switchport，华为直接 interface GigabitEthernet 0/0/1 加 ip address 就是三层口。'
+  },
+  {
+    id: 'mv-zte-show',
+    devs: ['Switch', 'Router'],
+    name: '中兴常用查看与排障命令',
+    kw: ['中兴查看', '中兴排障', '中兴show', 'zte show', '中兴看配置', '中兴看mac', '中兴查邻居'],
+    cmds: [
+      ['中兴', 'show version                    # 版本与运行时长\nshow running-config             # 当前配置\nshow ip interface brief         # 接口 IP 一览\nshow interface gei_1/1          # 单口状态 / 收发统计\nshow vlan                       # VLAN 与端口归属'],
+      ['中兴（继续）', 'show mac                        # MAC 地址表\nshow arp                        # ARP 表\nshow ip route                   # 路由表\nshow logging                    # 日志（看重启原因就翻这个）\nshow lldp neighbor              # 邻居，查拓扑'],
+      ['华为', 'display version\ndisplay current-configuration\ndisplay ip interface brief\ndisplay interface GigabitEthernet 0/0/1\ndisplay mac-address'],
+      ['思科', 'show version\nshow running-config\nshow ip interface brief\nshow interfaces status\nshow mac address-table']
+    ],
+    tip: '中兴用 show，华为用 display——这是跨厂商最容易按错的一处。中兴 show interface 后面跟的是 gei_1/1 这种命名，别照抄思科的 Gi0/1。'
+  },
+  {
+    id: 'mv-junos-basic',
+    devs: ['Switch', 'Router'],
+    name: 'Juniper Junos 配置模式与提交（set / commit / rollback）',
+    kw: ['juniper', 'junos', '瞻博', 'junos配置', 'junos提交', 'junos回滚', 'set命令', 'commit', 'configure'],
+    cmds: [
+      ['Juniper', 'cli> configure                          # 进入配置模式\n[edit]\n# set system host-name SW-Access-01     # 逐条 set 改写配置\n# set system time-zone Asia/Shanghai\n# show | compare                        # 看自己改了啥\n# commit                                # 提交，配置才真正生效\n# commit and-quit                       # 提交并退出'],
+      ['Juniper（回滚与撤销）', '# rollback 1                            # 回滚到上一个版本\n# rollback 0                            # 回到当前已提交版本（撤销未提交改动）\n# show system commit                    # 提交历史\n# rollback 3                            # 回到 3 个版本前\n# commit confirmed 5                    # 试探性提交，5 分钟不确认自动回滚'],
+      ['华为', '[Huawei] sysname SW-Access-01\n[Huawei] quit\n<Huawei> save                          # 华为是边改边生效 + 手动 save']
+    ],
+    tip: 'Junos 的核心差异：改配置不生效，commit 才生效，所以「改错了」在本机是零成本——直接 rollback 0。远程改设备一定要用 commit confirmed 5，链路断了自己会退回去，比事后跑机房强。'
+  },
+  {
+    id: 'mv-junos-l2',
+    devs: ['Switch'],
+    name: 'Junos VLAN 与接口（ethernet-switching）',
+    kw: ['junos vlan', 'juniper vlan', 'junos 端口', 'junos trunk', 'juniper access', 'ethernet-switching'],
+    cmds: [
+      ['Juniper', 'set vlans VLAN10 vlan-id 10\nset vlans VLAN10 description office\nset interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode access\nset interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members VLAN10'],
+      ['Juniper（trunk 上联）', 'set interfaces ge-0/0/24 unit 0 family ethernet-switching interface-mode trunk\nset interfaces ge-0/0/24 unit 0 family ethernet-switching vlan members VLAN10\nset interfaces ge-0/0/24 unit 0 family ethernet-switching vlan members VLAN20'],
+      ['Juniper（三层网关）', 'set interfaces irb unit 10 family inet address 192.168.10.1/24\nset vlans VLAN10 l3-interface irb.10'],
+      ['华为', '[Huawei] vlan 10\n[Huawei-vlan10] description office\n[Huawei-GigabitEthernet0/0/1] port link-type access\n[Huawei-GigabitEthernet0/0/1] port default vlan 10']
+    ],
+    tip: 'Junos 里 VLAN 是独立对象（vlans），端口只是「挂成员」，三层网关用 irb 而不是 Vlanif——这三层关系想清楚，set 命令自然就写对了。'
+  },
+  {
+    id: 'mv-junos-show',
+    devs: ['Switch', 'Router'],
+    name: 'Junos 排障：看配置 / 抓包 / 看日志',
+    kw: ['junos排障', 'junos show', 'junos抓包', 'juniper 日志', 'junos 路由表', 'display set'],
+    cmds: [
+      ['Juniper', 'show configuration | display set      # 用 set 形式刷出整份配置（最好抄）\nshow interfaces terse                 # 接口 up/down 一览\nshow route                            # 路由表\nshow ethernet-switching table         # MAC 表\nshow log messages | last 50           # 最近 50 条日志'],
+      ['Juniper（抓包）', 'monitor traffic interface ge-0/0/1 no-resolve\n# Ctrl+C 结束；加 matching "host 10.1.1.1" 只抓某台主机\n# 存文件：monitor traffic interface ge-0/0/1 write-file /var/tmp/x.pcap'],
+      ['Juniper（重启原因）', 'show system uptime\nshow system core-dumps\nshow vmstat\nshow chassis routing-engine        # 主控 CPU / 内存 / 温度'],
+      ['华为', 'display current-configuration | include sysname\ndisplay interface brief\ndisplay ip routing-table\ndisplay mac-address\ndisplay logbuffer']
+    ],
+    tip: 'Junos 没有 show run，等价物是 show configuration | display set——用管道刷成 set 命令，能直接粘到另一台设备复现配置。抓包 monitor traffic 是内置的，不用上镜像口。'
+  },
+  {
+    id: 'mv-arista-basic',
+    devs: ['Switch'],
+    name: 'Arista EOS 基础配置（数据中心常见）',
+    kw: ['arista', 'eos', 'arista交换机', 'arista配置', 'arista保存', '数据中心交换机'],
+    cmds: [
+      ['Arista', 'switch> enable\nswitch# configure terminal\nswitch(config)# hostname leaf-01\nswitch(config)# vlan 10\nswitch(config-vlan-10)# name office\nswitch(config)# interface Ethernet1\nswitch(config-if-Et1)# switchport mode access\nswitch(config-if-Et1)# switchport access vlan 10\nswitch(config-if-Et1)# end\nswitch# copy running-config startup-config'],
+      ['Arista（查看）', 'show version\nshow running-config\nshow interfaces status\nshow vlan\nshow ip interface brief\nshow lldp neighbors'],
+      ['思科', 'Router# show running-config\nRouter# write memory']
+    ],
+    tip: 'EOS 语法几乎就是思科 IOS，唯一的日常差异是端口叫 Ethernet1（简写 Et1），以及保存习惯写 copy run start。EOS 还有个杀手级功能：配置可以回滚（configure replace / rollback checkpoint），改错不用手敲。'
+  },
+  {
+    id: 'mv-arista-mlag',
+    devs: ['Switch'],
+    name: 'Arista MLAG 双机聚合（两台交换机当一台用）',
+    kw: ['mlag', 'arista mlag', '双活网关', '跨设备聚合', 'peer-link', '服务器双上联'],
+    cmds: [
+      ['Arista（peer-link）', 'vlan 4094\ninterface Vlan4094\n ip address 10.255.255.1/30\n no autostate\ninterface Port-Channel100\n switchport mode trunk\n switchport trunk allowed vlan 10,20,4094\n mlag 100\ninterface Ethernet49-52\n channel-group 100 mode active'],
+      ['Arista（MLAG 域）', 'mlag configuration\n domain-id DC1\n local-interface Vlan4094\n peer-address 10.255.255.2\n peer-link Port-Channel100\n!\nshow mlag                 # 状态应为 active\nshow mlag config-sanity   # 两边配置一致性体检'],
+      ['华为（M-LAG，对照）', '[SW1] dfs-group 1\n[SW1-dfs-group-1] priority 150\n[SW1] interface Eth-Trunk 0\n[SW1-Eth-Trunk0] mode lacp-static\n[SW1-Eth-Trunk0] peer-link 1']
+    ],
+    tip: 'MLAG 三件套：① 一条 peer-link（要跨多张卡做 Port-Channel，防单卡故障）② 一个独立的 peer 管理网段 ③ 两边 VLAN / 端口配置必须完全对称，config-sanity 就是检查这个。'
+  },
+  {
+    id: 'mv-py-netmiko',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'Python Netmiko 批量登录设备执行命令',
+    kw: ['netmiko', 'python 网络', '批量下发', '批量巡检', 'python 交换机', '自动化运维', '脚本登录设备'],
+    cmds: [
+      ['Python', 'from netmiko import ConnectHandler\n\nSW = {\n    "device_type": "huawei",      # 华为 huawei / 思科 cisco_ios / H3C hp_comware\n    "host": "10.1.10.2",\n    "username": "admin",\n    "password": "******",\n    "port": 22,\n}\n\nwith ConnectHandler(**SW) as conn:\n    print(conn.send_command("display version"))\n    conn.send_config_set(["vlan 20", "description test"])   # 批量下发\n    conn.save_config()'],
+      ['Python（批量跑一批设备）', 'from netmiko import ConnectHandler\nfrom concurrent.futures import ThreadPoolExecutor\n\nfor ip in ["10.1.10.2", "10.1.10.3", "10.1.10.4"]:\n    dev = {**SW, "host": ip}\n    try:\n        with ConnectHandler(**dev) as c:\n            print(ip, c.send_command("display cpu-usage"))\n    except Exception as e:\n        print(ip, "失败:", e)'],
+      ['Python（解析成表格）', 'import re\nout = conn.send_command("display interface brief")\nfor line in out.splitlines():\n    m = re.match(r"(\\S+)\\s+(up|down)\\s+(\\S+)", line)\n    if m:\n        print(m.group(1), m.group(2))'],
+      ['Bash', 'pip install netmiko textfsm']
+    ],
+    tip: '坑点：① device_type 必须对（华为 huawei、思科 cisco_ios、H3C hp_comware），写错会卡在登录提示符超时；② 一定要 try 包住每台设备，一台连不上不能拖死整批；③ 下发前先 config_mode 试一条无关命令回读确认。'
+  },
+  {
+    id: 'mv-ansible-net',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'Ansible 批量备份 / 下发配置（网络模块）',
+    kw: ['ansible', 'ansible 网络', '网络自动化', '批量备份配置', 'playbook', 'netcommon', '配置批量下发'],
+    cmds: [
+      ['inventory', '# inventory.ini\n[switches]\nSW1 ansible_host=10.1.10.2\nSW2 ansible_host=10.1.10.3\n\n[switches:vars]\nansible_user=admin\nansible_password=******\nansible_connection=network_cli\nansible_network_os=hp_comware     # 华为用 huawei_vrp'],
+      ['playbook', '---\n- hosts: switches\n  gather_facts: false\n  tasks:\n    - name: 备份当前配置\n      ansible.netcommon.cli_command:\n        command: display current-configuration\n      register: cfg\n\n    - name: 存到本地\n      copy:\n        content: "{{ cfg.stdout[0] }}"\n        dest: "backup/{{ inventory_hostname }}.cfg"'],
+      ['playbook（下发）', '    - name: 下发 VLAN\n      ansible.netcommon.cli_config:\n        config: |\n          vlan 20\n           description test\n        save_when: changed'],
+      ['Bash', 'ansible-galaxy collection install ansible.netcommon\nansible-playbook -i inventory.ini backup.yml --limit SW1']
+    ],
+    tip: '网络设备的 Ansible 不用在设备上装 agent，走 network_cli（SSH + 解析提示符）。前提是 ansible_network_os 写对，这是 90% 报错的根因。改配置前先 --check 跑一遍，确认影响范围。'
+  },
+  {
+    id: 'mv-cfg-git',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '用 Git 管设备配置基线（改动可追溯可回滚）',
+    kw: ['配置版本管理', 'git 配置', '配置基线', '配置对比', '配置变更记录', '配置审计', '回滚配置'],
+    cmds: [
+      ['Bash', 'mkdir cfg-repo && cd cfg-repo && git init\n# 把每台设备的配置存成 SW1.cfg / FW1.cfg\nscp admin@10.1.10.2:vrpcfg.zip ./SW1.cfg\ngit add .\ngit commit -m "2026-10-26 SW1 开局基线"'],
+      ['Bash（对比与回滚）', 'git diff HEAD~1 -- SW1.cfg          # 看这次改了什么\ngit log --oneline -- SW1.cfg        # 这台设备改过几次\ngit show v1.2:SW1.cfg > SW1.old     # 取出历史版本\ngit checkout v1.2 -- SW1.cfg        # 回滚到某个基线\ngit tag -a v1.2 -m "割接前基线"'],
+      ['Bash（自动巡检落库）', '# 每天 2 点拉配置并提交，没人改就不提交\n0 2 * * * cd /opt/cfg-repo && ./pull_all.sh && git add -A && git commit -m "daily $(date +\\%F)" || true'],
+      ['华为', 'display current-configuration          # 抓完直接重定向成文件']
+    ],
+    tip: '配置进 Git 是性价比最高的运维动作：谁在什么时候改了哪一行，git diff 一眼看穿；割接前打个 tag，出问题 checkout 就回来了。注意仓库别放公网（配置里有密码密文和拓扑）。'
+  }
+];
+
+module.exports = { MV_EXTRA };

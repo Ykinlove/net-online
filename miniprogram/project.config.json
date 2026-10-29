@@ -1,0 +1,18 @@
+{
+  "appid": "wx88017afd93e90f27",
+  "projectname": "net-online-miniprogram",
+  "compileType": "miniprogram",
+  "libVersion": "3.5.0",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "coverView": true,
+    "nodeModules": false,
+    "autoAudits": false,
+    "checkInvalidKey": true
+  },
+  "condition": {}
+}

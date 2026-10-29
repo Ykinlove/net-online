@@ -1,0 +1,69 @@
+<view class="page home">
+
+  <!-- 每日答案之书 -->
+  <view class="card answer-card" bindtap="drawAnswer">
+    <view class="answer-head">
+      <text class="answer-label">📖 每日答案之书</text>
+      <text class="answer-refresh">换一句 ↻</text>
+    </view>
+    <text class="answer-text">「{{answer}}」</text>
+  </view>
+
+  <!-- 日历 -->
+  <view class="card cal-card">
+    <view class="card-title-row">
+      <text class="card-title">📅 {{calTitle}}</text>
+      <text class="cal-nav" bindtap="calPrev">‹</text>
+      <text class="cal-nav" bindtap="calNext">›</text>
+    </view>
+    <view class="cal-week">
+      <text class="cal-wd" wx:for="{{weekDays}}" wx:key="*this">{{item}}</text>
+    </view>
+    <view class="cal-grid">
+      <view
+        wx:for="{{calCells}}"
+        wx:key="key"
+        class="cal-cell {{item.day ? '' : 'cal-empty'}} {{item.isToday ? 'cal-today' : ''}} {{item.hasRec ? 'cal-has' : ''}}"
+      >
+        <view wx:if="{{item.hasRec}}" class="cal-dot"></view>
+        <text class="cal-day">{{item.day}}</text>
+        <text class="cal-sub {{item.subKind}}">{{item.sub}}</text>
+      </view>
+    </view>
+    <view class="cal-foot">
+      <text class="cal-foot-txt">🗓 {{calFoot}}</text>
+    </view>
+  </view>
+
+  <!-- 搜索入口 -->
+  <view class="search-entry" bindtap="goSearch" hover-class="search-entry-hover">
+    <text class="se-ico">🔍</text>
+    <text class="se-ph">搜命令，比如「划分端口」</text>
+  </view>
+
+  <!-- 配置模板入口 -->
+  <view class="tpl-entry" bindtap="goTemplates" hover-class="tpl-entry-hover">
+    <text class="tpl-entry-ico">📋</text>
+    <view class="tpl-entry-main">
+      <text class="tpl-entry-t">配置模板库</text>
+      <text class="tpl-entry-s">开局 / 排障直接套，{{tplCount}} 个常用片段</text>
+    </view>
+    <text class="tpl-entry-arrow">›</text>
+  </view>
+
+  <!-- 两个主操作 -->
+  <view class="hero-actions">
+    <view class="hero-btn" bindtap="goAddCmd" hover-class="hero-btn-hover">
+      <text class="hero-ico">⌨️</text>
+      <text class="hero-txt">记一条命令</text>
+    </view>
+    <view class="hero-btn hero-btn-2" bindtap="goAddProj" hover-class="hero-btn-hover">
+      <text class="hero-ico">📁</text>
+      <text class="hero-txt">记一个项目</text>
+    </view>
+  </view>
+
+  <view class="home-foot">
+    <text>{{nickname ? nickname + ' · ' : ''}}Net 操作命令速记　v5.20</text>
+  </view>
+</view>

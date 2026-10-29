@@ -1,0 +1,139 @@
+.mine { padding-bottom: calc(40 * var(--u)); }
+
+.char-card {
+  position: relative;
+  height: calc(420 * var(--u));
+  border: calc(5 * var(--u)) solid #2c3e50;
+  border-radius: calc(10 * var(--u));
+  overflow: hidden;
+  box-shadow: 0 calc(8 * var(--u)) 0 rgba(44, 62, 80, 0.2);
+  margin-bottom: calc(20 * var(--u));
+  background: #dceaf6;
+}
+.char-bg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.char-shade {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 62%;
+  background: linear-gradient(180deg, rgba(20, 35, 50, 0) 0%, rgba(20, 35, 50, 0.78) 100%);
+}
+/* 立绘是 360×360 方图，人物实体只占 y=10~350，上下各 10px 透明边。
+   按 height:380 + bottom:0 摆，人物顶部会空出 51rpx，看着就变小了。
+   413 / -11 这组值是按「实体顶部留 20rpx、脚正好贴卡片底」解出来的，
+   实体高从原来的 359rpx 提到 390rpx，头顶那块 51rpx 的空白也一并消掉。 */
+.char-img {
+  position: absolute;
+  left: 0;
+  bottom: calc(-11 * var(--u));
+  width: 100%;
+  height: calc(413 * var(--u));
+}
+.char-info {
+  position: absolute;
+  left: calc(24 * var(--u));
+  right: calc(24 * var(--u));
+  bottom: calc(22 * var(--u));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--u));
+}
+.char-name {
+  font-size: calc(34 * var(--u));
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 calc(3 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.5);
+}
+.char-desc { font-size: calc(22 * var(--u)); color: #e8f2fb; }
+.char-chips { display: flex; flex-wrap: wrap; gap: calc(8 * var(--u)); margin-top: calc(4 * var(--u)); }
+/* 用 inline-flex + 固定高度把字压在正中间；只靠 padding 会出现文字偏下 */
+.chip-mini {
+  display: inline-flex;
+  align-items: center;
+  height: calc(32 * var(--u));
+  padding: 0 calc(12 * var(--u));
+  line-height: calc(32 * var(--u));
+  font-size: calc(19 * var(--u));
+  font-weight: 700;
+  color: #2c3e50;
+  background: rgba(255, 253, 246, 0.9);
+  border-radius: calc(4 * var(--u));
+}
+.kw-card { padding: calc(14 * var(--u)) calc(20 * var(--u)) calc(16 * var(--u)); }
+.kw-line { display: flex; align-items: flex-start; gap: calc(14 * var(--u)); padding: calc(9 * var(--u)) 0; }
+/* 两行之间只留一条分隔线，不再额外叠间距，否则「职业」单标签那行会显得又空又宽 */
+.kw-line + .kw-line {
+  padding-top: calc(15 * var(--u));
+  border-top: calc(2 * var(--u)) dashed #e2ecf4;
+}
+.kw-label { flex: none; font-size: calc(22 * var(--u)); font-weight: 800; color: #7a8a9b; width: calc(52 * var(--u)); }
+.kw-list { flex: 1; display: flex; flex-wrap: wrap; gap: calc(10 * var(--u)); }
+
+/* 等级条：只有 Lv 和进度，不放任何说明文字 */
+.lv-card { padding: calc(16 * var(--u)) calc(22 * var(--u)); margin-bottom: calc(16 * var(--u)); }
+.lv-hero { display: flex; align-items: center; gap: calc(16 * var(--u)); }
+.lv-big {
+  flex: none;
+  padding: calc(3 * var(--u)) calc(16 * var(--u));
+  font-size: calc(30 * var(--u));
+  font-weight: 800;
+  line-height: 1.35;
+  color: #c97a14;
+  background: #fff3d6;
+  border: calc(3 * var(--u)) solid #2c3e50;
+  border-radius: calc(6 * var(--u));
+}
+
+/* 最近记录（从首页搬来） */
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  padding: calc(14 * var(--u)) 0;
+  border-bottom: calc(2 * var(--u)) dashed #e2ecf4;
+}
+.recent-item:last-child { border-bottom: none; }
+.recent-main { flex: 1; display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.recent-title {
+  font-size: calc(25 * var(--u));
+  font-weight: 700;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-meta { font-size: calc(21 * var(--u)); color: #9fb0c0; }
+.recent-arrow { color: #b9cfe0; font-size: calc(30 * var(--u)); }
+
+.menu {
+  background: #fffdf6;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.18);
+  overflow: hidden;
+  margin-bottom: calc(24 * var(--u));
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--u));
+  padding: calc(24 * var(--u)) calc(22 * var(--u));
+  border-bottom: calc(3 * var(--u)) dashed #e2ecf4;
+}
+.menu-row:last-child { border-bottom: none; }
+.menu-row-hover { background: #f4f9fd; }
+.menu-ico { font-size: calc(30 * var(--u)); }
+.menu-txt { font-size: calc(27 * var(--u)); font-weight: 700; color: #2c3e50; }
+.menu-sub { margin-left: auto; font-size: calc(21 * var(--u)); color: #a9bccd; }
+.menu-arrow { font-size: calc(30 * var(--u)); color: #b9cfe0; margin-left: auto; }
+.menu-sub + .menu-arrow { margin-left: calc(10 * var(--u)); }
+
+.mine-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  padding: calc(20 * var(--u)) 0 calc(10 * var(--u));
+}
+.foot-brand { font-size: calc(22 * var(--u)); font-weight: 700; color: #8a99aa; }
+.foot-line { font-size: calc(20 * var(--u)); color: #a9bccd; }
+.foot-ver { font-size: calc(20 * var(--u)); color: #b9cfe0; }

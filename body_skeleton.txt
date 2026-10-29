@@ -1,0 +1,565 @@
+5001: <body data-page-node-id="xaC5YjUDWzPyNk1ikpFfIx">
+5002: 
+5003:   <!-- ============== 顶部品牌栏 v2 ============== -->
+5004:   <header class="top-nav" data-page-node-id="jfkaHmNbc45wZa1wvNJfN0">
+5005: [LONG 118415]
+5006:     <div class="nav-right" data-page-node-id="F2PCXFut4B38ByG87Tg4NG">
+5007:       <button class="grade-pill" id="stagePill" onclick="openGradePicker()" title="点击切换年级" style="display:none" data-page-node-id="WvAiWUIhK5rTlx7MU4VvnC">
+5008: [LONG 4171]
+5009:       </button>
+5010: [LONG 7486]
+5011:     </div>
+5012:   </header>
+5013: 
+5014:   <!-- ============== 01 启动页：点击进入 ============== -->
+5015:   <main class="page-splash" id="page-splash" style="display:none" data-page-node-id="BDZxcPhgjfJfSzsUtYz4iK">
+5016: [LONG 118796]
+5017:     <div class="splash-content" data-page-node-id="b4otFjmj7LpyTavq9hjBn9">
+5018: [LONG 118415]
+5019:       <button class="splash-cta" onclick="enterApp()" type="button" data-page-node-id="OMr9LSEH5rG2V8oJO7RpE9">
+5020: [LONG 6328]
+5021:         <span class="splash-cta-text" data-page-node-id="HQGQK79JqyJmVRky9B0vMo">🌍 点击进入 地球 Online</span>
+5022:       </button>
+5023:       <!-- 作者形象图（透明底，放在 CTA 下方，更大） -->
+5024:       <div class="splash-author-wrap" data-page-node-id="W5fwn1tTot8wVo9wxK5ceW">
+5025: [LONG 125314]
+5026:         <div class="splash-credit-text" data-page-node-id="CEDz74eHnpvkE93JUCGCcP">
+5027:           <span class="splash-credit-by" data-page-node-id="1E1iiT24Nq9iMeo0Tn4D0i">by</span>
+5028:           <span class="splash-credit-name" data-page-node-id="6pAPcUpTIo0Z7RCgoFXDZn">@塑料叉</span>
+5029:         </div>
+5030:       </div>
+5031:     </div>
+5032:   </main>
+5033: 
+5034:   <!-- ============== 02 建立档案表单页 ============== -->
+5035:   <main class="page-onboard" id="page-onboard" style="display:none" data-page-node-id="hYHtSeN6WID6ta9GGCUKcl">
+5036: [LONG 118797]
+5037: 
+5038:     <!-- 步骤指示器 -->
+5039:     <div class="step-bar" data-page-node-id="eH9VGfoNhptJxcHWg5vzJU">
+5040:       <div class="step-item active" data-page-node-id="wIRlgSjBWy6CcYUxGff3Ch">
+5041:         <span class="step-num" data-page-node-id="jhFy66tpjTmeenS1MzELwT">1</span><span class="step-label" data-page-node-id="3ObKRTGNlKBn0OTo5ISG5w">建立档案</span>
+5042:       </div>
+5043:       <div class="step-line" data-page-node-id="G1A2MGKHBPx8e8OoMHTojz"></div>
+5044:       <div class="step-item" data-page-node-id="Lqvv95uyAz4RgaxEEIM2JW">
+5045:         <span class="step-num" data-page-node-id="rWdqVCAI10t21q3oiZ5oVI">2</span><span class="step-label" data-page-node-id="hZGRxyWFDnNPUCPEajZShA">选择角色</span>
+5046:       </div>
+5047:       <div class="step-line" data-page-node-id="2e3H3DJOvknyqOZwhNVjid"></div>
+5048:       <div class="step-item" data-page-node-id="HqUXu0ZHdgBHTe0pSQb6Vi">
+5049:         <span class="step-num" data-page-node-id="VuHk4Esx9UNJyvfr88t2zu">3</span><span class="step-label" data-page-node-id="ZjCD1vX2cEotqX7HVxh8O0">进入世界</span>
+5050:       </div>
+5051:     </div>
+5052: 
+5053:     <!-- 标题 + 副标题 -->
+5054:     <div class="onboard-hero" data-page-node-id="urDODxycMN37JHXdcn1eLU">
+5055:       <h1 class="onboard-title" data-page-node-id="3upO2PPbwapOQRW8YqgLDF">🌍 建立你的玩家档案</h1>
+5056:       <p class="onboard-sub" data-page-node-id="hwFNwUMjpdvISGJrRzqeEp">在进入地球 Online 之前，先让这个世界认识你。<br data-page-node-id="TZGYo4NqT2oAjvDkKoqtMc">这些经历不会定义你，但会成为角色成长的初始养料。</p>
+5057:     </div>
+5058: 
+5059:     <!-- 表单 -->
+5060:     <div class="form-frame-wrap" data-page-node-id="kJhQuAVneBFJORJE9aqIg9">
+5061: [LONG 12729]
+5062:       <form autocomplete="off" class="form-card" id="onboardForm" data-page-node-id="TQH51iAgt86imSnDam8U68">
+5063:         <div class="row" data-page-node-id="rkx8vuYYelpGp3TXnydcg4">
+5064:           <div class="field" data-page-node-id="d0Co4PakYx8DC37fIw4TJ0">
+5065:             <label data-page-node-id="1B9hfkeNjYnqfRx07D0sHL">昵称 <span class="hint" data-page-node-id="jywuRgkg0PDBXHmoJxH4Vt">*</span></label>
+5066:             <input name="nickname" placeholder="比如：小虾" required type="text" data-page-node-id="tzMgBdyvMsEwpSSNMDmGdP">
+5067:           </div>
+5068:         </div>
+5069:         <div class="row" data-page-node-id="2lmyzJtjE6YC32SKLBucay">
+5070:           <div class="field" data-page-node-id="cBjFYl3P9DXEya4QdtIqzj">
+5071:             <label data-page-node-id="Y3FCq04gxQRsxctrQB1idE">学校</label>
+5072:             <input name="school" placeholder="比如：广州某大学" type="text" data-page-node-id="jcfAoHQlF1ifgtA5UKE3Vh">
+5073:           </div>
+5074:         </div>
+5075:         <div class="row" data-page-node-id="L4XK95uLSuRBZahHAlhUoh">
+5076:           <div class="field" data-page-node-id="PmrnNoaeh0WpHKaidTeuER">
+5077:             <label data-page-node-id="bUkWPWsQBy1Fwb1UUv3E57">专业</label>
+5078:             <input name="major" placeholder="比如：建筑学 / 计算机" type="text" data-page-node-id="4miiUaTr0tSraQJMOhcydc">
+5079:           </div>
+5080:         </div>
+5081:         <div class="row" data-page-node-id="TXsYsfoXMyVYODZbhUD0bz">
+5082:           <div class="field" data-page-node-id="ny8FuagsLnPYOkJuVAj9fE">
+5083:             <label data-page-node-id="9LdWobKAcXMMOGMtKfEbQ7">年级</label>
+5084:             <select name="grade" data-page-node-id="E9PNnlKTTIjxUWptl3YN20">
+5085:               <option value data-page-node-id="VGojKjNUQ7Ol13jcdyppYV">请选择</option>
+5086:               <option data-page-node-id="jIbz8Zl6Sakabe6dQFpeBm">大一</option><option data-page-node-id="l1DhlwHkBBCFUhCbys62F3">大二</option><option data-page-node-id="NAU4DIcMAiixI98ndAInwn">大三</option><option data-page-node-id="U75T5OxOBSh7juuz9dRGpR">大四</option>
+5087:               <option data-page-node-id="iDE3gxkocmoOv6S7EpAFSH">研一</option><option data-page-node-id="h4mvVrkPGGrMQjrBv9AhR5">研二</option><option data-page-node-id="tcyPykOnOqN8JAwx28ii4I">研三</option>
+5088:             </select>
+5089:           </div>
+5090:         </div>
+5091:         <div class="row" data-page-node-id="AFDlkbIL5GFKVXkuftsgD5">
+5092:           <div class="field" data-page-node-id="vtsliG5AVA8OglnIWqMzJa">
+5093:             <label data-page-node-id="YXXAHCDJn2BB7TJyXWF051">一句话描述自己</label>
+5094:             <input name="oneLineDesc" placeholder="比如：一个喜欢拍照的建筑系大二学生" type="text" data-page-node-id="J3de3jmIsRsMAMyrowSYqZ">
+5095:           </div>
+5096:         </div>
+5097:         <div class="row" data-page-node-id="a50VR4IHew793MeimM5syZ">
+5098:           <div class="field" data-page-node-id="zVBYRpS4DuneTXp029sBUK">
+5099:             <label data-page-node-id="FZhAHGYAD4alWZNU4HjxEG">喜欢的东西 / 兴趣关键词 <span class="hint" data-page-node-id="FUpNiGVnw4wLMS3ACdwAac">逗号分隔</span></label>
+5100:             <textarea name="interestsKw" placeholder="比如：摄影、看电影、city walk……真心喜欢的" rows="2"></textarea>
+5101:           </div>
+5102:         </div>
+5103:         <div class="row" data-page-node-id="vJjoRGTbOrWhoIDEAKEDA5">
+5104:           <div class="field" data-page-node-id="ZJRfP5ItmwbM4EDKun4TVU">
+5105:             <label data-page-node-id="gFYt89UOXPrsGsEahakD4t">职业关键词 <span class="hint" data-page-node-id="BVbIQyNA3lSjivY0tWm5G5">逗号分隔，没想好也没关系</span></label>
+5106:             <textarea name="careerKw" placeholder="比如：产品经理 / 独立创作者 / 老师" rows="2"></textarea>
+5107:           </div>
+5108:         </div>
+5109:       </form>
+5110:     </div>
+5111: 
+5112:     <!-- CTA 按钮 -->
+5113:     <div class="onboard-cta-row" data-page-node-id="T8cCO7vZyyo7nCJ4vcnAqY">
+5114:       <button class="cta-img-btn primary" form="onboardForm" type="submit" data-page-node-id="hlkMnszw1IOg3q1msTw1Gy">
+5115: [LONG 6325]
+5116:         <span class="cta-img-text" data-page-node-id="PgHtr2fazIoBqmd4qvl7aC">下一步：选择我的地球 Online 角色 →</span>
+5117:       </button>
+5118:       <button class="cta-img-btn secondary" onclick="loadDemoData()" type="button" data-page-node-id="rul1vjZxiJrIZQzcaHfM3D">
+5119:         <span class="cta-img-text-secondary" data-page-node-id="j0y0oQM509z7Ss3onpvwdg">👀 跳过，随便看看（加载示例角色）</span>
+5120:       </button>
+5121:     </div>
+5122: 
+5123:     <div class="onboard-footnote" data-page-node-id="A6upewIuLOHHVHQOAfW9mI">☁️ 数据保存在你的资料库数据表，支持在线存储与双向同步</div>
+5124:   </main>
+5125: 
+5126:   <!-- ============== 角色生成页 ============== -->
+5127:   <main class="page-wrap" id="page-chargen" style="display:none" data-page-node-id="5mydSj4ItmkQCfF9F7AzzM">
+5128:     <div class="chargen-wrap" data-page-node-id="kjMLdTyV29xBA2qMAvRRXZ">
+5129:       <!-- 选择预设形象 -->
+5130:       <div id="chargenPick" data-page-node-id="f5wBKADbHYZHfScL3TpNvS">
+5131:         <div class="chargen-title" data-page-node-id="e6G6fWcNVp2JKKgRV7zWAU">🌍 选择你的地球Online形象</div>
+5132:         <div class="chargen-subtitle" data-page-node-id="5a8ALX3G5KlUEBVUHSC3Ia">选一个背景 + 一个角色，自动合成你的游戏形象</div>
+5133: 
+5134:         <!-- 步骤 1: 选背景 -->
+5135:         <div class="chargen-step" data-page-node-id="6EruZXXcApVCFesdDWuReb">
+5136:           <div class="chargen-step-label" data-page-node-id="nHGVvZegn4LpZWcRpFHEs9">① 选一个背景</div>
+5137:           <div class="chargen-grid" id="bgGrid" data-page-node-id="3eH9lvk6w0qcJmpB3XX4AJ"></div>
+5138:         </div>
+5139:         <!-- 步骤 2: 选角色 -->
+5140:         <div class="chargen-step" data-page-node-id="byjnwfaZUtmHduhuddsFDZ">
+5141:           <div class="chargen-step-label" data-page-node-id="Nr4Ns4abWZMeuCX6ZV5WOA">② 选一个角色</div>
+5142:           <div class="chargen-grid" id="charGrid" data-page-node-id="PPhCQxGqhVJFcimdAITRLc"></div>
+5143:         </div>
+5144:         <!-- 预览 -->
+5145:         <div class="chargen-preview-card" data-page-node-id="lQaXekHUxVET4Y0ouT0jjN">
+5146:           <div class="chargen-preview-label" data-page-node-id="O4BmJDxP38va7nGkFlZCZW">预览</div>
+5147:           <div class="chargen-preview-wrap" data-page-node-id="4qb0tjreI1YsXBIfuUFVNo">
+5148:             <img alt class="chargen-preview-bg" id="bgPreview" src data-page-node-id="FUiN17b0EOtM9cc83sYzh4">
+5149:             <img alt class="chargen-preview-char" id="charPreview" src data-page-node-id="RyrHIYkudr0tREZjxiBehH">
+5150:             <div class="chargen-preview-empty" id="previewEmpty" data-page-node-id="PnaGwuDEGsbf74N4WK091W">先选背景和角色</div>
+5151:           </div>
+5152:         </div>
+5153:         <div class="chargen-waiting-actions" data-page-node-id="CSWACCxwH0EUUTXkbIeND0">
+5154:           <button class="btn-pixel primary" onclick="confirmPresetChar()" type="button" data-page-node-id="bJCrSMeArl4U6uEJ94dkM5">✅ 确认这个形象</button>
+5155:           <button class="btn-pixel secondary" onclick="modifyCharDesc()" type="button" data-page-node-id="VAi7RxciK2RNIloGi0rhC6">↩ 返回修改描述</button>
+5156:         </div>
+5157:       </div>
+5158:     </div>
+5159:   </main>
+5160: 
+5161:   <!-- ============== 首页：人物面板 (mobile-first) ============== -->
+5162:   <!-- ============== 首页：人物面板 (mobile-first, v2 with art assets) ============== -->
+5163:   <main class="page-wrap home-wrap" id="page-home" style="display:none" data-page-node-id="oqXiIo63p0YMaGajlS4jCd">
+5164: 
+5165:     <!-- 1. 人物卡：card-bg.png 作背景 -->
+5166:     <section class="char-card-v2" data-page-node-id="WB4JBHBMah12sCYPCYKQIB">
+5167: [LONG 71661]
+5168:       <div class="char-card-portrait-wrap" data-page-node-id="DNNpOEOiYKsXPSTFnEOAHY">
+5169:         <img alt="我的角色" class="char-portrait-img-v2" id="charImg" data-page-node-id="CCsOtBeGiO9fbL7kNwTQM9">
+5170:       </div>
+5171:       <div class="char-card-info-v2" data-page-node-id="fu3LY1OpVzbcDJMBZNLAIr">
+5172:         <div class="char-name-row" data-page-node-id="QgcgMwuepDziW31YLBTB7L">
+5173:           <span class="char-name" id="charNick" data-page-node-id="DUULOAoDWHGrOR5JEeq8yt">匿名冒险者</span>
+5174:           <button class="char-edit-btn" onclick="modifyCharDesc()" title="修改资料" type="button" data-page-node-id="LnZQxFKfp5OsAGz8fSP4gF">✏️</button>
+5175:         </div>
+5176:         <div class="char-meta-line" data-page-node-id="KQNkzl4mhtsc771m1ACBNd"><span class="m-ico" data-page-node-id="URZIClm3svUyXwIuKdlNea">🏫</span><span id="charSchool" data-page-node-id="XbmUjtoIHO64vsWLaXkjKC">—</span></div>
+5177:         <div class="char-meta-line" data-page-node-id="QhwydG3k6WlS9Hf9kDVrML"><span class="m-ico" data-page-node-id="W9RALPu2BzzpqtFWE1yKw8">📚</span><span id="charMajor" data-page-node-id="cQPc22rYhtGVYJnl1CFkyb">—</span></div>
+5178:         <div class="char-meta-line" data-page-node-id="gfcg93uDBMLBGgHoPTUB7N"><span class="m-ico" data-page-node-id="sGWEQ4plKpxaAtLG0o3cZJ">⭐</span><span id="charGrade" data-page-node-id="Pa513HAAjCvheCs74Ht1Go">—</span></div>
+5179:         <div class="char-quote" id="charBubble" data-page-node-id="xm5jNIKE8IfTUC9O8VYR7G">"正在长成自己的样子。"</div>
+5180:         <div class="char-tags" id="charTags" data-page-node-id="v0lgGiDMiRJGU4wJPqCLVu"></div>
+5181:       </div>
+5182:     </section>
+5183: 
+5184:     <!-- 2. 等级 + 经验（frame-thin-cream-2 包裹） -->
+5185:     <section class="level-card-v2" data-page-node-id="5SHR6tucBqJU47EGXkGYRU">
+5186: [LONG 1695]
+5187:       <div class="level-frame-inner" data-page-node-id="EqLHGajS42Fd3vs2jpXmQL">
+5188:         <span class="level-tag" id="lvlDisplay" data-page-node-id="GggU4HFidBb1cTj5TkmaUg">Lv.1</span>
+5189:         <div class="level-bar-track" data-page-node-id="n5JqL5oSAfBvCFXVSZVoL5">
+5190:           <div class="level-bar-fill" id="expBarFill" style="width:0%" data-page-node-id="uspK3wgUMMRutKGFJ5rUQF"></div>
+5191:         </div>
+5192:         <span class="level-num" id="expNum" data-page-node-id="ZJqdTSrZBqeKmUd2QBiUfO">0 / 100</span>
+5193:       </div>
+5194:     </section>
+5195: 
+5196:     <!-- 3. 两个主要操作（btn-record.png / btn-learn.png） -->
+5197:     <div class="hero-actions-v2" data-page-node-id="44qZvRUy3vmKxyePjGcAlS">
+5198:       <button class="hero-btn-v2" onclick="openExpModal()" type="button" data-page-node-id="CYeULwf9HIfaK1aHNsZjei">
+5199: [LONG 53063]
+5200:       </button>
+5201:       <button class="hero-btn-v2" onclick="openLearnGoalModal()" type="button" data-page-node-id="1YzOTeuNNjEWW7jARFSr6V">
+5202: [LONG 53105]
+5203:       </button>
+5204:     </div>
+5205: 
+5206:     <!-- 3.5 我的技能等级（自动识别所有经历和任务的分类） -->
+5207:     <section class="skill-levels-card" data-page-node-id="rSQ38UH5nMB8bnOkWAwLTP">
+5208:       <div class="skill-levels-header" data-page-node-id="tOB7Os54n9HRPNAIta4AGt">
+5209: [LONG 8386]
+5210:         <span class="slh-title" data-page-node-id="JKF4akQZTbODjeUHHNIHHu">我的技能等级</span>
+5211:         <span class="slh-hint" data-page-node-id="rm8s6Mcybje5GM1R6lTqOR">自动从你的经历和学习任务识别</span>
+5212:       </div>
+5213:       <ul class="skill-levels-list" id="skillLevelsList" data-page-node-id="ZhioxgUHa5YPocw4tCgQEk"></ul>
+5214:     </section>
+5215: 
+5216:     <!-- 4. 日历 + 今日 -->
+5217:     <section class="cal-row" data-page-node-id="lO1iPqxxcGZsBETDRRTBRD">
+5218:       <div class="cal-card" data-page-node-id="uktDtiXL2XTBC34j8HGufT">
+5219: [LONG 3355]
+5220:         <div class="frame-inner" data-page-node-id="C10UhWl1n4UiGIrmXGHVZQ">
+5221:           <div class="cal-header" data-page-node-id="0KEnVs3Lyu5Bxy58Zem9qd">
+5222:             <span class="cal-month-label" id="calMonthLabel" data-page-node-id="MJTRsoFqfd9TlnkRIuX8jG">九月 2026</span>
+5223:             <button class="cal-today-btn" onclick="goToToday()" type="button" data-page-node-id="wQadDlrs782mbJXKEsiwbT">今天</button>
+5224:           </div>
+5225:           <div class="cal-weekdays" data-page-node-id="oyGQ9efl2gqMnFZanHhs6v">
+5226:             <span data-page-node-id="GUwCyiak9bRTN4HqXv39D3">一</span><span data-page-node-id="eX3z36zYzFvNTFlHGKUsoK">二</span><span data-page-node-id="fo97Rp1k9gtyH8QzpVs4hK">三</span><span data-page-node-id="3w4gv1GBlcRxMSAAN3mpQl">四</span>
+5227:             <span data-page-node-id="0eCcCLdEgQSDJUta4LdNVV">五</span><span class="weekend" data-page-node-id="4AeNwBeIPUrN20QHoA3Wwy">六</span><span class="weekend" data-page-node-id="p7OftGzH12OD1pos0SXNE1">日</span>
+5228:           </div>
+5229:           <div class="cal-grid" id="calGrid" data-page-node-id="Dg7QsJ7fSrqF5IwodGRcdu"></div>
+5230:         </div>
+5231:       </div>
+5232:       <div class="today-card" data-page-node-id="kh0Sia6XvjlBe4XADwcJsh">
+5233: [LONG 1691]
+5234:         <div class="frame-inner" data-page-node-id="BbgnfvB0f1uXqeYaGobMQx">
+5235:           <div class="today-header" data-page-node-id="SrnfHc5IHXvjzfNRR08BLK">
+5236: [LONG 8977]
+5237:             <span class="today-label" data-page-node-id="rEuXjrQwIbQ1JEJ2omjuVR">今天</span>
+5238:             <span class="today-date" id="todayDate" data-page-node-id="IezPzGAGwq3i565zFPmiWs"></span>
+5239:           </div>
+5240:           <ul class="today-list" id="todayList" data-page-node-id="PlC8QhEeKUmZaaho4U4yPa"></ul>
+5241:           <form class="today-add-row" id="todayAddForm" onsubmit="return addTodayTask(event)" data-page-node-id="r3R8WmZxbQ2FK82SN3WDxF">
+5242:             <input id="todayAddInput" maxlength="40" placeholder="+ 加一件今天要做的小事…" type="text" data-page-node-id="J8n2cBal3CI5l6YS3iNIiO">
+5243:             <button class="today-add-btn" type="submit" data-page-node-id="oR4Rbf5iAhwbaCXvzCzvvM">＋</button>
+5244:           </form>
+5245:           <div class="today-footer" id="todayFooter" data-page-node-id="tJwCNvtOLUxZrOdzr6vV8j">每一个普通的日子，都是地球Online的主线任务！</div>
+5246:         </div>
+5247:       </div>
+5248:     </section>
+5249: 
+5250:     <!-- 5 + 6. 最近经历 + 正在学习 -->
+5251:     <section class="duo-row" data-page-node-id="CCAgprPedCTwal5ATSGiZp">
+5252:       <div class="duo-card" data-page-node-id="2dAu74azs8AmUAwMHDzVUn">
+5253: [LONG 1691]
+5254:         <div class="frame-inner" data-page-node-id="GXLHjz8PTHf1y4HXtEA9ln">
+5255:           <div class="duo-card-header" data-page-node-id="cdQSjeVxbIyi6CzvpTdErT">
+5256: [LONG 4107]
+5257:             <button class="duo-more" onclick="goPage('page-explog')" type="button" data-page-node-id="G1gQfPmxuxaViKY39Hvtpu">查看全部 ›</button>
+5258:           </div>
+5259:           <ul class="duo-list" id="recentExpList" data-page-node-id="DBAA9rYavlPnNl1bOORcKF"></ul>
+5260:         </div>
+5261:       </div>
+5262:       <div class="duo-card" data-page-node-id="eaCdM5xQcBMbElRhDgb12k">
+5263: [LONG 1691]
+5264:         <div class="frame-inner" data-page-node-id="uGBIl76gCGyNAWisYqtABD">
+5265:           <div class="duo-card-header" data-page-node-id="6uimRyCLaMiR7DddPE1lT8">
+5266: [LONG 4279]
+5267:             <button class="duo-more" onclick="goPage('page-skilltree')" type="button" data-page-node-id="JXGYznSP6Vidf9vUFVeUCE">查看全部 ›</button>
+5268:           </div>
+5269:           <ul class="duo-list" id="activeLearningList" data-page-node-id="l6zHfulpC249Lk0teaXgr8"></ul>
+5270:         </div>
+5271:       </div>
+5272:     </section>
+5273: 
+5274:     <!-- 7. 每日答案之书（speech-bubble-warm + cat-sticker） -->
+5275:     <section class="answer-card-v2" id="answerCard" onclick="drawAnswer()" data-page-node-id="miGyHOAfEqyRdurndCl6rd">
+5276: [LONG 9923]
+5277:       <div class="answer-text-v2" data-page-node-id="W4ACXcAAVDktVp1rP4tgHS">
+5278:         <div class="answer-title-v2" data-page-node-id="sv2QDC3RrCtHDXleaGCC0C">📖 每日答案之书</div>
+5279:         <div class="answer-body-v2" id="answerText" data-page-node-id="wU2IXbAmhmIbLGHnlUr70r">点击我抽一句</div>
+5280:       </div>
+5281:       <button class="answer-refresh-v2" onclick="event.stopPropagation();drawAnswer();" type="button" data-page-node-id="F4yQYFJ19zZVTysyw9ieEC">换一句</button>
+5282:     </section>
+5283: 
+5284:     <div class="home-spacer" data-page-node-id="2fVBAmb3SqKalFRV2prgFC"></div>
+5285: 
+5286:     <!-- 8. 底部导航 -->
+5287:     <nav class="bottom-nav" data-page-node-id="UnF5c0TAijQFaF5kenGEid">
+5288:       <button class="bn-tab active" data-page="page-home" onclick="goPage('page-home')" data-page-node-id="Oms6pvgrIpII5kyoyPJVPk">
+5289: [LONG 8964]
+5290:       </button>
+5291:       <button class="bn-tab" data-page="page-explog" onclick="goPage('page-explog')" data-page-node-id="TUpUNnjzb0WxzRUznnP5Ta">
+5292: [LONG 5184]
+5293:       </button>
+5294:       <button class="bn-tab" data-page="page-skilltree" onclick="goPage('page-skilltree')" data-page-node-id="rPMEeMWMtBgqAOV2eCuir0">
+5295: [LONG 10336]
+5296:       </button>
+5297:       <button class="bn-tab" onclick="showArchive()" data-page-node-id="LDuRCrcjJy4tny7jqt57vW">
+5298: [LONG 9252]
+5299:       </button>
+5300:     </nav>
+5301:   </main>
+5302: 
+5303:   <!-- ============== 我的经历库 ============== -->
+5304:   <main class="page-wrap" id="page-explog" style="display:none" data-page-node-id="f9FbIUjbzuA5dKSPe6O3Dt">
+5305:     <div class="explog-wrap" data-page-node-id="E6P2DkTcF6LJriIIBHGtaN">
+5306:       <div class="explog-header" data-page-node-id="WPLwgFj1EXYxQOkQIK3adR">
+5307:         <button class="btn-pixel secondary" onclick="goPage('page-home')" type="button" data-page-node-id="SlAAHgD4eKQpghEuFAwjsC">↩ 返回首页</button>
+5308:         <h2 style="font-size:18px; font-weight:800" data-page-node-id="AdPT9LHaXE6PSwyczZd1wV">📖 我的经历库</h2>
+5309:         <button class="btn-pixel primary" onclick="openExpModal()" type="button" data-page-node-id="TZ5lbxLfJadNTx3s09QWPj">+ 记录新经历</button>
+5310:       </div>
+5311:       <p style="font-size:12px; color:var(--c-text-soft); margin:12px 0 18px; line-height:1.7" data-page-node-id="N5aWI547dK3YvL9Cwpfoy6">
+5312:         每一段真实经历都算数。先记下来，以后慢慢看清楚自己。
+5313:       </p>
+5314:       <div id="explogList" data-page-node-id="RAmAZuyktG0jFw480twOAA"></div>
+5315:       <div class="pixel-card" id="explogEmpty" style="text-align:center; padding:40px 20px; display:none" data-page-node-id="qQxcqRUDcApMlI8QOlvJtE">
+5316:         <div style="font-size:48px" data-page-node-id="0G6XDdwa8BLOrWD7VrvxUx">📝</div>
+5317:         <div style="font-size:14px; font-weight:700; margin-top:12px" data-page-node-id="gW5otN3GeppvjUKEKqij59">还没有记录过经历</div>
+5318:         <div style="font-size:12px; color:var(--c-text-soft); margin-top:6px" data-page-node-id="qh5o54yHAtSUFID1IntZ8F">点击「+ 记录新经历」开始吧</div>
+5319:       </div>
+5320:     </div>
+5321:   </main>
+5322: 
+5323:   <!-- ============== 我的技能树 ============== -->
+5324:   <main class="page-wrap" id="page-skilltree" style="display:none" data-page-node-id="hKCaG3IW8szl6Ksd2jB3HL">
+5325:     <div class="skilltree-wrap" data-page-node-id="4jBuYUImjBthESXVFwmIvU">
+5326:       <div class="skilltree-header" data-page-node-id="7uk2Gezi0gXx4IRbOraeBz">
+5327:         <button class="btn-pixel secondary" onclick="goPage('page-home')" type="button" data-page-node-id="SzLqrz19GfMCgiwAMEHeJ3">↩ 返回首页</button>
+5328:         <h2 style="font-size:18px; font-weight:800" data-page-node-id="xKGWdP8cg0G2KyKbEwZBrF">🌳 我的技能树</h2>
+5329:         <div style="width:90px" data-page-node-id="boFy6gOGtb08CmiiXzgd0u"></div>
+5330:       </div>
+5331:       <p style="font-size:12px; color:var(--c-text-soft); margin:12px 0 18px; line-height:1.7" data-page-node-id="72W2jfyz70A3Syhv4ourDl">
+5332:         左边是你已经会的东西，右边是你想长出来的新能力，中间是真正可以走的路。
+5333:       </p>
+5334: 
+5335:       <!-- 成长方向选择器 -->
+5336:       <div class="tree-tabs" id="treeTabs" data-page-node-id="8lRd3uJ2Yy0y4Eaaz3kktQ">
+5337:         <div class="tree-tab active" data-tree="all" onclick="switchTreeTab('all')" data-page-node-id="muZenAqh9NCbmd7VntXUAO">全部</div>
+5338:       </div>
+5339: 
+5340:       <!-- 新建成长方向 -->
+5341:       <div class="tree-add-row" data-page-node-id="YQyvccqzB8VUlVTphNnBMZ">
+5342:         <button class="btn-pixel secondary" onclick="openNewTreeModal()" style="font-size:12px; padding:8px 14px" data-page-node-id="39rm2U3rRPC9T527aatvdb">＋ 新建成长方向</button>
+5343:       </div>
+5344: 
+5345:       <!-- 技能树主体：左右分栏 -->
+5346:       <div class="skilltree-main" data-page-node-id="e6SiflBdBkb8liYlifnsdr">
+5347:         <!-- 左：我已经拥有的技能 -->
+5348:         <div class="skilltree-col owned" data-page-node-id="jkKLIa6O3lcjOpAFyUcfBb">
+5349:           <div class="st-col-header" data-page-node-id="ppuGE2WMLAtvmEK7OW4Vwp">
+5350:             <span class="st-col-icon" data-page-node-id="vn9EssmoMpkpBvBk4GELHK">✅</span>
+5351:             <span data-page-node-id="KMiohHfKfmKcu6bBQUWgmE">我已经拥有的技能</span>
+5352:           </div>
+5353:           <div class="st-col-desc" data-page-node-id="HNaiYhJWtlnvfa8HLcI9VA">来自真实经历，由你自己确认</div>
+5354:           <div id="ownedSkillList" data-page-node-id="AGCg8IfbvKRrvAumbO6w9P"></div>
+5355:         </div>
+5356: 
+5357:         <!-- 右：我想学习的新技能 -->
+5358:         <div class="skilltree-col learning" data-page-node-id="A4cpU04Yf9TwpaYqqCC94R">
+5359:           <div class="st-col-header" data-page-node-id="atboOHHWcim8gPSG0BaX4E">
+5360:             <span class="st-col-icon" data-page-node-id="Wj6BSawq44letSQgFcLQ3m">🌱</span>
+5361:             <span data-page-node-id="EzO2fF7apeXXqifBeTlW42">我想学习的新技能</span>
+5362:           </div>
+5363:           <div class="st-col-desc" data-page-node-id="9gtx43yfBXwYci3EhSAmxJ">自己选择想学的东西，AI帮你拆成可以走的路</div>
+5364:           <div id="learningSkillList" data-page-node-id="ifkrlYMNJ8p7o1T7rTKxos"></div>
+5365:           <button class="btn-add-learning" onclick="openLearnGoalModal()" data-page-node-id="EnaweZjR7k9MnLvBbaUGRz">＋ 我想学一个新技能</button>
+5366:         </div>
+5367:       </div>
+5368:     </div>
+5369:   </main>
+5370: 
+5371:   <!-- ============== 技能详情弹窗 ============== -->
+5372:   <div class="modal-overlay" id="skillDetailModal" style="display:none" data-page-node-id="vS0ORKjEdUtorGpTAHNo2q">
+5373:     <div class="modal-box" style="max-width:560px" data-page-node-id="NF1qGER8Cm0eAZ3VIcVfnr">
+5374:       <div class="modal-header" data-page-node-id="9yTB2GDbmiQ4GSpDrAZGx4">
+5375:         <h3 id="skillDetailTitle" data-page-node-id="6YqwJHeTvlxtamWsY1jAAk">技能详情</h3>
+5376:         <button class="modal-close" onclick="closeSkillDetail()" type="button" data-page-node-id="whwFCGID9xXPHE5aaysAxn">✕</button>
+5377:       </div>
+5378:       <div class="modal-body" id="skillDetailBody" data-page-node-id="y9zUEp8VuzfpI0B0fdk3tA"></div>
+5379:     </div>
+5380:   </div>
+5381: 
+5382:   <!-- ============== 经历记录弹窗 ============== -->
+5383:   <div class="modal-overlay" id="expModal" style="display:none" data-page-node-id="UysKEGTvqc6fK7TRKlqCeD">
+5384:     <div class="modal-box" data-page-node-id="vbbFWiyZDXdsZNBzmEtwNL">
+5385:       <div class="modal-header" data-page-node-id="svSFAVNo7Fkl5J3LUMmZka">
+5386:         <h3 data-page-node-id="kic4DIYAj7TvERm07dd735">📝 记录一段经历</h3>
+5387:         <button class="modal-close" onclick="closeExpModal()" type="button" data-page-node-id="hXOcrKSS6ZYZJiOiMcqDJ7">✕</button>
+5388:       </div>
+5389:       <form autocomplete="off" id="expForm" data-page-node-id="v9mJI0az01LQZn23n636no">
+5390:         <div class="modal-body" data-page-node-id="6hyrshDZuE0oLdpii0Uy3a">
+5391:           <div class="field" data-page-node-id="aIiZjE4tLyT6bSMUqg7SIQ">
+5392:             <label data-page-node-id="6J9XrZD3NIAN2CeSkDkxMA">日期 <span class="hint" data-page-node-id="hzZkRWuvloY6dlGEv0pCuL">*</span></label>
+5393:             <input id="expDate" name="expDate" required type="date" data-page-node-id="SUAvLjudzGTPoCK7oW1Hev">
+5394:           </div>
+5395:           <div class="field" style="margin-top:14px" data-page-node-id="7oVNdwvTy8dfOYiRt86oSU">
+5396:             <label data-page-node-id="8QN3Du3lvDYtoYwnHWvqE7">经历标题 <span class="hint" data-page-node-id="TQKqRvK86tsttVh3aF3x5X">*</span></label>
+5397:             <input name="expTitle" placeholder="比如：第一次做全英文 presentation" required type="text" data-page-node-id="z6bDWRtmG79H98YCxdgkKD">
+5398:           </div>
+5399:           <div class="field" style="margin-top:14px" data-page-node-id="fhcEOY3rcdCG4wWRcSnLZZ">
+5400:             <label data-page-node-id="peN9VqLFrFL8dWl6TM8CT2">发生了什么 <span class="hint" data-page-node-id="SVc87qy1mulFwvemVUif05">随便写，像跟朋友聊天一样就行</span></label>
+5401:             <textarea name="expDesc" placeholder="比如：这学期第一次做全英文presentation，我负责整理资料和最后汇报，准备了一周。" required rows="5"></textarea>
+5402:           </div>
+5403:         </div>
+5404:         <div class="modal-footer" data-page-node-id="ZNrQzADVjiiY5eVnA62V1B">
+5405:           <button class="btn-pixel secondary" onclick="closeExpModal()" type="button" data-page-node-id="1ttX1vOrGE1mpCWQsEVqai">取消</button>
+5406:           <button class="btn-pixel primary" type="submit" data-page-node-id="nnAJqCOhiIDpyzvsGLxEbi">💾 保存经历</button>
+5407:         </div>
+5408:       </form>
+5409:     </div>
+5410:   </div>
+5411: 
+5412:   <!-- ============== 技能确认弹窗 ============== -->
+5413:   <div class="modal-overlay" id="skillConfirmModal" style="display:none" data-page-node-id="6WYH49nCzAPK2Gadzy4JLT">
+5414:     <div class="modal-box" style="max-width:560px" data-page-node-id="PJM3c0rTMCqyOvHsFBrDo9">
+5415:       <div class="modal-header" style="background:linear-gradient(90deg,#eef3fc,#fff8ec)" data-page-node-id="F4DVnnTvj42oA3s38deDIR">
+5416:         <h3 data-page-node-id="S1PDtkbrBvL4UGTfH4FADY">🧐 这段经历可能涉及哪些技能？</h3>
+5417:         <button class="modal-close" onclick="closeSkillConfirm()" type="button" data-page-node-id="0MnmL2bPK91q34J6NyH7hL">✕</button>
+5418:       </div>
+5419:       <div class="modal-body" data-page-node-id="6nfE0sd4g4GzBDXOi5xFgp">
+5420:         <p style="font-size:12px; color:var(--c-text-soft); margin-bottom:14px; line-height:1.6" data-page-node-id="fAy52AtvQARDeDOuGt04FO">
+5421:           下面是从你的经历中提取的技能建议。<b data-page-node-id="EZQtLkQbd6hB44EBwoMMob">只有你自己勾选的才会加入人物面板。</b><br data-page-node-id="EZ0JD1ibxXR58Y4NFeUHLC">不认同的不要勾，没有的感觉可以自己补充。
+5422:         </p>
+5423:         <div id="skillConfirmList" data-page-node-id="p6ajv1zsXyN7tYhtV5sKDw"></div>
+5424:         <div class="field" style="margin-top:14px" data-page-node-id="1XBDXAB5hwKP2HUGqyHDAf">
+5425:           <label data-page-node-id="DiQJIWY4BzfNykffQ7JkaY">自己补充一个技能（可选）</label>
+5426:           <input id="skillCustomInput" placeholder="比如：情绪管理" type="text" data-page-node-id="hFOpsgeFjwTgJDcAmLTx7E">
+5427:         </div>
+5428:       </div>
+5429:       <div class="modal-footer" data-page-node-id="VS9BAfS6Bb4HghQvJEjXjl">
+5430:         <button class="btn-pixel secondary" onclick="closeSkillConfirm()" type="button" data-page-node-id="6W6OLe2obyVueUCDc7lBY3">跳过</button>
+5431:         <button class="btn-pixel primary" onclick="confirmSkills()" type="button" data-page-node-id="O3nJuk3qSwabmnHP0iESH5">✅ 确认勾选的技能</button>
+5432:       </div>
+5433:     </div>
+5434:   </div>
+5435: 
+5436:   <!-- ============== 新建成长方向弹窗 ============== -->
+5437:   <div class="modal-overlay" id="newTreeModal" style="display:none" data-page-node-id="ygqTKkunFTqkhGEtXQQ58y">
+5438:     <div class="modal-box" style="max-width:440px" data-page-node-id="OyR5mCKW5jJfQmhjWhtx7A">
+5439:       <div class="modal-header" data-page-node-id="cNOWW0uaW3JOma1gRvylWO">
+5440:         <h3 data-page-node-id="ja2m6TJDLmTeKE54U8ZHCP">🗺️ 新建一个成长方向</h3>
+5441:         <button class="modal-close" onclick="closeNewTreeModal()" type="button" data-page-node-id="ArnuZEVz60NaLBkSQ905tj">✕</button>
+5442:       </div>
+5443:       <div class="modal-body" data-page-node-id="RfGlbyzjqucDvKc1mCGGCA">
+5444:         <div class="field" data-page-node-id="fmdPY17dI8aAT04YYETjLU">
+5445:           <label data-page-node-id="hNqDVOFgNqjbZio543n29Y">方向名称 <span class="hint" data-page-node-id="8wOZjtpzhzJWpPj9chpuvn">比如：视频创作 / 产品经理 / 英语表达</span></label>
+5446:           <input id="newTreeName" placeholder="给你的成长方向起个名字" type="text" data-page-node-id="F9C0BLiV8FnoF74SWmOSnj">
+5447:         </div>
+5448:         <div class="field" style="margin-top:14px" data-page-node-id="shi2iJNXLbfFlzYh9Ik87V">
+5449:           <label data-page-node-id="BzXzClBNU402LipxJHH5Km">简单描述 <span class="hint" data-page-node-id="zTFsqhe251B3VRrrFWnp39">可选</span></label>
+5450:           <input id="newTreeDesc" placeholder="比如：我想做一个能独立完成视频的创作者" type="text" data-page-node-id="PmB43JugpFlp4EbQSyo4XW">
+5451:         </div>
+5452:         <!-- 关联已有技能 -->
+5453:         <div class="field" style="margin-top:14px" data-page-node-id="HgC2CV48M3NIENi697m9Gk">
+5454:           <label data-page-node-id="aXXGqxzt4VAFSbtsV0ReEX">关联已有技能 <span class="hint" data-page-node-id="S7WyrPkGRHHr1rIiaTs9Wy">可选，勾选你想放进这个方向的技能</span></label>
+5455:           <div id="newTreeSkillList" style="max-height:160px; overflow-y:auto" data-page-node-id="GopMMPyM5p7MCasUb2iptH"></div>
+5456:         </div>
+5457:       </div>
+5458:       <div class="modal-footer" data-page-node-id="nDIzYqjpqAKYp12YpEsvi1">
+5459:         <button class="btn-pixel secondary" onclick="closeNewTreeModal()" type="button" data-page-node-id="kbgGiOxq9AwL04PEksx52n">取消</button>
+5460:         <button class="btn-pixel primary" onclick="saveNewTree()" type="button" data-page-node-id="cXZ2K8PSa04sFrhtdMrZdL">✅ 创建</button>
+5461:       </div>
+5462:     </div>
+5463:   </div>
+5464: 
+5465:   <!-- ============== 我想学新技能弹窗 ============== -->
+5466:   <div class="modal-overlay" id="learnGoalModal" style="display:none" data-page-node-id="NVvD7h2EiKkQqPIBpa8iLo">
+5467:     <div class="modal-box" style="max-width:560px" data-page-node-id="vMRjaZZPDhw0SFfmKTHaHT">
+5468:       <div class="modal-header" style="background:linear-gradient(90deg,#e8f5e9,#fff8ec)" data-page-node-id="oxnDsZrqruhKQLcRZAQro9">
+5469:         <h3 data-page-node-id="9vccUSV1Ugu4DZ3f8HYE0O">🌱 我想学一个新技能</h3>
+5470:         <button class="modal-close" onclick="closeLearnGoalModal()" type="button" data-page-node-id="PCAg9jCPEadPbZH9bUYiwc">✕</button>
+5471:       </div>
+5472:       <div class="modal-body" data-page-node-id="PaHVOWjUoa9QsMfdkEJLzN">
+5473:         <p style="font-size:12px; color:var(--c-text-soft); margin-bottom:14px; line-height:1.7" data-page-node-id="O90WhBGahbJp0L7VsqbnuQ">
+5474:           用一句话说清楚就行——想学什么、多久、想达到什么程度，写在一段话里也可以。<br data-page-node-id="Hl3d4KUpxFI4RTn0Y7ak10">
+5475:           比如："我想用3个月把雅思从5.5提高到6.5"、"我想30天学会做饭，能独立做几道家常菜"。<br data-page-node-id="Rg6GHHHjP2TZTBCXuqecLQ">
+5476:           <b data-page-node-id="pM3wpcL0nWAoj0VBRXCNhH">没写的信息我会做保守假设并标注出来，不会反过来问你一堆问题。</b>
+5477:         </p>
+5478:         <div class="field" data-page-node-id="uFbStkz2tzVOTCS8GZOeqD">
+5479:           <label data-page-node-id="3vFS0jbqgkxw64DPGOEGb3">我想学什么？ <span class="hint" data-page-node-id="nmrB7oYDSeTHxZKrKDPX1v">*</span></label>
+5480:           <textarea id="learnWhat" placeholder="比如：我想用3个月把雅思从5.5提高到6.5。&#10;比如：我想在30天内学会基础摄影，最后可以用手动模式拍好看的人像。&#10;比如：我想用一个月学会做饭，能独立完成几道日常家常菜。" rows="4"></textarea>
+5481:         </div>
+5482:         <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px" data-page-node-id="NT67vOTKqa34T4181IQAwy">
+5483:           <div class="field" data-page-node-id="xb4vHzbMVH9Lqx9iiN0jkE">
+5484:             <label data-page-node-id="qdkFMK9bcx4ex8olTBsRtq">多久学会？ <span class="hint" data-page-node-id="Pm7Q2uJVMy5QD1JVPjDJJF">可留空</span></label>
+5485:             <input id="learnDuration" placeholder="比如：30天 / 3个月" type="text" data-page-node-id="ur2D7Nx3caUpHwLeLFnnIT">
+5486:           </div>
+5487:           <div class="field" data-page-node-id="BiNSYYDvQr22JDBIvlqaNZ">
+5488:             <label data-page-node-id="vDRhGIENBauuKL8soWbvG4">每天能投入多久？ <span class="hint" data-page-node-id="nMHapPeNe7aXwWQezvnPYx">可留空</span></label>
+5489:             <input id="learnTimePerDay" placeholder="比如：1小时 / 半小时" type="text" data-page-node-id="L7MsAQKVyu304pN8RjYCDc">
+5490:           </div>
+5491:         </div>
+5492:         <div class="field" style="margin-top:14px" data-page-node-id="OOAAXd6zgfi0Fc0VkwXXO7">
+5493:           <label data-page-node-id="6AHiOBsvi9PmwZY2PwgEWG">放入哪个成长方向？</label>
+5494:           <select id="learnTreeId" data-page-node-id="eXV5BEjTBjrdthMacQPl0i">
+5495:             <option value data-page-node-id="uWIvqft6YQkagPT4Lim9C5">不放入任何方向</option>
+5496:           </select>
+5497:         </div>
+5498:       </div>
+5499:       <div class="modal-footer" data-page-node-id="3GunbUkQAlDvkeAq2IHpRe">
+5500:         <button class="btn-pixel secondary" onclick="closeLearnGoalModal()" type="button" data-page-node-id="3ACENjkXxd4sK10OmcoKXw">取消</button>
+5501:         <button class="btn-pixel primary" onclick="submitLearnGoal()" type="button" data-page-node-id="p9dXTanmYfZYN8H0ZGJX1t">🪄 直接生成计划</button>
+5502:       </div>
+5503:     </div>
+5504:   </div>
+5505: 
+5506:   <!-- ============== 学习计划弹窗 ============== -->
+5507:   <div class="modal-overlay" id="learnPlanModal" style="display:none" data-page-node-id="xayXBS4YDr3NCS5iy6sTdJ">
+5508:     <div class="modal-box" style="max-width:640px; max-height:85vh" data-page-node-id="9WqBjWsIEFkFNp5lXKtTix">
+5509:       <div class="modal-header" style="background:linear-gradient(90deg,#fff8ec,#e8f5e9)" data-page-node-id="PeAEWIDYkwCsSbRX3cykJC">
+5510:         <h3 id="learnPlanTitle" data-page-node-id="OJ8RGbBDbWLPhOyWnk3zXO">📋 学习计划</h3>
+5511:         <button class="modal-close" onclick="closeLearnPlanModal()" type="button" data-page-node-id="LaglDUWzY5xmyEvj2lMqyI">✕</button>
+5512:       </div>
+5513:       <div class="modal-body" id="learnPlanBody" style="max-height:65vh; overflow-y:auto" data-page-node-id="iBY1Q1uyL0gkx1fbNGyTZf"></div>
+5514:     </div>
+5515:   </div>
+5516: 
+5517:   <!-- ============== 地球Online 存档弹窗 ============== -->
+5518:   <div class="modal-overlay" id="archiveModal" style="display:none" data-page-node-id="aEeDrg6P1PhWJ5rYqWMAEP">
+5519:     <div class="modal-box arc-modal-box" data-page-node-id="y6XrMFDWcvNcakS0MsKQdC">
+5520:       <div class="modal-header arc-modal-header" data-page-node-id="uoGRNcg32vE3nfFPnvzwoj">
+5521:         <h3 data-page-node-id="K7UD8E2PUAsdrFer7Cd15F">🌍 地球Online · 人物存档</h3>
+5522:         <button class="modal-close" onclick="closeArchive()" type="button" data-page-node-id="3iiBAVwiu9qLxMV3IV1JvY">✕</button>
+5523:       </div>
+5524:       <div class="modal-body arc-modal-body" id="archiveBody" style="overflow-y:auto; padding:0; background:var(--c-bg)" data-page-node-id="6JuG7y7z4kRbvro3nv3SYy"></div>
+5525:       <div class="modal-footer" style="flex-direction:column; align-items:stretch; gap:10px" data-page-node-id="SNGlrsdo55Os26vzIzz2iy">
+5526:         <div style="display:flex; gap:10px" data-page-node-id="Z2L2A3HGQhIGNii3kboJ2d">
+5527:           <input id="archiveName" placeholder="给这版存档起个名字：大一上学期存档 / 2026秋季存档 / 大学四年最终存档" type="text" style="flex:1; padding:10px 12px; border:2px solid #2c3e50; background:#fafcfe; font-size:13px; outline:none" data-page-node-id="W2yjJmTiU5gy1lb4UeO8tU">
+5528:           <button class="btn-pixel primary" id="archiveSaveBtn" onclick="saveArchive()" type="button" style="white-space:nowrap" data-page-node-id="zAXc8zOiaNwJxTXpVYKAFt">💾 保存这版存档</button>
+5529:         </div>
+5530:         <button class="btn-pixel warm" id="saveToAlbumBtn" onclick="saveArchiveToAlbum()" type="button" style="width:100%" data-page-node-id="oLA0ZuPV7gxDXl76wDyHu6">📷 保存到相册（生成存档图）</button>
+5531:         <div data-page-node-id="6RT00EAkOXOuyCCWUwxclU">
+5532:           <div style="font-size:11px; font-weight:700; color:var(--c-text-soft); margin-bottom:6px" data-page-node-id="B6RPk2EcaGUA7LIkGPevnz">🕰️ 我的历史存档（点击回看不同阶段的自己）</div>
+5533:           <div id="archiveList" data-page-node-id="KdTO4GXAJBWNSQ6PivvUNR"></div>
+5534:         </div>
+5535:       </div>
+5536:     </div>
+5537:   </div>
+5538: 
+5539:   <!-- ============== 年级切换弹窗 ============== -->
+5540:   <div class="modal-overlay" id="gradeModal" onclick="if(event.target===this)closeGradePicker()" style="display:none" data-page-node-id="zcedCbUNFLfb2dZ4W7RGcB">
+5541:     <div class="grade-picker-box" data-page-node-id="PhA2cHzm8FCbM6GhUZDHwf">
+5542:       <h3 class="grade-picker-title" data-page-node-id="Ok1sFWDivaxqE0ByZETbKV">📅 我现在的年级是</h3>
+5543:       <div class="grade-grid" id="gradeGrid" data-page-node-id="dSKndFPc3atVJT3JFAEM2k"></div>
+5544:       <button class="btn-pixel secondary" onclick="closeGradePicker()" type="button" style="margin-top:12px" data-page-node-id="G8keWue25V5xH6iWvlspOZ">取消</button>
+5545:     </div>
+5546:   </div>
+5547: 
+5548:   <!-- ============== EXP增加提示 ============== -->
+5549:   <div class="exp-toast" id="expToast" style="display:none" data-page-node-id="yQESzcSzXpt0Bxv8G5llT7">
+5550:     <div class="exp-toast-inner" data-page-node-id="tUwBGJqaBy6p9YY8gsFCPj">
+5551:       <span class="exp-toast-icon" data-page-node-id="ZzxwcNGsMVjvK4D8xL3XbV">⚡</span>
+5552:       <span class="exp-toast-text" id="expToastText" data-page-node-id="Cyjgc8c3ssFzhpNGBrWXp1">+30 EXP</span>
+5553:     </div>
+5554:   </div>
+5555: 
+5556:   <!-- ============== 升级提示 ============== -->
+5557:   <div class="levelup-toast" id="levelUpToast" style="display:none" data-page-node-id="6PU8JS7JpYggeQ1Oi3mOfe">
+5558:     <div class="levelup-inner" data-page-node-id="NrHrf4NrBHGIRcBWj7kHHa">
+5559:       <div class="levelup-star" data-page-node-id="8pKVN6VvWDr3nbfFmiqrkM">⭐</div>
+5560:       <div class="levelup-text" data-page-node-id="VKjHpin1oCA9ZQ9zZRL0n9">升级了！</div>
+5561:       <div class="levelup-lvl" id="levelUpLvl" data-page-node-id="gwSVBlCJBGwVVzmEKwXSt1">LV.2</div>
+5562:       <div class="levelup-sub" data-page-node-id="LYY7yFQ7QUTTT3h7BGtc2V">继续记录你的真实经历吧</div>
+5563:     </div>
+5564:   </div>
+5565: 

@@ -1,0 +1,1643 @@
+/* 设备实操命令专题——按「真机上干活的场景」组织。
+   和前面各文件的区别：前面按技术主题（路由/交换/安全），
+   这里按「你拿着笔记本在机房/远程要干的一件事」组织：
+   开局、部署、排障、运维。每条都是可顺序粘贴执行的完整命令块，
+   华为 VRP8 为主、H3C Comware7 对照，思科在关键处给对照。 */
+const PRACTICE = [
+  {
+    id: 'pr-init-checklist',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '新设备开局 checklist（上架到交付一套走完）',
+    kw: ['开局', '新设备', '初始化', '上架', '交付', '开局配置', '新交换机配置', 'init'],
+    cmds: [
+      ['华为 VRP8', 'system-view\n sysname SW-Access-01\n info-center timestamp localtime\n header login "Authorized access only"\n!\n vlan batch 10\n interface Vlanif 10\n  ip address 10.1.10.2 255.255.255.0\n  description MGMT\n!\n ip route-static 0.0.0.0 0.0.0.0 10.1.10.1\n!\n clock timezone cst add 08:00:00\n ntp-service unicast-server 10.1.1.100 preference\n!\n undo telnet server enable\n stelnet server enable\n!\nsave']
+    ],
+    tip: '新设备上架的固定顺序，别跳步：① 先配管理 IP 和路由——配不上管理 IP，后面全白搭；② 再配时钟/NTP——日志和时间认证全靠它，不同步时间日志对不上号；③ 然后安全项（关 Telnet、开 SSH、登录横幅）；④ 最后 save。三大易忘：info-center timestamp localtime（不打这条日志全是 UTC 时间，排障时差 8 小时）；header login（等保检查项，一行的事）；配完先 ping 网关再保存——没保存重启就回到出厂状态。建议把这段存成模板，每台新设备只改 sysname 和管理 IP 两处。'
+  },
+  {
+    id: 'pr-mgmt-ip',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '管理 IP / 管理 VLAN 与带外管理口',
+    kw: ['管理ip', '管理地址', '带外管理', 'meth', '管理口', '远程登录', 'vlanif管理', '带内管理', '配管理ip', '管理ip怎么配', '配带外管理', '管理vlan', '管理vlan怎么配', '管理vlan配置'],
+    cmds: [
+      ['华为（带内管理）', 'vlan batch 10\n!\ninterface Vlanif 10\n ip address 10.1.10.2 255.255.255.0\n description MGMT\n!\nip route-static 0.0.0.0 0.0.0.0 10.1.10.1\n!\ndisplay ip interface brief\nping 10.1.10.1'],
+      ['华为（带外管理）', '! 盒式设备的 MEth 独立管理口（不走业务 VLAN）\ninterface MEth0\n ip address 192.168.0.2 255.255.255.0\n description OOB-MGMT\n!\ndisplay interface MEth0']
+    ],
+    tip: '两种管理方式：带内管理走业务 VLAN 的 Vlanif（省一个口，但业务 VLAN 故障时一起断），带外管理走 MEth 独立管理口（核心设备推荐，业务全断还能登）。三个注意：① 管理 VLAN 要加入 trunk 的上行口，否则上不去网管；② 默认路由别忘，不然只能管同网段；③ MEth 默认 DHCP 拿地址，静态指定前先确认网段不冲突。验收标准：配完先 display ip interface brief 看地址起来，再 ping 网关，最后从网管机 ssh 登录确认——三步都过才算通。'
+  },
+  {
+    id: 'pr-user-aaa',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '用户与 AAA 实操（建账号 / 权限 / 密码策略）',
+    kw: ['aaa', 'local-user', '建账号', '用户权限', '密码策略', '等保账号', '新建用户', '删除用户', '新建账号', '登录账号', '创建账号', '加账号'],
+    cmds: [
+      ['华为 VRP8', 'aaa\n!\n local-user admin password cipher XXX\n local-user admin service-type ssh terminal\n local-user admin level 15\n!\n! 只读账号给监控用\n local-user monitor password cipher XXX\n local-user monitor service-type ssh\n local-user monitor level 1\n!\nuser-interface vty 0 4\n authentication-mode aaa\n!\n! 密码复杂度策略\npassword-policy\n min-length 8\n complexity-check yes\n!\ndisplay local-user\n display password-policy']
+    ],
+    tip: '账号管理三件事：① 每人一个账号，别共用 admin——出事分不清是谁敲的，等保也过不了；② 权限分级：level 15 是最高（能改配置），给监控系统建 level 1 只读账号（display this 之外几乎看不了什么）；③ 密码策略 password-policy 强制复杂度（长度+大小写+数字+特殊字符），部分版本支持历史密码和有效期，以在线帮助为准。删除账号：undo local-user xxx。坑：service-type 决定账号能走什么协议登（ssh/terminal/http/https/netconf），配少了登不上，配多了留风险面——按实际用途给。'
+  },
+  {
+    id: 'pr-clock-ntp',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '时钟与 NTP 实操（时区 / 手工对时 / NTP 客户端）',
+    kw: ['配置时间', '对时怎么配', '时钟', 'ntp', '对时', '时间不准', '设备时间', '时区', 'clock', '时间同步', 'ntp服务器'],
+    cmds: [
+      ['华为 VRP8', '! 时区设为东八区（日志本地化的前提）\nclock timezone cst add 08:00:00\n!\n! NTP 客户端（推荐：自动对时，别手工维护）\nntp-service unicast-server 10.1.1.100 preference\nntp-service unicast-server 10.1.1.101\n!\n! 带认证的 NTP（防伪造时间服务器）\nntp-service authentication enable\nntp-service authentication-keyid 1 authentication-mode md5 cipher XXX\nntp-service reliable authentication-keyid 1\n!\n! 手工对时（没有 NTP 服务器时的兜底）\nclock datetime 2026:10:25:14:30:00\n!\ndisplay clock\ndisplay ntp-service status']
+    ],
+    tip: '时间不准的后果比想象的严重：日志时间错乱排障对不上线、证书/安全关联（IPsec、SNMPv3）因时间偏差协商失败、和第三方系统对接全部乱套。落地建议：① 全网设备都走 NTP，指向同一台上级源（核心交换机做二级 NTP 服务器分发，别每台都直连外网）；② 时区一定配 cst add 08:00:00，不然日志时间差 8 小时；③ 能上认证就上，防止内网有人架假 NTP 服务器乱校时间。验收：display ntp-service status 看 synchronized 状态、display clock 看时间和时区都对。'
+  },
+  {
+    id: 'pr-ssh-service',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: 'SSH 服务实操（密钥 / 用户 / 首次登录）',
+    kw: ['ssh', 'stelnet', 'ssh server', 'ssh密钥', 'ssh登录', 'ssh连不上'],
+    cmds: [
+      ['华为 VRP8', '! 1. 生成密钥对（首次配 SSH 必做，会提示确认）\nrsa local-key-pair create\n!\n! 2. 开服务\nstelnet server enable\nssh server enable\n!\n! 3. 建 SSH 用户（和 AAA 账号是两回事）\nssh user admin authentication-type password\nssh user admin service-type stelnet\n!\n! 4. 关掉 Telnet（只留 SSH）\nundo telnet server enable\n!\ndisplay ssh server status\ndisplay ssh user-information']
+    ],
+    tip: 'SSH 配不通的头号原因：**没先 rsa local-key-pair create**——设备没有密钥，stelnet server enable 也起不来。顺序不能反：先建密钥 → 再开服务 → 再绑用户。三个注意：① ssh user 的 authentication-type 要和你登录方式一致（password 或 rsa/all）；② 客户端第一次连会提示保存主机密钥，选 yes；③ 老设备密钥长度默认 512/1024 位不安全，能选 2048 就选 2048（部分新版本默认就是 2048）。验收：display ssh server status 看 SSH 版本和端口（22）、从网管机 ssh 登录成功。'
+  },
+  {
+    id: 'pr-console-vty',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: 'console/vty 线路参数（超时 / 权限 / 踢人）',
+    kw: ['console', 'vty', '超时', 'exec-timeout', '踢用户', '在线用户', '空闲超时', '登录线路', '登不进去', 'console登录', 'console口'],
+    cmds: [
+      ['华为 VRP8', '! console 本地口\nuser-interface console 0\n authentication-mode aaa\n!\n! vty 远程登录线路（0-4 共 5 条）\nuser-interface vty 0 4\n authentication-mode aaa\n protocol inbound ssh\n exec-timeout 10 0\n acl 2000 inbound\n!\n! 看谁在线 + 踢人\ndisplay users\nfree user-interface vty 1']
+    ],
+    tip: '线路参数是等保检查的固定项。exec-timeout 10 0 = 空闲 10 分钟 0 秒自动断，防止人走会话还在（真实事故：共享大屏投着 SSH，路过的同事敲了命令）。acl 2000 inbound 限来源 IP，配合前面登录限制那条用。display users 看当前所有在线会话（含 console），发现陌生来源先 free 踢掉再查。另外 user-interface 的编号逻辑：console 0 是本地口，vty 0 4 是 5 条并发远程线路，vty 4 是最高编号——连接数满了新登录进不来，赶人的时候从 1 开始踢。'
+  },
+  {
+    id: 'pr-autosave',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '配置自动保存（改完不丢 / 定时 save）',
+    kw: ['自动保存', '定时保存', 'save', '配置丢失', '忘了保存', 'eem save', '保存配置'],
+    cmds: [
+      ['华为 VRP8（EEM 定时保存）', '! 用 EEM 每小时自动 save（防「改完忘保存」）\nevent manager applet AUTOSAVE\n event timer watchdog time 3600\n action 1.0 cli command "enable"\n action 1.1 cli command "save"\n action 1.2 cli command "y"\n!\ndisplay event manager policy AUTOSAVE'],
+      ['华为 VRP8（手工确认）', '! 对比当前配置和启动配置（差的就是没保存的）\ndisplay current-configuration\n display saved-configuration\n!\n! 保存（会问 Are you sure，输 y）\nsave']
+    ],
+    tip: '「明明改了配置重启就没了」= 忘了 save，这是最高频的低级事故。三种解法：① 人工习惯——每次改完立即 save，养成肌肉记忆；② EEM 定时 save——上面的 applet 每小时存一次，适合没人值守的设备；③ 改前 save 一次再改——变更出问题直接回滚到改前状态。验证是否保存成功：display current-configuration 和 display saved-configuration 对比，有差异就是没存。注意：save 是存到 flash 的 vrpcfg.zip，断电不丢；但设备故障时 flash 也可能坏，重要配置还要拉一份到服务器（见备份策略那条）。'
+  },
+  {
+    id: 'pr-sysname-desc',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '设备命名与接口描述规范（排障时救命）',
+    kw: ['设备命名', '接口描述', 'description', '命名规范', 'sysname', '对端端口', '描述信息'],
+    cmds: [
+      ['华为 VRP8', '! 设备名：位置+角色+编号\nsysname SW-Access-01\n!\n! 接口描述：对端设备_端口（排障时一眼看懂拓扑）\ninterface GigabitEthernet0/0/1\n description TO_SW-Core-01_GE0/0/24\n!\ninterface GigabitEthernet0/0/2\n description TO_PC-财务-张三\n!\ninterface Vlanif 10\n description MGMT_VLAN\n!\ndisplay interface description\n display interface GigabitEthernet 0/0/1']
+    ],
+    tip: '描述信息平时不起眼，排障时值半天功夫。两个规范建议：① 设备名带位置和角色（SW-Access-01 / R-Core / FW-Edge），全网统一，日志和告警里一眼定位；② 接口描述写「对端设备名_对端端口」，巡线时不用翻拓扑图——display interface description 直接把全网连接关系打出来。特别有用的场景：环路排查时挨个口看描述找手工接的网线、MAC 漂移时快速定位是哪个口。description 最多 255 字符，别写废话，写「谁连的我」。'
+  },
+  {
+    id: 'pr-log-alarm',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '日志与告警实操（发服务器 / 分级 / 看现场）',
+    kw: ['日志', 'loghost', 'info-center', '告警', 'alarm', 'trapbuffer', '日志服务器', '看日志'],
+    cmds: [
+      ['华为 VRP8', '! 日志发服务器（syslog）\ninfo-center enable\ninfo-center timestamp localtime\n!\n! 本地日志落盘（缓存重启就丢，重要的必须落盘）\ninfo-center logfile size 16\n info-center logfile directory cfcard2:/log\n!\n! 发远程日志服务器\ninfo-center loghost 10.1.1.200\n!\n! 只把 warning 及以上发服务器（防日志洪水）\ninfo-center loghost 10.1.1.200 channel 2\n!\n! 多设备区分：带设备名/IP 源标识\ninfo-center source-id ip-address\n!\n! 告警（硬件/环境类，和日志是两套）\ndisplay alarm active\n display alarm history\n display trapbuffer\n!\n! 排障速查\ndisplay logbuffer | include ERROR\n display info-center']
+    ],
+    tip: '日志（info-center）和告警（alarm）是两套系统别搞混：日志是设备「说了什么」（接口 up/down、配置变更、认证失败），告警是「硬件和环境怎么了」（温度高、电源掉、风扇故障）。日常五件事：① 本地缓存（logbuffer）重启丢——重要日志必须落盘（logfile）或发远程服务器；② 都发 loghost——服务器收全量、本地留现场，故障复盘多台设备按时间线排列全靠它；③ channel 控制级别（只收 warning 以上，防日志洪水把存储打满）；④ source-id 带设备名/IP——几十台设备的日志混一团时，这是唯一能分清谁发的的办法；⑤ 日志至少存 6 个月（安全审计要查）。display trapbuffer 是重启前的现场，设备异常重启后第一件事看它——掉电、看门狗、进程崩溃的原因都在这。排障时 display logbuffer | include ERROR 比翻全部日志快十倍。'
+  },
+  {
+    id: 'pr-snmp',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: 'SNMP 实操（v2c 共同体 / v3 / trap 目标）',
+    kw: ['snmp', '共同体', 'community', 'snmp v3', 'trap', '网管平台', 'snmp配置', 'zabbix'],
+    cmds: [
+      ['华为 VRP8（v2c）', 'snmp-agent\nsnmp-agent sys-info version v2c\n!\n! 只读共同体（给网管平台读状态，ACL 限制只有网管机能问）\nacl number 2000\n rule permit source 10.1.1.200 0.0.0.0\n!\nsnmp-agent community read cipher PUBLIC_RO acl 2000\n!\n! 陷阱目标（设备主动上报，先开 trap 类型）\nsnmp-agent trap enable feature-standard\nsnmp-agent target-host trap address udp-domain 10.1.1.200 udp-port 162 params securityname PUBLIC_RO v2c\n!\ndisplay snmp-agent community\n display snmp-agent target-host\n display snmp-agent statistics'],
+      ['华为 VRP8（v3）', '! v3：认证+加密，等保要求场景\nsnmp-agent sys-info version v3\n!\nsnmp-agent group v3group privacy\nsnmp-agent usm-user v3user v3group\nsnmp-agent usm-user v3user v3group authentication-mode sha cipher XXX privacy-mode aes128 cipher XXX\n!\nsnmp-agent target-host trap address udp-domain 10.1.1.200 params securityname v3user v3 privacy']
+    ],
+    tip: 'SNMP 是网管平台（Zabbix/CACTI/eSight）的眼睛。v2c 简单但不加密——内网可信环境能用，生产建议上 v3。五个高频坑：① write 共同体慎给——给了对方就能改设备配置，网管平台一般只读；② 共同体要配 ACL 限制源地址——公网裸奔的 snmp 等于把设备信息送人，务必 cipher 密文存储；③ trap 目标地址写错或中间防火墙挡 UDP 162，平台收不到告警——设备侧 display snmp-agent target-host 看配置、display snmp-agent statistics 看发包数、抓包看有没有发出去；④ trap enable 不开——默认很多 trap 类型是关的，接口 down/重启告警收不到就是这；⑤ sys-info version 决定监听哪些版本请求，只配 v3 的话老平台（只支持 v2c）直接失联，升级 SNMP 时先确认平台支持。彩蛋：display snmp-agent statistics 里 uptime 归零 = 设备重启过——网管上看到 uptime 跳变就是抓「隐性重启」的大招。验收：平台能 display 出设备、发测试 trap 平台能收到。'
+  },
+  {
+    id: 'pr-file-dir',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '文件与目录操作（看空间 / 整理 / 清理回收站）',
+    kw: ['dir', '文件目录', 'flash空间', '回收站', '清理文件', 'mkdir', 'copy文件', '空间不足'],
+    cmds: [
+      ['华为 VRP8', '! 看文件和空间\ndir\ndir flash:/\n!\n! 目录管理\nmkdir backup\ndir flash:/backup\n!\n! 整理文件\ncopy vrpcfg.zip flash:/backup/\nmove flash:/old.cfg flash:/backup/\n!\n! 删除与回收站\ndelete flash:/old.cc\nreset recycle-bin\n!\n! 确认下次启动加载什么\ndisplay startup']
+    ],
+    tip: '日常文件操作三件事：① 配了本地日志/archive 快照的，flash 会慢慢满——满了不报警但会静默失败，定期 dir 看剩余空间，养成清理习惯；② delete 只是进回收站，空间不释放，提示空间不足时先 reset recycle-bin 再删；③ 重要文件（配置、版本）复制到 flash:/backup 目录分类放，别和系统文件混在一起——升级失败时能快速找回。华三注意 delete /unreserved 才是彻底删。display startup 确认下次启动文件，别让备份文件被误设成启动项。'
+  },
+  {
+    id: 'pr-reboot-save',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '重启实操（save / reboot / 重启前检查）',
+    kw: ['重启', 'reboot', '保存重启', 'reboot fast', '重启命令', '重启前检查'],
+    cmds: [
+      ['华为 VRP8', '! 1. 先保存（reboot 不会自动保存）\nsave\n!\n! 2. 确认没有未保存差异\ndisplay current-configuration\n display saved-configuration\n!\n! 3. 重启（会问确认，输 y）\nreboot\n!\n! 无人值守/批量场景：快速重启（跳过确认，慎用）\nreboot fast']
+    ],
+    tip: '重启前铁律：**先 save**——reboot 本身不保存配置，「改了没存就重启」等于白改。reboot fast 跳过确认直接重启，适合脚本批量操作，手敲的时候别用（输错回车就重启了）。三个注意：① 堆叠/双机场景确认主备角色，重启主机前看清备机状态；② 远程操作时把「保存+重启」和「测试回退」排在同一个窗口，别重启完就下班；③ 重启后先 display version 确认起来了、display ip interface brief 确认管理 IP 在、display alarm active 看有没有新告警，再通知业务方验证。'
+  },
+  {
+    id: 'pr-vlan-deploy',
+    devs: ['Switch'],
+    name: 'VLAN 端到端部署（access / trunk / hybrid 选型）',
+    kw: ['vlan部署', '配vlan', 'access口', 'trunk口', 'hybrid', 'vlan划分', '端口加vlan', '批量vlan'],
+    cmds: [
+      ['华为 VRP8', '! 批量建 VLAN\nvlan batch 10 20 30\n!\n! access：接 PC/打印机（单 VLAN）\ninterface GigabitEthernet0/0/1\n port link-type access\n port default vlan 10\n!\n! trunk：交换机互联（放多 VLAN）\ninterface GigabitEthernet0/0/2\n port link-type trunk\n port trunk allow-pass vlan 10 20\n!\n! hybrid：接 AP/服务器（一个口多个 tagged + 一个 untagged）\ninterface GigabitEthernet0/0/3\n port link-type hybrid\n port hybrid untagged vlan 10\n port hybrid tagged vlan 20 30\n!\ndisplay vlan\n display interface GigabitEthernet0/0/2']
+    ],
+    tip: '三种链路类型按场景选，别混用：access（终端单 VLAN，帧不带标签）、trunk（设备间互联，多 VLAN 带标签）、hybrid（灵活控制哪些 VLAN 带标签——接 AP 时管理 VLAN untagged + 业务 VLAN tagged 是经典用法）。三个高频坑：①  trunk 忘了 port trunk allow-pass vlan，新加的 VLAN 不过去，PC 拿不到地址；② 改链路类型前先 undo 原配置，直接从 trunk 改 access 有的版本会残留 allow-pass；③ display port vlan 看端口实际 VLAN 属性，比 display interface 直观。验收：PC 插上能拿地址 ping 通网关，display vlan 能看到端口在正确的 VLAN。'
+  },
+  {
+    id: 'pr-eth-trunk-deploy',
+    devs: ['Switch'],
+    name: '链路聚合端到端（Eth-Trunk / LACP / 最小链路）',
+    kw: ['链路聚合', 'eth-trunk', 'lacp', '聚合口', '端口聚合', '聚合链路', 'load-balance'],
+    cmds: [
+      ['华为 VRP8', '! 方式一：Eth-Trunk 口下加成员\ninterface Eth-Trunk1\n mode lacp-static\n load-balance src-dst-mac\n least active-linknumber 1\n trunkport GigabitEthernet0/0/23\n trunkport GigabitEthernet0/0/24\n!\n! 方式二：物理口下指定加入哪个 Eth-Trunk\ninterface GigabitEthernet0/0/23\n eth-trunk 1\n!\ndisplay eth-trunk 1\n display trunkmembership eth-trunk 1']
+    ],
+    tip: '两台交换机之间带宽不够就聚合成一条逻辑链路。三个关键参数：① mode lacp-static——双方都要配，LACP 会协商哪些成员口真正转发（一端配 lacp 一端 manual 是起不来的经典错）；② load-balance 选哈希维度（src-dst-mac/ip/port，根据流量特征选，一般 src-dst-ip 或 src-dst-mac 就行）；③ least active-linknumber——活动链路少于这个数逻辑口就 down，防止「只剩一条还傻傻转发」的半速假象。注意：成员口加入聚合前先清掉口上的独立配置（VLAN/STP 参数），不一致会导致聚合不收敛。验收：display eth-trunk 1 看成员口都是 Selected、两端转发正常。'
+  },
+  {
+    id: 'pr-stack-irf',
+    devs: ['Switch'],
+    name: '堆叠 / IRF 端到端（优先级 / 成员编号 / 激活）',
+    kw: ['堆叠', 'istack', 'irf', '虚拟化', '一堆交换机', 'mad', '堆叠配置', '合并堆叠'],
+    cmds: [
+      ['华为 iStack', '! 1. 定主（优先级大的当主机，先配再连线）\nstack\n stack member 1 priority 100\n stack member 2 priority 50\n!\n! 2. 改成员编号（重启生效，编号决定配置文件 slot）\nstack member 1 renumber 1\n!\n! 3. 连堆叠口后激活\ndisplay stack\n display stack topology'],
+      ['H3C IRF', 'irf member 1 priority 60\nirf member 2 priority 40\n!\nirf-port 1/1\n interface Ten-GigabitEthernet1/0/49\n!\nirf-port 1/2\n interface Ten-GigabitEthernet1/0/50\n!\ndisplay irf\n display irf topology']
+    ],
+    tip: '把多台交换机逻辑上拼成一台，管理一个 IP、配置一次生效。操作顺序坑最多：① **先断电配优先级再连线**——都默认 priority 1 时谁当主机看运气，可能出现不是你想要的那台当主；② renumber 改编号要重启才生效，编号决定「哪台是 slot 1」，接口名跟着变（GE1/0/1 → GE2/0/1），改完重启再看；③ 堆叠线必须按拓扑连（链形/环形），环形的才支持任一根线断了不分裂；④ 分裂检测 MAD 要配（direct 检测或 relay 代理），否则堆叠一分为二两台都以为自己是主机，同网段双网关直接全网瘫痪——这是堆叠最大的雷。华为叫 iStack，华三叫 IRF，命令族不同别混。'
+  },
+  {
+    id: 'pr-dhcp-server',
+    devs: ['Switch', 'Router'],
+    name: 'DHCP 服务端到端（地址池 / 保留 / option）',
+    kw: ['dhcp服务器', 'dhcp配置', '地址池', 'dhcp保留', 'dhcp option', '自动获取ip', 'dhcp select'],
+    cmds: [
+      ['华为 VRP8', '! 1. 全局地址池\ndhcp enable\n!\nip pool POOL-OFFICE\n network 10.1.10.0 mask 255.255.255.0\n gateway-list 10.1.10.1\n dns-list 114.114.114.114 8.8.8.8\n lease day 8 hour 0 minute 0\n!\n! 2. 接口绑定全局池\ninterface Vlanif 10\n dhcp select global\n!\n! 3. 静态绑定（打印机/服务器固定 IP）\ndhcp server static-bind ip-address 10.1.10.50 mac-address aaaa-bbbb-cccc\n!\n! 4. 接口地址池（小场景）\ninterface Vlanif 20\n dhcp select interface\n!\ndisplay ip pool name POOL-OFFICE used\n display dhcp server lease']
+    ],
+    tip: 'DHCP 部署四步：开 dhcp enable → 建池（网段/网关/DNS/租期）→ 接口选 global 或 interface → 验证。两个注意：① 接口地址池（dhcp select interface）默认用接口网段、网关就是接口 IP，省事但控制不了分配范围和 option，正式环境用全局池；② 打印机/服务器这类要固定 IP 的用 static-bind 绑 MAC，别靠租约碰运气——PC 拿到服务器旧 IP 的经典事故就是这么来的。排障三连：display dhcp server lease（谁拿了什么）、display ip pool used（池子用满没）、接口 display this 看 dhcp select 选对没。DHCP 报文不过三层，跨网段要中继（见 DHCP 中继那条）。'
+  },
+  {
+    id: 'pr-port-security',
+    devs: ['Switch'],
+    name: '端口安全部署（MAC 绑定 / 违规处理三模式）',
+    kw: ['端口安全', 'port-security', 'mac绑定', '违规处理', 'protect', 'restrict', '换电脑上不了网', '乱接', '乱接电脑', '私接设备'],
+    cmds: [
+      ['华为 VRP8', '! 部署流程：先学习 → 再保护\ninterface GigabitEthernet0/0/1\n port-security enable\n port-security max-mac-num 2\n!\n! 粘滞学习（把当前学到的 MAC 固定下来，重启不丢）\n port-security sticky-mac\n!\n! 违规处理三选一：\n port-security protect-action protect      ! 静默丢弃非法 MAC\n! port-security protect-action restrict     ! 丢弃+告警\n! port-security protect-action shutdown     ! 关接口+告警\n!\ndisplay port-security interface GigabitEthernet0/0/1\n display port-security mac-address']
+    ],
+    tip: '端口安全 = 这个口只准登记过的 MAC 上网，防私接设备（会议室/大厅/财务区常用）。违规处理三种力度按场景选：protect（静默丢，对方表现为上不了网但设备毫无动静——适合不想打草惊蛇）；restrict（丢+日志告警，运维能看到是谁在闯）；shutdown（直接关口，最狠，误伤也最大——办公区慎用，一个口 down 一个投诉）。部署技巧：先开 port-security enable + sticky-mac 让正常设备都连一遍学完，再开 protect-action——不然第一次就把自己人挡了。排障：换了电脑/打印机上不了网，先看是不是端口安全在挡（display port-security 看学到的 MAC 列表）。'
+  },
+  {
+    id: 'pr-port-isolate',
+    devs: ['Switch'],
+    name: '端口隔离与 MUX VLAN（同交换机不同网段互访控制）',
+    kw: ['端口隔离', 'mux-vlan', 'mux vlan', '主vlan', '从vlan', '用户隔离', '公寓隔离', '办公隔离', '配置端口隔离', '端口隔离配置', '隔离端口'],
+    cmds: [
+      ['华为 VRP8（MUX VLAN）', '! 主 VLAN = 上联/网关；从 VLAN 分 group（互通）和 separate（隔离）\nvlan batch 10 20 30 100\n!\nvlan 100\n mux-vlan\n subordinate group 10\n subordinate group 20\n subordinate separate 30\n!\ninterface Vlanif100\n ip address 10.1.100.1 255.255.255.0\n!\ndisplay mux-vlan vlan 100'],
+      ['华为 VRP8（端口隔离）', '! 同 VLAN 内的口互相隔离（都能上联）\nport-isolate enable\n!\ninterface GigabitEthernet0/0/1\n port-isolate enable group 1\n!\ninterface GigabitEthernet0/0/2\n port-isolate enable group 1\n!\ndisplay port-isolate group 1']
+    ],
+    tip: '两种「同设备内隔离」的区别：端口隔离是同一个 VLAN 里的口互相看不见（都能上联），适合酒店客房、宿舍——所有房间一个网段但互相不通，省 IP 又隔离；MUX VLAN 是跨 VLAN 的隔离架构：主 VLAN 是上联口和网关，从 VLAN 里 group 内互通、separate 完全隔离，适合「员工一个区、访客一个区、物业一个区，各区不通但都能上网」的办公/公寓场景。选型口诀：同网段隔离用端口隔离，跨网段控制用 MUX VLAN。坑：MUX VLAN 的从 VLAN 不能再有自己独立的 Vlanif 网关（都由主 VLAN 统一三层接口），配了会冲突。'
+  },
+  {
+    id: 'pr-stp-deploy',
+    devs: ['Switch'],
+    name: 'STP 端到端部署（模式 / 根桥 / edge 口 / 保护）',
+    kw: ['stp部署', '生成树配置', '根桥', 'edged-port', 'bpdu保护', 'stp mode', '生成树'],
+    cmds: [
+      ['华为 VRP8', '! 1. 选模式（全网统一，默认 MSTP 推荐）\nstp mode rstp\n!\n! 2. 指定根桥（4096 的倍数，越小越优先；备根桥大一级）\nstp priority 4096\n!\n! 3. 接终端的口设 edge（秒生效，不用等 30 秒）\ninterface GigabitEthernet0/0/1\n stp edged-port enable\n!\n! 4. 保护：edge 口收到 BPDU 就 down（防私接交换机成环）\ninterface GigabitEthernet0/0/1\n stp bpdu-protection enable\n!\ndisplay stp brief\n display stp interface GigabitEthernet0/0/1']
+    ],
+    tip: 'STP 部署四步走：模式统一 → 定根桥 → edge 口 → 开保护。三个决定体验的点：① 根桥位置——核心层当根、汇聚当备根（stp priority 4096 / 8192），别让接入交换机当根，否则流量绕远路；② edge 口——所有接 PC/打印机的口都设 edged-port enable，终端上线不用等 30 秒转发延迟，这是「电脑开机半天没网」的头号解法；③ bpdu-protection——edge 口上收到 BPDU 说明有人私接交换机，直接关接口保护全网，比事后排查环路快得多。验证：display stp brief 看端口角色（根桥上是 DESI，非根口是 ROOT/ALTE），接终端的口是 DESI 且不参与计算。'
+  },
+  {
+    id: 'pr-eth-trunk-trouble',
+    devs: ['Switch'],
+    name: '链路聚合故障排查（起不来 / 只有一条在跑）',
+    kw: ['聚合不起来', 'eth-trunk故障', '聚合只有一条', 'lacp协商失败', '聚合排障', 'trunk排障'],
+    cmds: [
+      ['华为 VRP8', '! 排障五连\ndisplay eth-trunk 1\n display trunkmembership eth-trunk 1\n display interface Eth-Trunk1\n display interface GigabitEthernet0/0/23\n display lacp statistics eth-trunk 1\n!\n! 常见修复：成员口清残留配置再加\ninterface GigabitEthernet0/0/24\n undo eth-trunk 1\n clear configuration interface GigabitEthernet0/0/24\n interface GigabitEthernet0/0/24\n  eth-trunk 1']
+    ],
+    tip: '聚合起不来的排查顺序：① display eth-trunk 1 看成员口状态——Selected 才转发，Unselect 就是没协商上；② 两端 mode 不一致是头号原因（一端 lacp-static 一端 manual，LACP 报文对不上）；③ 成员口速率/双工不一致，或口上有残留的独立配置（先 undo eth-trunk 再 clear configuration interface 清干净重新加）；④ 物理层问题——看 display interface 成员口是否 up、CRC 有没有涨；⑤ display lacp statistics 看收发 LACP 报文计数，一端收不到就是对端没配或链路不通。只有一条在跑：看是不是 least active-linknumber 或另一端口 down/光纤衰耗。'
+  },
+  {
+    id: 'pr-voice-vlan',
+    devs: ['Switch'],
+    name: 'Voice VLAN 实操（语音数据分 VLAN + 优先）',
+    kw: ['voice vlan', '语音vlan', '话机', 'ip电话', '语音优先', 'voice-vlan'],
+    cmds: [
+      ['华为 VRP8', '! 1. 建语音 VLAN 并全局开\nvlan batch 100\nvoice-vlan 100 enable\n!\n! 2. 接口开 Voice VLAN（auto 模式按 OUI/LLDP 自动识别话机）\ninterface GigabitEthernet0/0/1\n voice-vlan 100 enable\n voice-vlan 100 mode auto\n!\n! 3. 语音流 QoS 优先（ trust dscp 或优先级映射）\ninterface GigabitEthernet0/0/1\n trust dscp\n!\ndisplay voice-vlan 100 status']
+    ],
+    tip: 'IP 话机和电脑共用一个口：语音走 Voice VLAN、数据走原有 VLAN，一个口两用还互不干扰。华为按 OUI（话机厂商 MAC 前缀）自动识别语音流打标签，LLDP-MED 话机也能自动发现。三个注意：① voice-vlan mode auto 靠 OUI 识别——杂牌话机识别不了就用 manual 模式（口下所有流量按语音处理，适合话机专口）；② 语音 VLAN 上要开 QoS 信任，否则语音包和下载抢带宽会卡顿杂音；③ 话机的数据口接电脑时，电脑走 access VLAN、话机走 voice VLAN， hybrid/tagged 配置自动处理，不用手工分。排障：话机拿不到语音地址，display voice-vlan status 看识别状态和 VLAN。'
+  },
+  {
+    id: 'pr-mac-arp-maint',
+    devs: ['Switch', 'Router'],
+    name: 'MAC / ARP 表实操维护（静态 / 黑洞 / 清表）',
+    kw: ['mac表', 'arp表', '静态mac', '黑洞mac', '清表', 'reset mac', 'mac维护', 'arp维护'],
+    cmds: [
+      ['华为 VRP8', '! MAC 表查询\ndisplay mac-address\n display mac-address vlan 10\n display mac-address interface GigabitEthernet0/0/1\n!\n! 静态绑定（服务器固定，防漂移）\nmac-address static 0000-1111-2222 GigabitEthernet0/0/1 vlan 10\n!\n! 黑洞 MAC（隔离危险设备，报文直接丢）\nmac-address blackhole 0000-1111-3333 vlan 10\n!\n! 动态表维护（改网络后清一次重新学）\nreset mac-address dynamic\n!\n! ARP 表\n display arp all\n display arp interface Vlanif10\narp static 10.1.10.50 0000-1111-2222 vid 10 interface GigabitEthernet0/0/1\nreset arp interface Vlanif10']
+    ],
+    tip: 'MAC/ARP 表是二层/三层转发的依据，日常维护三个操作：① 静态绑定——核心服务器/打印机/话机的 MAC 绑死，防止 MAC 漂移把流量带偏（绑定后即使对端换了口也不失效，配合黑洞 MAC 隔离老地址）；② 黑洞 MAC——发现中毒/攻击 MAC 直接黑洞丢弃，比找物理位置关口快；③ reset 清表——大范围网络调整（VLAN 迁移、拓扑变更）后清一次动态表，让设备按新拓扑重新学，防止老表项导致流量黑洞。注意 reset mac-address dynamic 会瞬间丢包（转发表重建），避开业务高峰。ARP 冲突（同一 IP 两个 MAC）时 display arp all 看冲突条目，配合 arp static 绑死网关。'
+  },
+  {
+    id: 'pr-lldp',
+    devs: ['Switch', 'Router'],
+    name: 'LLDP 实操（看对端是什么设备 / 对接思科）',
+    kw: ['lldp', '邻居发现', '对端设备', 'lldp neighbor', 'cdp兼容', '拓扑发现'],
+    cmds: [
+      ['华为 VRP8', '! 全局开 + 接口开（华为默认全关）\nlldp enable\n!\ninterface GigabitEthernet0/0/1\n lldp enable\n!\n! 对接思科设备（兼容 CDP）\ninterface GigabitEthernet0/0/1\n lldp compliance admin-status cdp txrx\n!\n! 看邻居\ndisplay lldp neighbor\n display lldp neighbor interface GigabitEthernet0/0/1\n display lldp neighbor system-name']
+    ],
+    tip: 'LLDP 是「插上线就知道对端是什么」的协议——排障时不用爬机房看对端设备名和端口，display lldp neighbor 直接告诉你「对端是 SW-Core-01 的 GE0/0/24」。部署注意：① 华为默认全局关，要全局和接口都 enable 才生效；② 对接思科设备时思科默认用 CDP 不说 LLDP，接口下 lldp compliance admin-status cdp txrx 让华为同时收发 CDP；③ 对端不支持 LLDP 的老设备就学不到，别怀疑自己配置。应用场景：台账核对（批量 display lldp neighbor 导出全网连接关系）、环路排查（看哪个口接了不该接的设备）、光纤跳错线定位。'
+  },
+  {
+    id: 'pr-if-params',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '接口日常操作全家桶（描述 / 参数 / 计数 / 启停）',
+    kw: ['接口操作', '接口描述', '接口计数', '清计数器', '关接口', '开接口', 'mtu', '接口参数'],
+    cmds: [
+      ['华为 VRP8', 'interface GigabitEthernet0/0/1\n description TO_PC-001\n speed 1000\n duplex full\n negotiation auto\n mtu 1500\n flow-control\n shutdown\n undo shutdown\n!\n! 看状态和计数\ndisplay interface GigabitEthernet0/0/1\n display interface brief\n!\n! 清计数器（清零后观察增量，判断是否还在涨）\nclear counters interface GigabitEthernet0/0/1']
+    ],
+    tip: '接口日常操作的参考模板：description 写对端（排障救命，见命名规范那条）、速率双工按对接设备配（协商失败才手动，别一端 auto 一端强制）、MTU 默认 1500（跑 VXLAN/PPPoE/MPLS 的场景要调大）、flow-control 存储网络才开。清计数器是排查利器：clear counters 后观察 5 分钟，CRC/error/drop 的**增量**说明问题在持续发生，没增量说明是历史遗留——只看累计值会被几个月前的一次故障误导。shutdown/undo shutdown 不用多说，但批量操作前确认没关错口——远程管理时把上联口 shutdown 是真事。'
+  },
+  {
+    id: 'pr-static-deploy',
+    devs: ['Router'],
+    name: '静态路由部署四场景（默认 / 浮动 / 黑洞 / 负载分担）',
+    kw: ['静态路由', '默认路由', '浮动路由', '黑洞路由', '负载分担', 'ip route-static', '静态路由配置'],
+    cmds: [
+      ['华为 VRP8', '! 场景 1：默认路由（小网络一把梭）\nip route-static 0.0.0.0 0.0.0.0 10.1.1.1\n!\n! 场景 2：浮动路由（主备链路，备份靠 preference 让位）\nip route-static 0.0.0.0 0.0.0.0 10.1.1.1\n ip route-static 0.0.0.0 0.0.0.0 10.2.2.2 preference 100\n!\n! 场景 3：黑洞路由（防汇总后的环路，流量引到 null）\nip route-static 10.0.0.0 8 NULL 0\n!\n! 场景 4：等价负载分担（同目的地同优先级）\nip route-static 0.0.0.0 0.0.0.0 10.1.1.1\n ip route-static 0.0.0.0 0.0.0.0 10.2.2.2\n!\ndisplay ip routing-table protocol static']
+    ],
+    tip: '静态路由是分支/小网络的主力，四个场景覆盖 90% 用法：默认路由省事但没法感知故障（出口挂了路由还在，流量照丢——要可靠性上浮动+BFD）；浮动路由靠 preference 数值让备份路由等主路由失效后才冒头；黑洞路由配合汇总用，把发往不存在网段的流量引到 NULL 丢弃，防止环路兜圈；负载分担是同目的地多条同优先级静态，按流哈希分到不同出口。验证永远先 display ip routing-table protocol static——没进表的三种原因：下一跳不可达（先 ping 通下一跳）、preference 被更优路由压制、接口 down 了静态没生效（手动确认 without 永久属性）。'
+  },
+  {
+    id: 'pr-ospf-single',
+    devs: ['Router', 'Switch'],
+    name: 'OSPF 单区域从零实操（配完到邻居起来）',
+    kw: ['ospf配置', 'ospf部署', 'ospf邻居', 'ospf enable', 'ospf不通', 'ospf排障'],
+    cmds: [
+      ['华为 VRP8', '! 1. 配接口 IP\ninterface GigabitEthernet0/0/0\n ip address 10.1.1.1 255.255.255.0\n!\n! 2. 接口下使能 OSPF（华为必须在接口视图开）\ninterface GigabitEthernet0/0/0\n ospf enable 1 area 0\n!\ninterface GigabitEthernet0/0/1\n ip address 10.1.2.1 255.255.255.0\n ospf enable 1 area 0\n!\n! 3. 引入直连路由\nospf 1\n import-route direct\n!\ndisplay ospf peer\n display ospf routing\n display ospf error']
+    ],
+    tip: 'OSPF 从零到通的五步：接口 IP → ospf enable X area Y → 验证邻居 → 引入路由 → 看路由表。华为和思科最大的区别：华为 OSPF 是**接口视图使能**（ospf enable 1 area 0），没有 network 命令——从思科转过来的人第一个坎。邻居起不来的排查顺序：① 直连 ping 不通 → 物理层/IP 配错；② ping 通但邻居起不来 → 区域不一致、掩码不一致、hello/dead 时间不一致（display ospf error 看计数）、router-id 冲突；③ display ospf peer 状态 Full 才算真正通，2-Way/ExStart 卡住多是 MTU 或认证问题。核心设备建议显式配 router-id（防重启后变）。'
+  },
+  {
+    id: 'pr-bgp-basic',
+    devs: ['Router'],
+    name: 'BGP 基础端到端（eBGP 直连 / iBGP 环回 / 通告）',
+    kw: ['bgp配置', 'bgp邻居', 'ebgp', 'ibgp', 'bgp通告', 'bgp不通', 'bgp排障'],
+    cmds: [
+      ['华为 VRP8', '! eBGP 直连建邻居\nbgp 100\n router-id 1.1.1.1\n peer 10.1.1.2 as-number 200\n!\n ipv4-family unicast\n  peer 10.1.1.2 enable\n!\n! iBGP 用环回（非直连，要 update-source + 多跳）\n peer 2.2.2.2 as-number 100\n peer 2.2.2.2 connect-interface LoopBack0\n peer 2.2.2.2 ebgp-max-hop 2\n!\n ipv4-family unicast\n  peer 2.2.2.2 enable\n!\n! 通告本地网段\n network 100.1.1.0 255.255.255.0\n!\ndisplay bgp peer\n display bgp routing-table']
+    ],
+    tip: 'BGP 部署三要素：建邻居（as-number 对端 AS）→ 地址族里 enable → 通告路由。两个和 IGP 完全不同的点：① BGP 邻居必须显式在 ipv4-family unicast 里 peer enable，不 enable 邻居建了也不传路由；② iBGP 用环回源（connect-interface LoopBack0）防单链路故障丢邻居，非直连还要 ebgp-max-hop。邻居起不来排查：display bgp peer 看状态——Idle/Active 是底层不通或配置错，OpenConfirm 是能力协商中， Established 才是通；常见错误是对端 AS 写反、AS 间没放行 TCP 179（防火墙挡）。通告用 network（必须精确匹配路由表中的条目，不像 IGP 是反掩码）。'
+  },
+  {
+    id: 'pr-vrrp-deploy',
+    devs: ['Router', 'Switch', '防火墙'],
+    name: 'VRRP 网关冗余端到端（主备 / 优先级 / 抢占）',
+    kw: ['vrrp配置', '网关冗余', '双网关', 'vrrp virtual-ip', '主备网关', 'preempt', '热备', '网关热备'],
+    cmds: [
+      ['华为 VRP8（主机）', 'interface Vlanif10\n ip address 10.1.10.2 255.255.255.0\n vrrp vrid 10 virtual-ip 10.1.10.1\n vrrp vrid 10 priority 120\n vrrp vrid 10 preempt-mode timer delay 20'],
+      ['华为 VRP8（备机）', 'interface Vlanif10\n ip address 10.1.10.3 255.255.255.0\n vrrp vrid 10 virtual-ip 10.1.10.1\n vrrp vrid 10 priority 100'],
+      ['验证', 'display vrrp\n display vrrp interface Vlanif10']
+    ],
+    tip: '双网关部署：两台设备配同一个 vrid + 同一个 virtual-ip，优先级高的当 Master（120 vs 100），终端网关全部指向 10.1.10.1——主机宕机备机秒级接管，终端无感知。三个要点：① preempt-mode 抢占要配 delay（防网络抖动时主备来回抢，抢来抢去比不抢还糟）；② 同一广播域不同 VLAN 用不同 vrid（VLAN10 用 vrid 10，VLAN20 用 vrid 20），不能重号；③ 主机优先级的分配建议核心设备 120、汇聚 100、留出调整余量。display vrrp 看状态：一台 Master 一台 Backup 就对了，两台都是 Master 是 vrid/virtual-ip 不一致或二层不通。进阶：上行链路跟踪（track），上行断了自动降优先级让备机接管。'
+  },
+  {
+    id: 'pr-nat-deploy',
+    devs: ['Router', '防火墙'],
+    name: 'NAT 端到端部署（Easy IP / NAT Server / 验证）',
+    kw: ['nat配置', 'nat outbound', 'nat server', '端口映射', 'easy ip', '上网nat', 'nat部署'],
+    cmds: [
+      ['华为 VRP8', '! 1. 定义内网网段\nacl number 2000\n rule 5 permit source 10.1.0.0 0.0.255.255\n!\n! 2. 外网口做源 NAT（多对一，公网 IP 自动转换）\ninterface GigabitEthernet0/0/1\n ip address 202.1.1.1 255.255.255.0\n nat outbound 2000\n!\n! 3. NAT Server（外网访问内网服务器）\ninterface GigabitEthernet0/0/1\n nat server protocol tcp global 202.1.1.1 8080 inside 10.1.10.100 80\n!\ndisplay nat session verbose\n display nat outbound\n display nat server']
+    ],
+    tip: 'NAT 部署就两步：ACL 圈内网网段 + 外网口 nat outbound。nat outbound 2000 默认带 PAT（端口复用），多个内网地址共享一个公网 IP 上网——这是最常见的形态。NAT Server 做端口映射：global 是公网侧地址端口、inside 是内网真实地址端口，两边端口不一样也能映射（8080→80 是常规操作，避开运营商封的 80）。验证三板斧：display nat session verbose 看有没有生成会话（有会话说明转换在工作）、内网 PC 直接 ping 外网 IP 通不通（先确认没被 NAT 挡）、display nat outbound 看 ACL 匹配计数在不在涨。坑：NAT Server 和安全策略是两层——防火墙设备上 NAT 映射通了还要放行对应安全策略，只配一个都通不了。'
+  },
+  {
+    id: 'pr-pbr-deploy',
+    devs: ['Router'],
+    name: '策略路由端到端（按源分流 MQC 全流程）',
+    kw: ['策略路由', 'pbr', '分流', 'traffic-policy', 'redirect', '多出口', '按源选路'],
+    cmds: [
+      ['华为 VRP8', '! 1. 圈流量（哪个网段走哪条路）\nacl number 3000\n rule 5 permit source 10.1.10.0 0.0.0.255\n!\n! 2. 分类\n traffic classifier C-OFFICE\n  if-match acl 3000\n!\n! 3. 行为（指定下一跳）\n traffic behavior B-LINK1\n  redirect ip-nexthop 10.2.2.2\n!\n! 4. 组装策略\n traffic policy P-SPLIT\n  classifier C-OFFICE behavior B-LINK1\n!\n! 5. 接口应用（inbound 方向！）\ninterface GigabitEthernet0/0/0\n traffic-policy P-SPLIT inbound\n!\ndisplay traffic policy statistics interface GigabitEthernet0/0/0']
+    ],
+    tip: '多出口按源分流的标准姿势：ACL 圈流量 → classifier 分类 → behavior 指定下一跳 → policy 组装 → 接口 inbound 应用。五个易错点：① 应用方向是 inbound——流量进来时分流，不是出去时；② redirect ip-nexthop 指定下一跳 IP，多个下一跳可以写多条做负载；③ ACL 没匹配到的流量走正常路由表，别忘 permit 兜底；④ 本机自己产生的流量不走接口 PBR（要 ip local policy-based-route 本地策略路由）；⑤ display traffic policy statistics 看命中计数——计数不动就是 ACL 没匹配上，回去查源地址写对没。场景：电信+联通双出口按部门分流、服务器流量强制走专线、访客网段走便宜出口。'
+  },
+  {
+    id: 'pr-acl-deploy',
+    devs: ['Router', 'Switch', '防火墙'],
+    name: 'ACL 端到端部署（定义 / 步长 / 应用 / 验证）',
+    kw: ['acl配置', 'acl部署', 'traffic-filter', 'acl步长', 'acl应用', 'acl不通'],
+    cmds: [
+      ['华为 VRP8', '! 1. 定义（rule 用 5/10/15 步长，留插缝）\nacl number 3000\n rule 5 deny tcp source 10.1.10.0 0.0.0.255 destination any destination-port eq 3389\n rule 10 permit ip\n!\n! 2. 接口应用（inbound 过滤入设备流量）\ninterface GigabitEthernet0/0/1\n traffic-filter inbound acl 3000\n!\n! 3. 验证\ndisplay acl 3000\n display traffic-filter applied-record\n display acl counter 3000']
+    ],
+    tip: 'ACL 部署四步：定义 → 接口应用 → 验证命中 → 放行兜底。三个关键认知：① ACL 最后有一条隐含 deny all——不写 rule 10 permit ip 兜底，没匹配的流量全丢，这是「加了 ACL 后全断网」的头号原因；② rule 编号按 5/10/15 步长写，以后要插规则不用重排（插在 5 和 10 之间写 rule 7）；③ 应用方向想清楚：inbound 是「流量进入接口时检查」（挡外部进来的），outbound 是「从设备发出去时检查」（挡内网出去的），搞反了效果完全两样。验证：display acl counter 看每条规则的命中计数——某条计数狂涨说明匹配到了，计数不动说明没匹配上（地址/端口写错或方向错）。'
+  },
+  {
+    id: 'pr-dhcp-relay',
+    devs: ['Switch', 'Router'],
+    name: 'DHCP 中继端到端（跨网段自动获取 IP）',
+    kw: ['dhcp中继', 'dhcp relay', '跨网段dhcp', '中继配置', '拿不到ip', 'relay server-ip'],
+    cmds: [
+      ['华为 VRP8', '! 接入交换机/网关上配（DHCP 服务器在别的网段）\ndhcp enable\n!\ninterface Vlanif10\n dhcp select relay\n dhcp relay server-ip 10.1.1.100\n!\n! 多服务器冗余\ndhcp relay server-ip 10.1.1.101\n!\n! Option 82（记录用户接在哪个交换机的哪个口，排障/计费用）\ninterface GigabitEthernet0/0/1\n dhcp option82 insert enable\n!\ndisplay dhcp relay interface Vlanif10\n display dhcp relay statistics']
+    ],
+    tip: 'DHCP 报文不过三层，终端和 DHCP 服务器跨网段时必须靠中继转发。配置极简：接口 dhcp select relay + dhcp relay server-ip 指向服务器。拿不到 IP 的排查顺序：① display dhcp relay statistics 看有没有收到 DHCP 请求（收到没发出 = server-ip 配错或服务器不可达，ping 一下服务器）；② 完全没收到 = 终端和网关二层不通（VLAN/access 口/链路问题）；③ 服务器收到了没分 = 地址池没这个网段或池子满了。Option 82 强烈建议开——中继时把「接在哪个设备哪个口」塞进 DHCP 报文，IP 冲突/私接排查时能直接定位到物理口，还能给计费系统用。'
+  },
+  {
+    id: 'pr-gw-dhcp-combo',
+    devs: ['Switch', 'Router'],
+    name: 'VRRP + DHCP 组合拳（网关切换用户无感）',
+    kw: ['网关切换', 'dhcp指向虚拟ip', '双网关dhcp', 'vrrp dhcp', '网关冗余组合', '主备上网'],
+    cmds: [
+      ['华为 VRP8', '! 1. VRRP 虚拟网关\ninterface Vlanif10\n ip address 10.1.10.2 255.255.255.0\n vrrp vrid 10 virtual-ip 10.1.10.1\n vrrp vrid 10 priority 120\n!\n! 2. DHCP 网关指向虚拟 IP（不是物理 IP！）\nip pool POOL-OFFICE\n network 10.1.10.0 mask 255.255.255.0\n gateway-list 10.1.10.1\n!\n! 3. 验证：终端拿到的网关是虚拟 IP\ninterface Vlanif10\n dhcp select global\n!\ndisplay dhcp server lease\n display vrrp']
+    ],
+    tip: '这个组合是「网关高可用」的标准答案：VRRP 提供虚拟网关 10.1.10.1，DHCP 的 gateway-list 指向虚拟 IP——主机宕机时备机接管虚拟 IP，终端网关不用重获取、连接不断。最大的坑是 DHCP 网关配成物理 IP（10.1.10.2）：主机活着没事，主机一宕机，新拿地址的终端网关指向一台死设备，直接上不了网——老终端的租约还没到期也发现不了，等续租时集中爆炸。验收：display dhcp server lease 看分出去的网关地址是 .1（虚拟）不是 .2/.3（物理）；拔掉主机网线，备机 display vrrp 变 Master，终端不断网。'
+  },
+  {
+    id: 'pr-v6-basic',
+    devs: ['Switch', 'Router'],
+    name: 'IPv6 开局最小集（地址 / 静态路由 / 验证）',
+    kw: ['ipv6配置', 'ipv6地址', 'ipv6 static', 'ipv6开局', 'ipv6 enable', 'ipv6部署'],
+    cmds: [
+      ['华为 VRP8', '! 1. 全局开 IPv6（默认关！）\nipv6\n!\n! 2. 接口开 + 配地址\ninterface GigabitEthernet0/0/0\n ipv6 enable\n ipv6 address 2001:DB8:10::1/64\n!\n! 3. IPv6 静态路由\n ipv6 route-static 2001:DB8:20:: 64 2001:DB8:10::2\n!\n! 4. 验证\ndisplay ipv6 interface brief\n display ipv6 neighbors\n display ipv6 routing-table']
+    ],
+    tip: 'IPv6 开局三步：全局 ipv6 命令打开（不敲这个接口下配什么白搭）→ 接口 ipv6 enable + 地址 → 静态路由打通。三个和 IPv4 不一样的认知：① ipv6 enable 是接口独立开关，默认接口不转发 IPv6（链路本地地址除外）；② 终端大多靠 SLAAC（RA 公告前缀）自动配地址，不用 DHCP 也能上网——排障时先 display ipv6 interface X ra 看 RA 发没发；③ display ipv6 neighbors 相当于 IPv4 的 ARP 表，学不到邻居先查链路和 ipv6 enable。迁移建议：先核心到出口通，再逐层往下开，每开一层 display ipv6 interface brief 确认，别一上来全网铺。'
+  },
+  {
+    id: 'pr-v6-dhcp',
+    devs: ['Router'],
+    name: 'DHCPv6 端到端（地址池 / PD 前缀委派）',
+    kw: ['dhcpv6', 'ipv6 dhcp', '前缀委派', 'dhcpv6 pool', 'ipv6自动获取', 'pd'],
+    cmds: [
+      ['华为 VRP8', '! 1. 生成 DUID（设备唯一标识，DHCPv6 必备）\ndhcpv6 duid ll\n!\n! 2. 地址池\ndhcpv6 pool POOL-V6\n address prefix 2001:DB8:10::/64\n dns-server 2001:DB8::1\n!\n! 3. 接口绑定\ninterface GigabitEthernet0/0/0\n ipv6 enable\n ipv6 address 2001:DB8:10::1/64\n dhcpv6 server POOL-V6\n!\ndisplay dhcpv6 pool\n display dhcpv6 server bindings']
+    ],
+    tip: 'DHCPv6 两种用法：有状态（DHCPv6 分配地址，和 IPv4 DHCP 一个套路，要 dhcpv6 pool + 接口 dhcpv6 server）和无状态（只发 DNS 等选项，地址靠 SLAAC）。DUID 是设备身份证——换主控板 DUID 变，绑定表失效，批量换硬件的场景要提前清理旧绑定。前缀委派（PD）是 IPv6 特色：上级路由器分一段前缀（比如 /48）给下级路由器，下级再往下分 /64 给各 VLAN——家用光猫拨号场景就是这个，企业多分支场景也常用（每个分支自动拿不同前缀，不用手工规划）。排障：display dhcpv6 pool used 看池子用没用、display dhcpv6 server bindings 看谁拿了什么。'
+  },
+  {
+    id: 'pr-vrf-basic',
+    devs: ['Router'],
+    name: 'VRF 基础实操（一台设备多个隔离网络）',
+    kw: ['vrf', 'vpn-instance', '多实例', '网络隔离', 'vrf配置', '一机多网'],
+    cmds: [
+      ['华为 VRP8', '! 1. 建 VRF 实例\nip vpn-instance OFFICE\n ipv4-family\n  route-distinguisher 100:1\n!\n! 2. 接口绑定 VRF（绑了就只能收发本 VRF 的路由）\ninterface GigabitEthernet0/0/1\n ip vpn-instance OFFICE\n ip address 10.1.1.1 255.255.255.0\n!\n! 3. 验证：路由表是隔离的\ndisplay ip vpn-instance\n display ip routing-table vpn-instance OFFICE\n display ip interface brief']
+    ],
+    tip: 'VRF = 一台物理设备虚拟出多张独立路由表，各 VRF 之间三层完全隔离（同 IP 段都能重复用）。典型场景：一机多网（办公网+监控网+设备网共用核心交换机但互相不通）、多租户、业务隔离。三个要点：① 接口绑 VRF 后原物理口的三维配置会清空重配（ip address 要在绑完之后配）；② 每个 VRF 是独立路由表，静态/OSPF/BGP 都按 vpn-instance 分别配；③ display ip routing-table vpn-instance XXX 看对应表，不带参数看的是公网表——「明明配了路由不通」先确认看的是哪张表。VRF 之间要互通用 VRF  leaking（route-policy 互相引入），那是进阶操作，日常先掌握隔离。'
+  },
+  /* ============ 批4 安全实操 ============ */
+  {
+    id: 'pr-fw-init',
+    devs: ['防火墙'],
+    name: '防火墙初始化（管理 / 区域 / 接口）',
+    kw: ['防火墙初始化', '防火墙开局', '防火墙配置', '华为防火墙', 'usg', 'security zone'],
+    cmds: [
+      ['华为 USG VRP', '! 1. 管理口 + 缺省路由\ninterface GigabitEthernet1/0/0\n ip address 192.168.1.1 255.255.255.0\n!\nip route-static 0.0.0.0 0.0.0.0 192.168.1.254\n!\n! 2. 安全区域（USG 四大区，接口必须绑区域否则不通）\nfirewall zone trust\n add interface GigabitEthernet1/0/1\n!\nfirewall zone untrust\n add interface GigabitEthernet1/0/0\n!\n! 3. 放行管理\nfirewall packet-filter default permit all\n!\n! 4. 验证\ndisplay zone\n display interface brief\n display ip routing-table']
+    ],
+    tip: '防火墙和路由器最大的不一样：接口不绑安全区域 = 流量直接丢弃（策略在区域间生效）。USG 默认有 trust/untrust/dmz/local 四区，local 是设备本身。管理三件套：① 缺省路由（没它上不了网管不了）；② 区域绑定；③ packet-filter 默认动作——机房用 firewall packet-filter default permit all 放行调试，上线前改 default deny 只放行业务。版本差异：VRP5 老 USG2000 命令基本一致，USG6000 系列加 session 相关新特性（见会话表条目）。排障第一反应永远是「接口在哪个区、区域间有没有策略、策略命中数涨不涨」。'
+  },
+  {
+    id: 'pr-fw-policy',
+    devs: ['防火墙'],
+    name: '安全策略（域间策略 / 地址对象 / 放行业务）',
+    kw: ['安全策略', '防火墙策略', 'security-policy', '域间', '放行', '防火墙放行'],
+    cmds: [
+      ['华为 USG VRP', '! 1. 地址对象（把 IP/段抽象成名字，策略引用）\nip address-set WEB_SRV type object\n address 10.1.1.0 mask 24\n!\n! 2. 域间策略：trust → untrust 放行 WEB 服务\nsecurity-policy\n rule name PERMIT-WEB\n  source-zone trust\n  destination-zone untrust\n  source-address 10.1.1.0 24\n  destination-address WEB_SRV\n  service protocol tcp destination-port 80\n  service protocol tcp destination-port 443\n  action permit\n!\n! 3. 验证命中\ndisplay security-policy rule name PERMIT-WEB\n display security-policy statistics']
+    ],
+    tip: '安全策略五要素：源区域、目的区域、源地址、目的地址、服务——五个全匹配才命中，缺一个就走默认拒绝。排障三板斧：① display security-policy statistics 看命中数涨没涨（不涨 = 没匹配上，回查五要素哪条对不上）；② display security-policy rule all 看规则顺序（自上而下，被前面规则命中就不往下走，调整规则要靠 rule move up/down）；③ display firewall session table 看会话建没建。经验：新建策略放最上面、调试完再按业务顺序排；临时排障加一条 log 动作的宽松规则（action permit + logging enable），定位完删掉——千万别图省事把默认动作改 permit。'
+  },
+  {
+    id: 'pr-fw-session',
+    devs: ['防火墙'],
+    name: '会话表维护与黑名单（限速 / 封 IP）',
+    kw: ['会话表', '防火墙封ip', '黑名单', '限速', '攻击防护', 'session limit', '攻击', '有人攻击', '封ip', '防攻击', '被攻击','有人攻击','攻击怎么封','封某个 ip','紧急封 ip','封停 ip','被攻击','遭受攻击','攻击怎么封'],
+    cmds: [
+      ['华为 USG VRP', '! 1. 看会话（排查链接数打满/异常连接）\ndisplay firewall session table\n display firewall session table source-ip 10.1.1.100 verbose\n display firewall session table statistics\n!\n! 2. 基于 ACL 封单个 IP（黑名单，丢包不建会话）\nacl number 3000\n rule deny ip source 203.0.113.9 0\n!\nfirewall defend blacklist item IP-BLOCK source-ip 203.0.113.9\n!\n! 3. 单 IP 连接数/新建速率限制\ndefend attack per-ip tcp-syn 100\n defend connection max-per-ip 1000\n!\n! 4. 清理会话\ndisplay firewall session table\n reset firewall session table source-ip 203.0.113.9']
+    ],
+    tip: '会话表是防火墙的命门——表打满（默认几十万条）新连接全丢，现象是「时不时断网、重启就好」。排查套路：display firewall session table statistics 看当前/峰值使用率；topN 源 IP 看谁在爆连接（配合抓包确认是中毒还是业务突发）。封 IP 两种姿势：黑名单（defend blacklist，不建会话直接丢，最省资源）和 ACL（灵活但每条匹配消耗）。防攻击三件套：syn-flood 防护、per-ip 连接数限制、ICMP 限速——机房被 DDoS 时先开这三个顶住，再联系上游清洗。注意 reset firewall session table 会踢掉匹配的所有连接，生产环境慎用整表 reset。'
+  },
+  {
+    id: 'pr-ipsec',
+    devs: ['防火墙', 'Router'],
+    name: 'IPsec VPN 六步落地（IKE 策略 / 感兴趣流 / 应用）',
+    kw: ['ipsec', 'ipsec vpn', 'ike', 'ipsec配置', '站点到站点', 'ipsec vpn配置'],
+    cmds: [
+      ['华为 VRP8', '! 1. 第一階段：IKE 安全提议\nike proposal 1\n encryption-algorithm aes-256\n dh group14\n authentication-algorithm sha2-256\n authentication-method pre-share\n!\n! 2. IKE keychain / 对端\nike peer PT1 v1\n pre-shared-key cipher SiteA-SiteB-2026\n ike-proposal 1\n remote-address 203.0.113.2\n!\n! 3. 第二階段：IPsec 提议 + 感兴趣流\nipsec proposal IPSEC-P1\n transform esp\n esp encryption-algorithm aes-256\n esp authentication-algorithm sha2-256\n!\nacl number 3000\n rule permit ip source 10.1.1.0 0.0.0.255 destination 10.2.2.0 0.0.0.255\n!\n! 4. 应用到接口\nipsec policy PT-POL 10 isakmp\n ike-peer PT1\n proposal IPSEC-P1\n security acl 3000\n!\ninterface GigabitEthernet0/0/0\n ipsec apply policy PT-POL\n!\n! 5. 验证\ndisplay ike sa\n display ipsec sa\n display ipsec statistics']
+    ],
+    tip: 'IPsec 站点到站点 VPN 就六步，顺序别乱：① IKE proposal（一阶段加密套件，两边必须一致）；② IKE peer（预共享密钥 + 对端公网地址 + 绑定 proposal）；③ IPsec proposal（二阶段 ESP 套件）；④ ACL 定义「感兴趣流」（哪些网段走 VPN——ACL permissive 是触发不是过滤，写反了就是通的不加不加的通）；⑤ ipsec policy 把前三样组装并应用到公网接口；⑥ display ike sa / display ipsec sa 看两阶段隧道起没起。排障铁律：先看 IKE SA（一阶段没过 = 密钥/加密套件/对端地址错，或中间 NAT），再看 IPsec SA（二阶段没过 = 感兴趣流两侧不对称、PFS/dh 组不一致）。第三阶段失败看 display ipsec statistics 的加解密包数对不对等。'
+  },
+  {
+    id: 'pr-gre-ipsec',
+    devs: ['Router'],
+    name: 'GRE over IPsec（路由 VPN + 加密）',
+    kw: ['gre over ipsec', 'gre vpn', 'gre隧道加密', 'gre配置', '隧道加密'],
+    cmds: [
+      ['华为 VRP8', '! 1. GRE 隧道口（跑路由，解决 IPsec 不能传路由的问题）\ninterface Tunnel0/0/1\n tunnel-protocol gre\n source 203.0.113.1\n destination 203.0.113.2\n ip address 172.16.0.1 255.255.255.252\n!\n! 2. 感兴趣流只保护 GRE（单播 50 协议）\nacl number 3000\n rule permit gre source 203.0.113.1 0 destination 203.0.113.2 0\n!\n! 3. IPsec 应用（模板方式，匹配所有 GRE 流量）\nipsec policy PT-POL 10 isakmp template PT1\n!\ninterface GigabitEthernet0/0/0\n ipsec apply policy PT-POL\n!\n! 4. 验证：GRE 先通再加密\ndisplay interface Tunnel0/0/1\n display ike sa\n ping -a 172.16.0.1 172.16.0.2']
+    ],
+    tip: 'GRE over IPsec = GRE 负责传路由和组播（OSPF/视频/语音都能跑），IPsec 负责加密，是分支互联最经典的组合。关键认知：① 感兴趣流只写 GRE（protocol 50）一条，别把业务网段写进去——写了反而多此一举且 SA 不对称；② 先裸 GRE ping 通 Tunnel 地址，确认基础封装没问题，再上 IPsec，分层定位省一半时间；③ MTU 要调（Tunnel 口 ip mtu 1400 或 tcp adjust-mss 1360），否则大包被丢、小包正常——「网页能开、文件传不动」就是这个症状；④ 两边 Tunnel 地址要同网段，OSPF 邻居就跑在 Tunnel 口上。华三命令同构：interface Tunnel 下 gre + ipsec policy 应用方式一致。'
+  },
+  {
+    id: 'pr-snooping-ipsg',
+    devs: ['Switch'],
+    name: 'DHCP Snooping + IPSG（防私接 / 防仿冒）',
+    kw: ['dhcp snooping', 'ipsg', '防私接', '绑定', 'arp防骗', 'ip source guard', '内网', '私接', '内网安全'],
+    cmds: [
+      ['华为 S5700 VRP8', '! 1. 全局开 DHCP Snooping\ndhcp enable\ndhcp snooping enable\n!\n! 2. 信任口 = 连 DHCP 服务器的口（上联口）\nvlan batch 10\ninterface GigabitEthernet0/0/24\n dhcp snooping trusted\n!\n! 3. 接入口开 Option82 + 检查\ndhcp snooping option82 insert enable\ninterface GigabitEthernet0/0/1\n dhcp snooping check arp enable\n dhcp snooping check dhcp-request enable\n!\n! 4. IPSG：接入口只放行绑定表内的 IP\ndhcp snooping bind-table static ip 10.10.10.5 mac aaaa-bbbb-cccc vlan 10 interface GigabitEthernet0/0/1\n!\ninterface GigabitEthernet0/0/1\n ip source check user-bind enable\n!\n! 5. 验证\ndisplay dhcp snooping bind-table\n display dhcp snooping statistics']
+    ],
+    tip: '这套组合拳解决「有人私接小路由器、私设静态 IP、ARP 骗人」三大内网顽疾。原理链：DHCP Snooping 在信任口（连服务器/上联）听 DHCP 过程，记录「IP-MAC-端口-VLAN」生成绑定表；接入口默认不信任——收到 DHCP 报文直接丢，私接路由器想偷偷 DHCP 服务直接死。IPSG 拿绑定表当白名单：接入口来源 IP 不在表里（私设静态 IP）就丢。注意：① 信任口千万别选错——选成接入口，整口 DHCP 全断；② 静态 IP 的设备（打印机/服务器）要手工 bind-table static 补录；③ Option82 是给上层认证平台用的，内网自用可不开；④ 排障看 display dhcp snooping bind-table 有没有学到表，学不到先查信任口和 vlan 开启。'
+  },
+  {
+    id: 'pr-dot1x',
+    devs: ['Switch'],
+    name: '802.1X 接入认证（端口准入）',
+    kw: ['802.1x', 'dot1x', '端口认证', '准入', '1x配置', 'portal认证'],
+    cmds: [
+      ['华为 S5700 VRP8', '! 1. 全局开 802.1X + 认证模板\ndot1x enable\n!\ndot1x authentication-profile DEFAULT\n dot1x authentication-method chap\n!\n! 2. 接入口应用模板（默认 30s 重认证）\ninterface GigabitEthernet0/0/1\n dot1x authentication-profile DEFAULT\n!\n! 3. 免认证：给打印机等哑终端开 MAC 旁路\ninterface GigabitEthernet0/0/2\n mac-authen\n!\n! 4. 验证\ndisplay dot1x interface GigabitEthernet0/0/1\n display access-user\n display dot1x statistics']
+    ],
+    tip: '802.1X = 端口级准入：认证不通过只让过 EAPOL 报文，业务流量全丢——适合「员工笔记本接墙插必须登录域账号」的场景。三种认证方式：账密（chap，最常用）、证书（eap-tls 最安全但部署麻烦）、MAC 旁路（mac-authen，给打印机/摄像头/IP 电话这类没法交互的哑终端用——先侦测 MAC 再送认证服务器）。排障要点：① 客户端装没装 supplicant、网卡有没有开 802.1X；② display dot1x interface 看端口状态——Auth Success 但不通查策略，Authing 卡住查 RADIUS 服务器连通和共享密钥；③ 换手机热点要认证的场景记得访客 VLAN/guest-vlan 配置。华三同构：dot1x + dot1x authentication-profile，认证服务器配置在 radius-server template 里。'
+  },
+  {
+    id: 'pr-portal',
+    devs: ['Switch'],
+    name: 'Portal 认证（网页弹窗准入）',
+    kw: ['portal', 'web认证', '网页认证', 'portal认证', '访客上网', '弹窗认证'],
+    cmds: [
+      ['华为 S5700 VRP8', '! 1. Portal 服务器模板\nportal server WEB-PORTAL\n server-url http://192.168.56.10/portal\n source-ip 192.168.56.1\n!\n! 2. 认证模板 + 免认证网段\nportal auth-profile GUEST-AUTH\n web-auth-server WEB-PORTAL direct\n!\nfree-rule-template FREE-NTP\n free-rule 10 permit destination ip 10.1.1.8 0.0.0.0\n!\n! 3. VLAN 下应用 + 接口放行\nportal free-rule template FREE-NTP\n!\nvlan 20\n portal auth-profile GUEST-AUTH\n!\ninterface GigabitEthernet0/0/1\n port hybrid untagged vlan 20\n!\n! 4. 验证\ndisplay portal auth-profile\n display access-user\n display portal free-rule']
+    ],
+    tip: 'Portal = 打开浏览器自动跳认证页，输账号密码（或短信/微信扫码）才能上网，访客网络、酒店、校园网标配。和 802.1X 的区别：Portal 走 HTTP 重定向，不用客户端；802.1X 走 EAPOL，安全但必须客户端。核心配置就三块：web 服务器地址（portal server-url）、免认证规则（free-rule——DNS/NTP/认证服务器本身必须放行，否则用户连域名都解析不了，永远打不开认证页）、VLAN/接口绑定。排障经典问题：① 认证页打不开 → 查 free-rule 有没有放行 DNS 和认证服务器；② 认证成功又跳回 → 查 source-ip 与设备管理地址是否一致、会话数；③ 手机能过电脑不过 → 多半 HTTPS 重定向或 User-Agent 过滤问题。'
+  },
+  {
+    id: 'pr-flood-defend',
+    devs: ['Switch'],
+    name: '泛洪攻击防范（广播 / 组播 / 单播风暴抑制）',
+    kw: ['风暴抑制', '泛洪', '广播风暴', 'storm', '广播风暴处理', '环路广播'],
+    cmds: [
+      ['华为 S5700 VRP8', '! 1. 风暴控制：按带宽百分比限流（配物理口，不是 VLAN！）\ninterface GigabitEthernet0/0/1\n storm-control broadcast min rate 10 max rate 20\n storm-control multicast min rate 10 max rate 20\n storm-control unicast min rate 10 max rate 20\n storm-control action block\n!\n! 2. 全局：未知组播/单播泛洪丢（接入层防环路打爆 CPU）\nvlan 10\n multicast drop-unknown\n!\n! 3. DHCP/ARP 报文丢弃（接入口防攻击）\ninterface GigabitEthernet0/0/1\n dhcp snooping check dhcp-chaddr enable\n arp anti-attack check user-bind enable\n!\n! 4. 验证\ndisplay storm-control interface GigabitEthernet0/0/1\n display cpu-defend statistics\n display cpu-usage']
+    ],
+    tip: '「网络突然卡死、所有灯狂闪、CPU 飙高」的经典三连，八成是广播风暴——最常见原因：有人把两个墙插用网线一连成环（物理环），或私接小路由器。应急三板斧：① 所有接入口开 storm-control（百分比限流，超了丢——注意单位是接口带宽百分比，千兆口 20% = 200Mbps，给正常业务留足余量）；② 配了 STP 就 display stp brief 看有没有端口该 block 没 block（RSTP 掉线检测）；③ multicast drop-unknown 防组播泛洪。定位环路最快的办法：拔线法——按交换机逐个断上联，看哪台一拔全网恢复；进阶用 display loopback interface 看自环检测（部分 VRP 版本支持）。日常预防：接入口开广播/组播/未知单播抑制，管理口和上联口别开（会误伤正常流量）。'
+  },
+  {
+    id: 'pr-nat-hairpin',
+    devs: ['Router', '防火墙'],
+    name: 'NAT 回流（hairpin：内网访问公网映射）',
+    kw: ['nat回流', 'hairpin', '内网访问公网', 'nat server回流', '回流', 'nat 回流'],
+    cmds: [
+      ['华为 VRP8', '! 1. NAT Server：公网 203.0.113.1:80 → 内网 WEB\nnat server protocol tcp global 203.0.113.1 www inside 10.1.1.10 80\n!\n! 2. 关键：hairpin 放行（内网访问映射的公网 IP 也能通）\nfirewall defend hairpin enable\n!\n! 3. 验证：内网 PC ping/telnet 203.0.113.1 80\ndisplay nat server\n display nat session all\n display firewall session table verbose\n display nat alg']
+    ],
+    tip: '经典怪象：外网能访问映射的 WEB，内网访问同一个公网 IP 却不通——这就是缺 NAT 回流（hairpin）。原理：内网 PC 发往 203.0.113.1 的包到出口设备，目标不是自己，按 NAT Server 映射本该转成内网 10.1.1.10，但回程包源地址还是 10.1.1.10，PC 一看「我发的是 203.0.113.1，回的却是 10.1.1.10」直接丢——要么设备再做一次源 NAT 要么放行。华为解决：firewall defend hairpin enable；思科对应 ip nat inside source static + ip nat outside（或 NAT64/RTSP 类似机制，见 ALG）。排障：内网 curl 公网 IP 不通、外网正常，先想 hairpin；还不通查 NAT session 有没有建、有没有 ACL 拦、回程路由。版本注意：部分老 VRP5 用 nat hairpin enable 命令。'
+  },
+  /* ============ 批5 无线实操 ============ */
+  {
+    id: 'pr-wlan-ssid',
+    devs: ['AC', 'AP'],
+    name: 'WLAN 基础业务（SSID / 安全模板 / VAP）',
+    kw: ['wlan', 'ssid配置', '无线配置', 'vap', 'ac配置', '无线开局'],
+    cmds: [
+      ['华为 AC VRP', '! 1. 安全模板：WPA2-PSK\nwlan security-profile SEC-WPA2\n security wpa2 psk pass-phrase %^%#xxxxx%^%# aes\n!\n! 2. SSID 模板\nwlan ssid-profile SSID-OFFICE\n ssid name Office-WiFi\n!\n! 3. VAP 模板：绑 SSID + 安全 + 业务 VLAN\nwlan vap-profile VAP-OFFICE\n ssid-profile SSID-OFFICE\n security-profile SEC-WPA2\n service-vlan vlan-id 10\n!\n! 4. AP 组应用\nap-group name default\n vap-profile VAP-OFFICE wlan 1 radio all\n!\n! 5. 验证\ndisplay vap-profile name VAP-OFFICE\n display station all']
+    ],
+    tip: 'AC+FAT AP（云管理/集中式）部署 SSID 四步：安全模板（选加密方式）→ SSID 模板（起名）→ VAP 模板（把 SSID、安全、VLAN 绑一起，一个 VAP = 一个可用的无线服务）→ AP 组下发（radio 0 是 2.4G、radio 1 是 5G，radio all 是双频同发）。认知要点：① SSID 本身不带加密和安全——同一 SSID 不同加密靠多个 VAP 或安全模板切换；② service-vlan 决定 STA 拿哪个网段的地址，配错 = 能连上不能上网；③ 一个 AP 一般 2~4 个 radio，每个 radio 可配多个 VAP（多 SSID 场景）；④ 胖 AP（FAT）场景这套在 AP 本地上配（wlan vap-profile 直接在 AP 上），瘦 AP 全在 AC 上配。'
+  },
+  {
+    id: 'pr-ap-onboard',
+    devs: ['AC', 'AP'],
+    name: 'AP 上线全流程（发现 / 注册 / 升级 / 上线确认）',
+    kw: ['ap上线', 'ap注册', 'ap discovery', 'ap不上线', '无线ap', 'capwap'],
+    cmds: [
+      ['华为 AC VRP', '! 1. AP 上联口配管理 VLAN（DHCP 要能拿到 AC 地址）\ninterface GigabitEthernet0/0/1\n port hybrid untagged vlan 100\n!\n! 2. 查看 AP 是否发现（MAC/序列号）\ndisplay ap all\n display ap unauthorized all\n display ap-discovery all\n!\n! 3. 手动认证（AP 显示 unauthorized 时）\nwap add ap-mac 00e0-fc12-3456 ap-group default\n!\n! 4. 版本升级 + 重启\nap download ap-mac 00e0-fc12-3456\n ap reset ap-mac 00e0-fc12-3456\n!\n! 5. 确认上线\ndisplay ap all\n display ap run-status']
+    ],
+    tip: 'AP 上线链路：上电 → DHCP 拿 IP（option 43/145 带 AC 地址，或 DNS 域名，或广播发现）→ CAPWAP 隧道建立 → AC 认证 → 下载版本/配置 → 上线。「AP 不上线」排查顺序：① 网线灯亮不亮、协商速率（千兆，百兆会卡在版本下载）；② display ap unauthorized all 有没有 MAC——没有说明没发现，查 DHCP 有没有拿到、管理 VLAN 通不通；③ 有 MAC 但 unauthorized → 手动 wap add 认证（默认自动认证开的话不该出现）；④ 认证后一直 downloading → AC 到 AP 的路径 MTU/带宽问题，或 AC 上没这个型号的版本文件（display ap version 对比）；⑤ display ap run-status 看运行态，normal 才是真上线。经验：先保证 AP 能 ping 通 AC 管理地址，再看 CAPWAP，事半功倍。'
+  },
+  {
+    id: 'pr-sta-rate-limit',
+    devs: ['AC', 'AP'],
+    name: 'STA 限速（单用户 / 单 SSID 带宽控制）',
+    kw: ['限速', '无线限速', 'sta限速', '带宽限制', 'qos无线', '终端限速'],
+    cmds: [
+      ['华为 AC VRP', '! 1. 流量模板：单 STA 上行 4Mbps 下行 8Mbps\nwlan traffic-profile TRAFFIC-STD\n rate-limit client uplink 4096\n rate-limit client downlink 8192\n!\n! 2. 绑到 VAP\nwlan vap-profile VAP-OFFICE\n traffic-profile TRAFFIC-STD\n!\n! 3. 整条 SSID 限速（可选）\n rate-limit ssid uplink 20480\n!\n! 4. 验证\ndisplay traffic-profile name TRAFFIC-STD\n display station rate-limit\n display station ssid Office-WiFi']
+    ],
+    tip: '无线限速三层：单 STA（client，最常用——防一个用户把带宽吃光）、单 SSID（这条无线总带宽）、单 AP radio（这个 AP 总出口）。单位是 kbps，别写错（4096 = 4Mbps）。经验值：办公网单 STA 上行 4M/下行 8M，访客 1M/2M。注意：① 限速模板要绑到 VAP 才生效，改完确认 display vap-profile 里带上了；② 限速只对这条 VAP 的新连接生效，已在线 STA 可能要重连；③ 「限速了还是快」——先确认流量走没走无线（很多卡是因为终端连了有线），再看 display station 里协商速率（低于 100Mbps 的信号问题，不是限速问题）；④ 视频会议场景别限太狠，按业务人数 × 1.5M 开会。'
+  },
+  {
+    id: 'pr-wlan-diag',
+    devs: ['AC', 'AP'],
+    name: '无线排障决策树（连不上 / 掉线 / 慢）',
+    kw: ['无线排障', '连不上wifi', 'wifi掉线', 'wifi慢', '无线问题', 'wifi排查'],
+    cmds: [
+      ['华为 AC VRP', '! 症状① 连不上\ndisplay station ssid Office-WiFi\n display vap-profile name VAP-OFFICE\n display security-profile name SEC-WPA2\n!\n! 症状② 能连上不能上网\ndisplay station online-fail-record\n display dhcp snooping bind-table\n display ip pool interface Vlanif10\n!\n! 症状③ 能上网但慢\ndisplay station associated-rate\n display ap radio-statistic\n display air-scan-result channel\n!\n! 症状④ 定时掉线\ndisplay station offline-record\n display ap run-status\n display cpu-defend statistics']
+    ],
+    tip: '无线排障四症状决策树，按症状直接查对应项：① 连不上——SSID 隐藏没开广播？VAP 下没下到 AP？安全模板密钥不一致？终端侧忘记网络重连；② 能连不能上——DHCP 没拿到地址（pool 满/没开/中继错）、portal/802.1X 卡认证、service-vlan 错；③ 能上但慢——看协商速率（信号弱、距离远、2.4G 同频干扰）、看空口信道（display air-scan-result 找干净信道）、看限速模板；④ 定时掉线——AP 掉线重注册（查 AP 供电 PoE 功率不足——AP 用 802.3at 但交换机口只给 af，高峰期必掉）、DHCP 租期、终端漫游阈值。黄金法则：先分清「是这一个 STA 的问题还是全部 STA 的问题」——全部有问题查 AP/AC/网络，单个有问题查终端/信号/认证。'
+  },
+  {
+    id: 'pr-roam',
+    devs: ['AC', 'AP'],
+    name: '漫游调优（信号阈值 / 双频引导 / 粘性客户端）',
+    kw: ['漫游', '无线漫游', '信号切换', '粘性终端', '漫游不切换', 'rssi'],
+    cmds: [
+      ['华为 AC VRP', '! 1. 漫游触发：信号低于 -75dBm 开始找新 AP\nwlan roam-profile ROAM-STD\n trigger-value -75\n!\n! 2. 双频引导：优先引到 5G（2.4G 拥堵时）\n band-steer prefer-5g enable\n!\n! 3. 粘性客户端强制下线重连（终端死攥弱信号不走）\nwlan sticky-client enable\n sticky-client rssi-threshold -80\n sticky-client check-time 10\n!\n! 4. 验证\ndisplay roam-profile name ROAM-STD\n display station sticky-client\n display station roam-record']
+    ],
+    tip: '漫游三件事：触发（什么时候走）、引导（往哪走）、兜底（不走怎么办）。trigger-value -75dBm 是经验分：再低通话/视频就卡顿了。5G 引导（band-steer）解决会议室 2.4G 挤爆、5G 空着——原理是 AP 暂时不回 2.4G 的 probe response 逼终端上 5G，老终端不配合就放弃。粘性客户端是老大难：手机攥着 -85dBm 的弱信号不撒手，人早走远了——sticky-client 检测到低于阈值且持续 N 秒，主动踢下线逼它重连到强 AP（比不管体验好得多，但别配太激进，会议室边缘会反复踢）。验证漫游有没有发生：display station roam-record 看切换次数、切前切后 AP。注意华三/锐捷命令名不同（如 band-navigation），思路一样。'
+  },
+  {
+    id: 'pr-wlan-opt',
+    devs: ['AP'],
+    name: '射频优化（信道 / 功率 / 界面部署规范）',
+    kw: ['信道优化', '功率调整', '射频', '同频干扰', 'ap信道', '2.4g信道'],
+    cmds: [
+      ['华为 AC VRP', '! 1. 关闭自动调优，改手工指定（大型网络先固定）\nwlan radio-2g-profile RADIO-2G\n channel 6\n max-power 20\n!\n! 2. 5G 建议 149/36/44 轮转\nwlan radio-5g-profile RADIO-5G\n channel 149\n max-power 23\n!\n! 3. 应用到 AP 组\nap-group name default\n radio-2g-profile RADIO-2G\n radio-5g-profile RADIO-5G\n!\n! 4. 验证 + 扫一圈空口\ndisplay air-scan-result\n display ap radio-statistic']
+    ],
+    tip: '2.4G 只有 1/6/11 三个不重叠信道，功率别拉满——功率大 ≠ 覆盖好，反而同频干扰更严重。部署规范：相邻 AP 用 1/6/11 错开（像棋盘染色），三层以上楼错同层；走廊用定向天线小功率，办公区全向大功率。5G 信道多（36-165），穿墙差但干净，高密度场景（会议室/教室）优先保 5G。自动调优（auto-channel）适合小规模，50 个 AP 以上建议先扫描再手工规划——自动算法容易在边界反复跳。判断干扰：display air-scan-result 看同信道有多少邻居 AP，超过 3 个同信道就要重规划。「新装 AP 一片区域都慢」多半是同频，先查这个。'
+  },
+  {
+    id: 'pr-wlan-sec',
+    devs: ['AC', 'AP'],
+    name: '无线安全加固（防破解 / 防钓鱼 / 隔离）',
+    kw: ['无线安全', 'wifi防破解', '防钓鱼wifi', '无线隔离', 'wifi安全配置'],
+    cmds: [
+      ['华为 AC VRP', '! 1. 加密：WPA2-PSK-AES（禁用 TKIP/WEP）\nwlan security-profile SEC-HARD\n security wpa2 psk pass-phrase %^%#xxxxxxxx%^%# aes\n!\n! 2. 隐藏 SSID + 关闭 WPS\nwlan ssid-profile SSID-HIDDEN\n ssid name Hidden-Net\n ssid-hide enable\n!\n! 3. 用户隔离：同 SSID 的 STA 互相不通（访客必备）\nwlan vap-profile VAP-GUEST\n user-isolate enable\n!\n! 4. 防伪造 AP 监测（Rogue 检测）\nwlan wids enable\n wids rogue-ap contain enable\n!\n! 5. 验证\ndisplay wids statistics\n display wids rogue-ap']
+    ],
+    tip: '无线安全五板斧：① 加密只认 WPA2/WPA3-AES——WPA-TKIP 和 WEP 等于没锁，抓包几分钟就破；密钥 12 位以上混合字符，PSK 场景定期换（配 %^%# 密文存储防 display 泄露明文）；② SSID 隐藏只是防随手搜，真黑客扫隐藏 SSID 也就几秒，别当主防御；③ 用户隔离（user-isolate）访客网络必开——否则同 WiFi 下陌生人能扫你共享文件；④ WIDS/ rogue AP 检测防有人私装同名 AP 钓鱼（办公室角落出现同名弱信号 AP，用户一连就中招）；⑤ 访客单独 VAP+VLAN+Portal，和办公网三层隔开。'
+  },
+  {
+    id: 'pr-guest-wifi',
+    devs: ['AC', 'Switch'],
+    name: '访客网络端到端（独立 VLAN / Portal / 隔离）',
+    kw: ['访客网络', 'guest wifi', '访客wifi', '访客上网', '来宾网络'],
+    cmds: [
+      ['华为 AC + S5700', '! 1. AC 侧：访客 SSID\nwlan ssid-profile SSID-GUEST\n ssid name Guest-WiFi\n!\nportal server WEB-GUEST\n server-url http://192.168.57.1/portal\n source-ip 192.168.57.1\n!\nportal auth-profile GUEST-PORTAL\n web-auth-server WEB-GUEST direct\n!\nfree-rule-template GUEST-FREE\n free-rule 10 permit destination ip 192.168.57.1 0.0.0.0\n!\nwlan vap-profile VAP-GUEST\n ssid-profile SSID-GUEST\n service-vlan vlan-id 50\n portal-auth-profile GUEST-PORTAL\n user-isolate enable\n!\n! 2. 交换机侧：业务 VLAN 放行 + 三层口\nvlan batch 50\ninterface Vlanif50\n ip address 192.168.57.1 255.255.255.0\n dhcp select interface\n!\n! 3. 出口只放 WEB/DNS（ACL 收口）\nacl number 2000\n rule permit udp destination-port eq 53\n rule permit tcp destination-port eq 80\n rule permit tcp destination-port eq 443\n!\ntraffic classifier GUEST\n if-match acl 2000\n!\n! 4. 验证\ndisplay portal auth-profile\n display vap-profile name VAP-GUEST\n display access-user']
+    ],
+    tip: '访客网络三隔离原则：和办公网隔（独立 VLAN + ACL 只放 53/80/443）、访客之间隔（user-isolate）、设备管理面隔（AP/AC 管理地址不能被访客 VAP 访问——ACL 里补 deny）。端到端五步：SSID+VAP（绑访客 VLAN）→ Portal 认证（短信/扫码/账号，免认证规则放行 DNS 和 Portal 服务器）→ VLANif + DHCP → 出口 ACL 收口 → 验证。血泪经验：① 访客 VLAN 千万别配到内网 trunk 的上联口以外地方、别忘 core 上回程路由；② Portal 页打不开 90% 是 free-rule 没放 DNS；③ 苹果 iOS 的 captive portal 检测（访问 captive.apple.com）要能被重定向，放行规则里别把苹果检测域名一刀切；④ 定期 display access-user 看在线数，配合计费/到期策略。'
+  },
+  /* ============ 批6 排障实操 ============ */
+  {
+    id: 'pr-diag-method',
+    devs: ['Switch', 'Router'],
+    name: '网络排障方法论（分层 / 分段 / 对比法）',
+    kw: ['排障', '排障方法', '网络排障', '排查思路', '故障排查', '排障思路', '网络不通', '排查流程'],
+    cmds: [
+      ['通用', '! 排障三板斧命令（任何设备先跑这三条）\ndisplay version\n!\ndisplay interface brief\n!\ndisplay ip routing-table\n!\n! 华为抓包：任意视图下直接 Ctrl+C 停\ntftp-server a.b.c.d\n packet-capture 1 source ip 10.1.1.1\n!\n! 一键信息收集（开局/故障报障前必备）\ndisplay current-configuration\n display diagnostic-information\n display cpu-usage\n display memory-usage']
+    ],
+    tip: '排障方法论核心三层：① 分层法——按 TCP/IP 逐层排除：物理层（灯亮不亮、协商速率、错包计数）→ 二层（MAC 学没学到、VLAN 对不对、STP 有没有 block）→ 三层（IP 配没配、路由有没有、ping 通不通）→ 四层以上（端口通不通、策略拦不拦）。定位到哪层就停止深挖；② 分段法——从一端 ping 到下一跳、再 ping 对端，逐跳缩小范围，display interface brief 看每段错包；③ 对比法——好的口和坏的口对比配置（display this vs display current-configuration）、好的设备和坏的设备对比、故障前和故障后对比。铁律：先收集信息再动手改（display diagnostic-information 一键收集报障），改一处验证一处，回滚方案先想好。万能三板斧 display version / display interface brief / display ip routing-table 先看一遍，80% 的问题有线索。'
+  },
+  {
+    id: 'pr-diag-ping',
+    devs: ['Router', 'Switch'],
+    name: 'ping/tracert 深度用法（分层定位神器）',
+    kw: ['ping', 'tracert', 'ping不通', 'ping命令', 'tracert命令', 'ping大包'],
+    cmds: [
+      ['华为 VRP8', '! 1. 带源地址 ping（排除回程路由问题，最常用！）\nping -a 10.1.1.1 10.2.2.2\n!\n! 2. 大包 ping（查 MTU——小包通大包不通就是 MTU）\nping -s 1472 -f 10.2.2.2\n!\n! 3. 连续 + 统计\nping -c 100 -t 500 10.2.2.2\n!\n! 4. tracert 查路径 + 定位哪一跳断\ntracert -a 10.1.1.1 10.2.2.2\n!\n! 5. 华为/华三 tracert LSP 路径（MPLS 场景）\ntracert lsp']
+    ],
+    tip: 'ping 不只是通不通，参数才是排障力：① -a 指定源地址——跨 VRF、多出口、策略路由场景必须带，不带 ping 走的源可能不是你以为的那个（「明明有路由 ping 不通」一半是源选错）；② -s 大包 + -f（不分片）——小包通大包断 = MTU 问题，典型是隧道/VPN 场景，1472 是以太网标准测试值；③ -c -t 统计丢包率——持续 ping 比单次靠谱，0.1% 丢包业务无感但视频会议会卡；④ tracert 看在哪一跳停——停了说明那台设备没回或没路由，最后几跳 * 是防火墙 ICMP 限制（正常现象，别误判）。思科对应 traceroute / ping source；Windows 对应 tracert -d、ping -l -f -n。ping 不通但 tracert 能到对端 = 回程问题（对端有你的路由，你没有它的）。'
+  },
+  {
+    id: 'pr-diag-port',
+    devs: ['Switch'],
+    name: '接口排障（协商 / 错包 / 光功率）',
+    kw: ['接口排障', '接口不通', '协商速率', '速率', '协商不上', '光模块', '错包', '端口故障'],
+    cmds: [
+      ['华为 VRP8', '! 1. 三连查：状态、协商、错包\ndisplay interface GigabitEthernet0/0/1\n display interface brief\n display counters error\n!\n! 2. 光口看收光（-8dBm 以下警告，-20 以下收不到）\ndisplay transceiver diagnosis GigabitEthernet0/0/1\n!\n! 3. 清计数再观察\nreset counters interface GigabitEthernet0/0/1\n!\n! 4. 强制指定速率双工（协商不上的老设备）\ninterface GigabitEthernet0/0/1\n negotiation auto\n speed 100\n duplex full']
+    ],
+    tip: '接口排障四件套：① display interface 看协议状态 up/down——down 查线缆对端设备，up 不通查上层；② 协商速率双工——一边 auto 一边 fixed 100 半双工必出大量错包（FCS/CRC 涨），这是古董设备接入经典坑；③ display counters error 看 CRC/FCS——光纤脏、模块不匹配、线缆超距都会涨，清一次计数观察一分钟，涨了就是物理层问题；④ 光功率 display transceiver diagnosis——收光 -8~-25dBm 正常区间，低于 -20 大概率不通，先擦光纤再换模块（换前记下模块型号/波长，1310/850/1550 别配错）。经验：新装机不通按「线→模块→协商→配置」顺序查，比抓瞎快；老设备先降速率到 100M 试试，很多顽固问题一句话解决。'
+  },
+  {
+    id: 'pr-diag-vlan',
+    devs: ['Switch'],
+    name: 'VLAN 排障（不通 / 跨交换机 / 端口类型）',
+    kw: ['vlan排障', 'vlan不通', 'vlan配置', 'trunk', 'hybrid', 'vlan问题'],
+    cmds: [
+      ['华为 VRP8', '! 1. VLAN 存在性 + 接口划分\ndisplay vlan\n display vlan 10\n display port vlan\n!\n! 2. 接口类型与放行（trunk 没放行 = 该 VLAN 过不去）\ndisplay interface GigabitEthernet0/0/24\n display this\n!\n! 3. MAC 表：对口学不到 MAC = 二层不通\ndisplay mac-address\n display mac-address GigabitEthernet0/0/1\n!\n! 4. 抓包看带没带 tag（trunk 定位神器）\ncapture packet interface GigabitEthernet0/0/24 vlan 10']
+    ],
+    tip: 'VLAN 不通排查链：① VLAN 建没建（display vlan，没建接口配了也白配）；② 接口在不在 VLAN 里（access 看 port access vlan，trunk 看 permit vlan，hybrid 看 untagged/tagged——最常错：trunk 只 permit 1 却忘了 permit 10）；③ MAC 学没学到（对口 display mac-address 看不到对端 MAC = 二层断，回查上一条）；④ 三层通不通（Vlanif up 没 up、IP 对不对、路由有没有）。经典坑：① hybrid 口 untagged 和 tagged 搞反——PC 口要 untagged，级联口要 tagged；② trunk 允许 vlan all 看着省事实则把管理 VLAN 也透传了，环路风险；③ 两端一端 access 一端 trunk——PC 能 DHCP 但不能上网，多半这个。抓包 capture packet interface X vlan 10 直接看有没有带 tag 的包，一锤定音。'
+  },
+  {
+    id: 'pr-diag-stp',
+    devs: ['Switch'],
+    name: 'STP 排障（环路 / 阻塞 / 收敛慢）',
+    kw: ['stp排障', '环路', 'stp', '生成树', '端口阻塞', '网络环路'],
+    cmds: [
+      ['华为 VRP8', '! 1. 全局/端口状态一屏看\ndisplay stp brief\n display stp interface GigabitEthernet0/0/1\n!\n! 2. 看根桥和端口角色（谁阻塞、谁转发）\ndisplay stp\n display stp root\n!\n! 3. 端口保护 + 边缘口（防终端环路）\ninterface GigabitEthernet0/0/1\n stp edged-port enable\n stp root-protection\n!\n! 4. 收敛慢：开 RSTP + 端口加速\nstp mode rstp\ninterface GigabitEthernet0/0/1\n stp edged-port enable']
+    ],
+    tip: '环路症状：广播风暴、MAC 表疯狂跳、CPU 飙高、全网卡顿。排查三板斧：① display stp brief 看所有端口状态——正常应该只有根口和指定口 forwarding，其他 blocking；出现两个都 forwarding 的同 VLAN 多链路 = 环路；② 找环：逐个断上联/接入口，哪根线一拔全网恢复，那根就是环线（或者谁私接了路由器/第二个交换机）；③ 预防：接终端口开 edged-port（终端插拔不触发收敛，上联口不开）、上联口开 root-protection（防有人接小交换机抢根桥）。收敛慢优化：确认 stp mode rstp（STP 要等 30s+，RSTP 秒级）、edged-port 让终端即插即用。铁律：核心层手工指定根桥（stp priority 4096 主、8192 备），别让自动选举把根桥选到接入层小机器上。'
+  },
+  {
+    id: 'pr-diag-ospf',
+    devs: ['Router'],
+    name: 'OSPF 排障（邻居起不来 / 路由不通）',
+    kw: ['ospf排障', 'ospf邻居', 'ospf不通', 'ospf问题', 'ospf邻居起不来', 'ospf排查'],
+    cmds: [
+      ['华为 VRP8', '! 1. 邻居状态（Full 才是好邻居）\ndisplay ospf peer\n display ospf peer verbose\n!\n! 2. 接口明细：区域/掩码/认证/DR 状态\ndisplay ospf interface GigabitEthernet0/0/0\n!\n! 3. LSDB + 路由\ndisplay ospf lsdb\n display ospf routing\n!\n! 4. 排障开关（看发了什么、收了什么）\nterminal debugging\n debugging ospf packet hello\ndebugging ospf error\n!\n! 5. 清邻居关系（改完认证/区域强制重建立）\nreset ospf process']
+    ],
+    tip: 'OSPF 邻居起不来按这个顺序查：① 底层通不通——ping 对端、接口协议 up；② 区域号一致吗（0.0.0.0 和 0 不一样的概念要分清——area 0 和 area 0.0.0.0 等同，和 area 1 不同）；③ 掩码一致吗（广播网络掩码不一致直接起不来）；④ 认证匹配吗（simple/md5、key-id、密码都要一致）；⑤ 路由器 ID 冲突吗（两台同 RID 会抽风）；⑥ 单播 ACL 有没有拦 89 号报文；⑦ 一边 silent-interface 了吗。邻居 Full 但路由学不到：① 接口没宣告进 ospf（display ospf interface 看不到该接口就是没 network 或口是 silent）；② 区域类型问题（stub/NSSA 边界）；③ 路由过滤（filter-policy/路由引入）。排障命令：debugging ospf packet hello 看 hello 收没收到（生产慎用，看完 terminal debugging 关）。改完大动 reset ospf process 强制重建。'
+  },
+  {
+    id: 'pr-diag-bgp',
+    devs: ['Router'],
+    name: 'BGP 排障（邻居 / 路由收发 / 选路异常）',
+    kw: ['bgp排障', 'bgp邻居', 'bgp不通', 'bgp不发布', 'bgp问题', 'bgp排查'],
+    cmds: [
+      ['华为 VRP8', '! 1. 邻居状态（Established 才正常）\ndisplay bgp peer\n display bgp peer 203.0.113.2 verbose\n!\n! 2. 收发了哪些路由\ndisplay bgp routing-table\n display bgp routing-table peer 203.0.113.2 received\n!\n! 3. 一条路由为什么优/为什么被优选\ndisplay bgp routing-table 10.1.1.0\n!\n! 4. 策略命中\ndisplay bgp peer 203.0.113.2 route-policy TEST import\n!\n! 5. 硬重置（清缓存重新收）\nrefresh bgp all export\n refresh bgp all import']
+    ],
+    tip: 'BGP 邻居 Established 是底线，排查分三段：① 邻居起不来——AS 号对端配错（最常见）、source-interface 对不上、TTL 安全/EBGP 多跳（直连不用配 ebgp-max-hop，非直连必须）、更新源不可达（loopback 要有路由）；② Established 但收不到路由——对端没发布（让人家 display bgp routing-table advertise）、被 route-policy 拦（display ... route-policy import 看命中）、下一跳不可达（EBGP 下一跳默认不变，IGP 不通路由不优）；③ 收到但不优——比选路权重（display bgp routing-table 里 PrefVal）、本地优先级（Local_Pref）、AS-Path、起源、MED，按序比，先改权重试试最快。改策略后 refresh bgp all import 软清（不断 TCP）看效果，别动不动 reset bgp。思科同构：show ip bgp summary / neighbors x received-routes。'
+  },
+  {
+    id: 'pr-diag-vrrp',
+    devs: ['Switch', 'Router'],
+    name: 'VRRP 排障（主备不切换 / VIP 不通）',
+    kw: ['vrrp排障', 'vrrp不通', '双机热备', 'vrrp问题', '主备切换', 'vrrp vip'],
+    cmds: [
+      ['华为 VRP8', '! 1. 备份组状态（Master/Backup/Initialize）\ndisplay vrrp\n display vrrp interface Vlanif10\n!\n! 2. 统计：收发包/抢占/错误\ndisplay vrrp statistics\n!\n! 3. 强制切换排障（先手动切一次验证链路）\nvrrp vrid 10 virtual-ip 10.1.10.254\ninterface Vlanif10\n vrrp vrid 10 track interface GigabitEthernet0/0/1 reduced 30\n!\n! 4. 报文调试\nterminal debugging\ndebugging vrrp packet\n debugging vrrp error']
+    ],
+    tip: 'VRRP 双机排障三步：① 看状态——两台必须一 Master 一 Backup，都 Backup 说明互相收不到（二层不通/ACL 拦了组播 224.0.0.18/VLAN 隔离），都 Master 是灾难（同网段两个网关，display vrrp 赶紧看）；② VIP ping 不通——Master 的 Vlanif 有没有配 virtual-ip、接口 up 没 up、下行设备 ARP 有没有学到网关 MAC（00-00-5E-00-01-xx，学不到查隔离）；③ 切换不生效——track 接口配没配（上联挂了 VRID 优先级不降就不会切）、抢占延时（preempt-mode 默认开但 preempt-delay 0，切太快业务抖）、master_down_timer 3 倍 hello。运维技巧：改配置前 vrrp vrid X shutdown 停备份组观察，验证完再开；两台型号/版本尽量一致，混搭先看 VRRP 报文版本兼容。'
+  },
+  {
+    id: 'pr-diag-slow',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '网络卡顿定位（丢包 / 时延 / 带宽）',
+    kw: ['网络卡', '卡顿', '丢包', '时延', '网速慢', '延迟高', '上网慢', '上网很慢'],
+    cmds: [
+      ['华为 VRP8', '! 1. 时延抖动基线\ndisplay cpu-usage\n display cpu-defend statistics\n!\nping -c 100 10.2.2.2\n!\n! 2. 接口错包/流量\ndisplay interface brief\n display counters error\n display counters rate\n!\n! 3. 队列丢弃（拥塞看这个）\ndisplay qos queue statistics interface GigabitEthernet0/0/1\n!\n! 4. 会话表满（防火墙卡顿头号原因）\ndisplay firewall session table statistics\n!\n! 5. 路径 MTU\nping -s 1472 -f 10.2.2.2']
+    ],
+    tip: '卡顿定位五连击：① CPU——display cpu-usage 持续 80%+ 就是设备撑不住了（广播风暴/ARP 攻击/路由表过大/日志刷屏），display cpu-defend statistics 看是哪种协议打满；② 错包——CRC/FCS 涨 = 物理层（线/模块/对端协商），Giants/drops 涨 = 拥塞；③ 队列——QoS 队列丢弃计数涨说明带宽不够，看 display qos queue statistics 哪个优先级在丢；④ 防火墙会话表——使用率 90%+ 新连接建不上，症状是「时好时坏、重启就好」；⑤ 时延基线——ping -c 100 看平均/最大时延，某一段突然抬升就锁定那台设备。经验：先看 CPU 和会话表（设备级问题影响全网），再看接口错包（局部问题），最后 QoS。用户侧「慢」先问清是所有应用慢还是某个应用慢——某应用慢多半是服务端，全网慢才是网络。'
+  },
+  {
+    id: 'pr-diag-first15',
+    devs: ['Switch', 'Router'],
+    name: '故障前 15 分钟标准动作（一线应急 SOP）',
+    kw: ['应急', '故障处理', 'sop', '报障', '值守', '故障第一时间'],
+    cmds: [
+      ['华为 VRP8', '! 1 分钟内：先恢复再排查（黄金原则）\ndisplay interface brief\n!\n! 3 分钟：影响面确认（一个用户 or 全网？）\ndisplay cpu-usage\n display memory-usage\n display interface brief | include down\n!\n! 5 分钟：一键信息收集（报障/复盘都要）\ndisplay diagnostic-information\n!\n! 10 分钟：变更核对（最近改了什么）\ndisplay current-configuration\n!\n! 15 分钟：还搞不定就上报 + 摘故障口保全局\nshutdown\n! （摘完记录时间和端口，恢复时 no shutdown）']
+    ],
+    tip: '故障处理 SOP：前 15 分钟决定影响面大小。① 第一分钟先想「能不能秒恢复」——误操作改错的 undo 回去、插错口的拔对、终端重启，恢复优先于追责；② 3 分钟定影响面：单个用户（查终端/接入口）、单 VLAN（查三层/网关）、全网（查核心/出口/环路），display cpu-usage + interface brief 一眼定位；③ 5 分钟收集 display diagnostic-information（一键包，报障给厂商/二线的标准物料——不收集就动手，故障现场就没了）；④ 10 分钟查变更：故障前 24h 谁改了什么（display current-configuration 对比存档基线，这就是为什么要定期备份配置）；⑤ 15 分钟还搞不定——隔离故障点（shutdown 问题口/倒换主备）保全局，同时升级上报，别一个人扛。铁律：任何改动先想回滚操作，任何操作留下记录（时间+设备+命令+结果）。'
+  },
+  /* ============ 批7 运维实操 ============ */
+  {
+    id: 'pr-ops-baseline',
+    devs: ['Switch', 'Router'],
+    name: '设备标准化开局（从裸机到纳管全流程）',
+    kw: ['开局', '标准化', '设备上线', '纳管', '初始化', '裸机配置'],
+    cmds: [
+      ['华为 VRP8', '! 1. 改名 + 时钟\nsysname CORE-SW-01\nclock timezone GMT+08:00 00:00\n!\n! 2. 管理 VLAN + 远程登录\ninterface Vlanif100\n ip address 10.255.0.11 255.255.255.0\n!\n! 3. 用户 + AAA（本地账号兜底）\naaa\n local-user admin password cipher %^%#xxxxx%^%#\n local-user admin privilege level 15\n local-user admin service-type ssh telnet terminal\n!\n! 4. 保存基线（每个节点做一次）\nsave\n!\n! 5. 验证 + 归档\ndisplay current-configuration\n display version\n display device']
+    ],
+    tip: '新设备上线标准化八步（开局 checklist 展开版）：① 系统名按「角色-位置-编号」规范（CORE-SW-01，排障时一眼知道是哪台）；② 时钟 + NTP（日志时间错乱，故障关联就是灾难）；③ 管理地址固定段 + VLAN；④ 本地账号兜底（radius 挂了还能进）；⑤ STP 模式 rstp + 根桥指定；⑥ 保存并归档基线配置（TFTP/FTP 备份，display current-configuration > 文件）；⑦ display version 记录版本（升级/故障报障都要）；⑧ 贴资产标签。原则：开局配置和现网同型号设备逐行对比（diff），有差异必有原因——要么是错误要么是特殊需求，搞清楚再上线。这套在华为/华三上通用，思科对应 hostname / ntp / line vty 0 4 / copy running-config tftp。'
+  },
+  {
+    id: 'pr-ops-backup',
+    devs: ['Switch', 'Router'],
+    name: '配置备份与恢复（TFTP / FTP / 定时）',
+    kw: ['备份', '配置备份', '恢复配置', 'tftp', '配置回滚', '备份命令'],
+    cmds: [
+      ['华为 VRP8', '! 1. TFTP 服务器上手工备份（现网最常用）\ntftp 10.255.0.200 put vrpcfg.zip CORE-SW-01_20261025.zip\n!\n! 2. 从 TFTP 恢复（先下载到设备再指定启动）\ntftp 10.255.0.200 get CORE-SW-01.zip\nstartup saved-configuration CORE-SW-01.zip\n!\n! 3. 看启动文件是哪个\ndisplay startup\n!\n! 4. FTP 方式（大文件更稳）\nftp 10.255.0.200\n put vrpcfg.zip\n!\n! 5. 对比当前与启动配置（改完没保存一眼看）\ndisplay current-configuration differences']
+    ],
+    tip: '配置备份三件事：备份什么（vrpcfg.zip 全量包，别只存 .cfg 文本——补丁文件丢了恢复不全）、备份到哪（TFTP 简单、FTP 稳、企业用 ZTP/网管平台自动拉）、多久一次（变更后立即备份 + 每周全量）。恢复双保险：① tftp get 下载后 startup saved-configuration 指定，display startup 确认指向对了再 restart；② 恢复前一定 save 一份当前配置到本地（万一新的有问题回退）。铁律：配置变更「先备份后动手」；display current-configuration differences 是运维神器——当前配置和启动配置的差异 = 你改过没保存的东西，重启会丢。命名规范带日期和设备名，一个月后你还找得到。思科对应 copy run tftp / copy tftp run。'
+  },
+  {
+    id: 'pr-ops-upgrade',
+    devs: ['Switch', 'Router'],
+    name: '设备升级（版本检查 / 上传 / 重启 / 回退）',
+    kw: ['升级', '版本升级', '补丁', '回退', '升级命令', '固件', '升级步骤', '设备升级', '怎么升级'],
+    cmds: [
+      ['华为 VRP8', '! 1. 当前版本 + 空间（先确认 flash 够不够）\ndisplay version\n display flash\n!\n! 2. TFTP 上传新版本\ntftp 10.255.0.200 get VRP-R2202P01.cc\n!\n! 3. 指定下次启动文件（别急重启！）\nstartup system-software VRP-R2202P01.cc\n display startup\n!\n! 4. 重启生效\nreboot\n!\n! 5. 版本不对回退（启动文件指回旧的）\nstartup system-software VRP-R2103.cc\n reboot\n!\n! 6. 补丁（不重启的修复）\npatch load VRP-R2202P01.pat all run active']
+    ],
+    tip: '升级六步铁律：① 先 display version + display flash——版本记清楚（回退用）、空间要够（清无用文件 delete /unreserved + 清回收站 reset recycle-bin）；② 升级文件用 MD5/SHA256 校验再上传（传输损坏的 bin 刷进去变砖）；③ startup system-software 指定后 display startup 二次确认——没确认就重启，起的还是老版本，白折腾；④ 升级窗口选业务低谷，提前通知；⑤ 重启后先验证 display version + 业务连通再离场；⑥ 回退预案：老版本文件别删，startup 指回去重启即可。补丁（patch）一般热加载不重启——但 display patch-information 确认生效状态，部分补丁仍需重启。华三 Comware 同构：boot-loader / display boot。升级有风险，先在一台非核心上验证！'
+  },
+  {
+    id: 'pr-ops-monitor',
+    devs: ['Switch', 'Router'],
+    name: '日常巡检清单（每日 / 每周 / 每月）',
+    kw: ['巡检', '日常巡检', '监控', '运维巡检', '健康检查', '例行'],
+    cmds: [
+      ['华为 VRP8', '! === 每日巡检（5 分钟）===\ndisplay cpu-usage\n display memory-usage\n display interface brief | include down\n display logbuffer | include ERROR|FAULT\n display power\n display fan\n!\n! === 每周巡检 ===\ndisplay version\n display patch-information\n display disk-usage\n display transceiver diagnosis all\n display ip routing-table statistics\n!\n! === 每月巡检 ===\ndisplay health\n save\n display current-configuration differences']
+    ],
+    tip: '巡检分三级：每日看「活」的状态（CPU、内存、down 口、错误日志、电源风扇——电源/风扇告警最容易被忽视，双电源坏一个不处理，另一个再挂就是全宕）；每周看「稳」的状态（版本补丁、磁盘、光功率趋势、路由条目数——光功率缓慢下降是光纤老化的前兆，-22dBm 就该安排了）；每月做「保」的动作（display health 一键体检、保存配置、diff 检查未保存变更、核对配置备份）。巡检报告留痕——数据画成趋势图，「CPU 从 30% 慢慢爬到 70%」比某天突然 90% 更有预警价值。双机/集群场景加查主备同步（display switchover state）、BFD 状态。巡检不发现问题是常态，但漏看电源风扇告警是失职。'
+  },
+  {
+    id: 'pr-ops-change',
+    devs: ['Switch', 'Router'],
+    name: '变更管理（窗口 / 回滚 / 验证清单）',
+    kw: ['变更', '变更窗口', '回滚', '变更管理', '割接', '验证'],
+    cmds: [
+      ['华为 VRP8', '! 变更前（T-30min）：备份 + 记录当前状态\nsave\ntftp 10.255.0.200 put vrpcfg.zip CORE-SW-01_before_change.zip\n!\ndisplay current-configuration\n display ip routing-table statistics\n display interface brief\n!\n! 变更中（T0）：最小化改动，逐条验证\ndisplay this\n!\n! 变更后（T+10min）：验证清单\nping -c 50 10.2.2.2\n display bgp peer\n display ospf peer\n display vrrp\n display logbuffer | include ERROR']
+    ],
+    tip: '变更管理五要素：① 窗口——业务低谷期（凌晨/周末），提前公告影响面，核心变更提前 3 天审批；② 备份——变更前 save + TFTP 备份，命名带 before_change，回滚就靠它；③ 最小化——一次只改一件事，改完验证再改下一件，「一把梭」出问题你都不知道是哪条；④ 验证清单——事先写好验证项（业务 ping、邻居状态、路由条目数、VIP 可达），变更后逐条打勾；⑤ 回滚——回滚操作事先想好写清楚（恢复哪个文件、restart 还是 undo 配置、耗时多久），超时就回滚别硬扛。变更记录四要素：时间、设备、操作内容、结果——月底审计、故障复盘都靠它。铁律：没有回滚方案的变更不上线；单人操作核心变更，第二人远程待命。'
+  },
+  {
+    id: 'pr-ops-doc',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '网络资产文档（拓扑 / 地址表 / 端口对应）',
+    kw: ['文档', '拓扑', '资产', '地址表', '端口表', '网络文档'],
+    cmds: [
+      ['华为 VRP8', '! 命令辅助生成文档素材\ndisplay interface brief\n!\ndisplay ip interface brief\n!\ndisplay lldp neighbor brief\n!\ndisplay mac-address\n!\ndisplay arp all\n!\n! LLDP 一键看谁接在哪（自动生成端口对应表）\ndisplay lldp neighbor\n!\n! 邻居管理地址（画拓扑必备）\ndisplay lldp neighbor interface GigabitEthernet0/0/24 verbose']
+    ],
+    tip: '网络文档三张核心表：拓扑图（逻辑 + 物理，标注设备名/IP/链路带宽/ VLAN）、IP 地址表（网段、网关、用途、负责人——冲突排查就靠它）、端口对应表（哪个物理口接哪台设备，新人排障的救命稻草）。命令生成素材的技巧：① display lldp neighbor 自动发现对端设备和端口——比手工维护的端口表准十倍（前提是全网开 LLDP，但安全敏感网络要关，防信息泄露）；② display interface brief + ip interface brief 导出地址清单；③ display arp all / mac-address 验证端口对应（对不上就是有人换线没登记）。文档维护原则：和变更绑定——每次变更顺手更新文档，别攒着；文档放共享位置带版本号和更新日期；季度审计一次（拿文档抽查 5 个端口，对不上就是流程有洞）。'
+  },
+  /* ============ 批8 典型项目开局（按项目类型）============ */
+  {
+    id: 'pr-proj-office',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '中小型企业办公网开局（从零到上网全流程）',
+    kw: ['办公网', '企业网开局', '公司网络', '新办公室网络', '办公网络部署', '企业开局'],
+    cmds: [
+      ['华为 VRP8 全套', '! ===== 第1步 核心交换机：VLAN 规划（按部门分）=====\nvlan batch 10 20 30 99\n!\n! 第2步 三层接口当网关\ninterface Vlanif10\n ip address 192.168.10.1 255.255.255.0\n dhcp select interface\n!\ninterface Vlanif20\n ip address 192.168.20.1 255.255.255.0\n dhcp select interface\n!\n! 第3步 上网：默认路由走防火墙\nip route-static 0.0.0.0 0.0.0.0 192.168.99.2\n!\n! ===== 第4步 防火墙：NAT 上网 + 安全策略 =====\n! ① 信任区放内网、非信任区连运营商\nfirewall zone trust\n add interface GigabitEthernet1/0/1\n!\nfirewall zone untrust\n add interface GigabitEthernet1/0/0\n!\n! ② 只放内网出局（DNS+WEB）\nsecurity-policy\n rule name INTERNET-OUT\n  source-zone trust\n  destination-zone untrust\n  source-address 192.168.10.0 24\n  source-address 192.168.20.0 24\n  service protocol tcp destination-port 80\n  service protocol tcp destination-port 443\n  service protocol udp destination-port 53\n  action permit\n!\n! ③ NAT：内网出局做地址转换\nnat-policy\n rule name NAT-OUT\n  source-zone trust\n  destination-zone untrust\n  action source-nat\n  source-nat-address-group EASY-IP\n!\n! ===== 第5步 接入交换机：端口按工位划分 =====\ninterface GigabitEthernet0/0/1\n port link-type access\n port default vlan 10\n!\n! 上联核心走 trunk，放行所有业务 VLAN\ninterface GigabitEthernet0/0/48\n port link-type trunk\n port trunk allow-pass vlan 10 20 30\n!\n! ===== 第6步 验证清单 =====\ndisplay ip interface brief\n display dhcp pool\n display security-policy statistics\n display nat-policy statistics']
+    ],
+    tip: '中小办公网开局六步，全局通用套路：① VLAN 按部门/区域规划（办公/财务/访客/管理分开，管理 VLAN 99 单独走）；② 核心三层当网关，每个 Vlanif 开 dhcp select interface 自动分地址（省一个 DHCP 服务器）；③ 默认路由指向防火墙内网口；④ 防火墙做 NAT + 白名单策略（只放 53/80/443 出局，办公网别的不需要）；⑤ 接入层 access 口按工位划 VLAN，上联 trunk 放行业务 VLAN——**vlan all 偷懒会把管理 VLAN 也透传出去**，逐条列；⑥ 按清单逐项验证（接口地址、DHCP 池、策略命中数、NAT 会话）。规模变化只加设备不改套路：50 人以下一台核心+几台接入；200 人以上核心双机 VRRP、接入按楼层堆叠。IP 规划建议预留：.1 网关、.254 留作测试、.10-.50 服务器/打印机固定分配。'
+  },
+  {
+    id: 'pr-proj-campus',
+    devs: ['Switch'],
+    name: '楼宇/园区接入网开局（堆叠 + 链路聚合 + STP）',
+    kw: ['园区网', '楼宇网络', '多交换机', '接入网开局', '楼层网络', '园区开局'],
+    cmds: [
+      ['华为 S5700 VRP8', '! ===== 第1步 接入交换机堆叠成一台逻辑设备 =====\nstack\n stack member 1 priority 100\n!\n! 堆叠口指定（万兆口堆叠，别用业务口）\ninterface Stack-Port1/1\n port interface XGigabitEthernet1/0/1\n!\n! 第2步 核心-接入用 Eth-Trunk 上联（两条物理捆一条逻辑）\ninterface Eth-Trunk1\n mode lacp-static\n trunkport GigabitEthernet0/0/49\n trunkport GigabitEthernet0/0/50\n!\ninterface GigabitEthernet0/0/49\n eth-trunk 1\n!\ninterface GigabitEthernet0/0/50\n eth-trunk 1\n!\n! 第3步 STP：接入当边缘、核心当根桥\nstp mode rstp\nstp priority 4096\n!\ninterface GigabitEthernet0/0/1\n stp edged-port enable\n!\n! 第4步 广播风暴抑制（接终端口必开）\ninterface GigabitEthernet0/0/1\n storm-control broadcast min rate 5 max rate 10\n storm-control multicast min rate 5 max rate 10\n!\n! 第5步 验证\ndisplay stack\n display eth-trunk 1\n display stp brief']
+    ],
+    tip: '园区/楼宇接入网三件套：堆叠（多台交换机虚拟成一台，管理一个 IP、配置一次同步——楼层弱电间三台 5700 堆叠是标配）、Eth-Trunk（上联两条链路捆一条，单条断不影响业务，lacp-static 动态协商比手工负载分担稳）、STP（接入层 edged-port 让终端即插即用，核心层指定根桥防小交换机抢根桥）。开局顺序：先堆叠（物理连线→配置堆叠口→重启生效→display stack 看成员）再 trunk 上联，反了会把配置搞乱。经验：① 堆叠口用万兆，千兆堆叠带宽不够还占业务口；② 一条 Trunk 至少留一条备用成员口（min-link 配 2，断了自动 down 整个 trunk 防单链路）；③ 每栋楼独立一个 VLAN 段（楼A 192.168.1.x、楼B 192.168.2.x），出问题按楼切片定位。'
+  },
+  {
+    id: 'pr-proj-dc',
+    devs: ['Switch', 'Router'],
+    name: '数据中心/机房网络开局（大二层 + 服务器区）',
+    kw: ['数据中心', '机房网络', '服务器区', 'idc', '机房开局', '服务器接入'],
+    cmds: [
+      ['华为 CE6800 VRP8', '! ===== 第1步 服务器区 VLAN + 网关 =====\nvlan batch 100 101 200\n!\ninterface Vlanif100\n ip address 10.100.0.1 255.255.255.0\n!\n! 第2步 服务器口：开巨帧 + 关 STP（服务器直连）\ninterface Ten-GigabitEthernet1/0/1\n port link-type access\n port default vlan 100\n jumboframe enable\n stp disable\n!\n! 第3步 管理网段单独走（带外管理）\ninterface Vlanif200\n ip address 10.200.0.1 255.255.255.0\n!\n! 第4步 堆叠双核心 + M-LAG（跨设备链路聚合，双活网关）\nm-lag\n m-lag system-id 0001-0001-0001\n m-lag priority 100\n!\ninterface Eth-Trunk10\n mode lacp-static\n m-lag 1\n!\n! 第5步 验证\ndisplay m-lag\n display interface Ten-GigabitEthernet1/0/1\n display vlan 100']
+    ],
+    tip: '机房网络和办公网最大的不一样：服务器要低时延、大流量、双活。核心三招：① 巨帧（jumboframe enable）——存储复制、备份流量走 9000 字节大包，CPU 占用降一半，但**必须全网设备都开**，有一条链路没开就出现「小包通大包卡」；② 服务器直连口 stp disable——服务器不做桥环，还省去 30 秒收敛等待，虚拟机迁移（vMotion）场景必备；③ 双核心 M-LAG——两台核心对服务器呈现一个聚合口，服务器双网卡绑定跨设备，单核心宕机业务零中断（比传统 STP 双机快一个数量级）。开局铁律：先规划地址表（管理段/业务段/存储段严格分开，存储段别和业务段混——一个广播风暴全瘫痪），再上设备；每台上架前贴标签 + 记录端口对应。'
+  },
+  {
+    id: 'pr-proj-hospital',
+    devs: ['Switch', '防火墙'],
+    name: '医院内网部署（内外隔离 + 等保 + 准入）',
+    kw: ['医院网络', '医院网络规划', '医疗', '等保', '内外网隔离', 'his', '医院部署'],
+    cmds: [
+      ['华为 全套 VRP8', '! ===== 第1步 内外网物理隔离：两套完全独立的网络 =====\n! 内网（HIS/PACS 医疗系统）\nvlan batch 10\ninterface Vlanif10\n ip address 10.10.0.1 255.255.255.0\n!\n! 外网（互联网查询）——独立交换机独立上行，不和内网有任何三层互通\nvlan batch 20\ninterface Vlanif20\n ip address 172.16.0.1 255.255.255.0\n!\n! 第2步 等保必备：登录审计 + 日志外发（6 个月以上）\ninfo-center loghost 10.10.0.200\n info-center logfile size 32\n!\n! 第3步 终端准入：没注册的机器上不了内网\ndhcp snooping enable\n!\ninterface GigabitEthernet0/0/1\n dhcp snooping trusted\n ip source check user-bind enable\n!\n! 第4步 防火墙：内网只允许访问指定服务器\nsecurity-policy\n rule name HIS-ACCESS\n  source-zone trust\n  destination-zone dmz\n  source-address 10.10.1.0 24\n  destination-address 10.10.0.10 32\n  service protocol tcp destination-port 443\n  action permit\n!\n! 第5步 验证\ndisplay security-policy statistics\n display dhcp snooping bind-table\n display info-center']
+    ],
+    tip: '医院网络第一原则是**内外网物理隔离**——HIS、LIS、PACS 绝不能让互联网直接摸到，查资料走单独的外网线路和机器（或等保审批过的网闸/光闸）。等保三级标配五件套：① 登录审计（谁在哪台设备上做了什么，日志外发到审计服务器存 6 个月+）；② 终端准入（DHCP Snooping + IPSG，未注册设备拿不到内网地址——医生私带笔记本插墙插也上不去）；③ 分区隔离（医疗区/办公区/设备监控区/访客区，防火墙域间策略最小化放行）；④ 补丁和版本管理（设备版本登记，漏洞公告及时升级）；⑤ 管理员账号分级（三权分立：系统管理员/安全管理员/审计管理员，别共用一个 admin）。排障注意：医疗设备（CT/MRI）多为固定 IP 的封闭系统，批量改 VLAN 前先和设备科确认——动一下可能影响检查预约。'
+  },
+  {
+    id: 'pr-proj-school',
+    devs: ['AC', 'Switch', 'Router'],
+    name: '校园网/宿舍网部署（Portal + 防私接 + 限速）',
+    kw: ['校园网', '宿舍网', '学校网络', 'portal认证', '学生上网', '校园开局'],
+    cmds: [
+      ['华为 AC + S5700', '! ===== 第1步 学生区 VLAN 规划 =====\nvlan batch 50 51 52\n!\ninterface Vlanif50\n ip address 10.50.0.1 255.255.255.0\n dhcp select interface\n!\n! 第2步 Portal 认证上网（一个账号一个终端）\nportal server WEB-AUTH\n server-url http://10.50.0.1/portal\n source-ip 10.50.0.1\n!\nportal auth-profile STUDENT\n web-auth-server WEB-AUTH direct\n!\nfree-rule-template AUTH-FREE\n free-rule 10 permit destination ip 10.50.0.1 0.0.0.0\n!\ninterface GigabitEthernet0/0/1\n port access vlan 50\n!\n! 第3步 防私接：一间宿舍一个口，插小路由器全断\ndhcp snooping enable\ninterface GigabitEthernet0/0/1\n dhcp snooping check dhcp-request enable\n ip source check user-bind enable\n!\n! 第4步 单账号限速 4M（防一人下片全楼卡）\ntraffic behavior LIMIT-4M\n car cir 4096 cbs 819200 pbs 1638400\n!\ntraffic classifier CLASS-ALL\n if-match any\n!\ntraffic policy POLICY-LIMIT\n classifier CLASS-ALL behavior LIMIT-4M\n!\ninterface GigabitEthernet0/0/1\n traffic-policy POLICY-LIMIT inbound\n!\n! 第5步 验证\ndisplay access-user\n display portal auth-profile\n display dhcp snooping bind-table']
+    ],
+    tip: '校园网/宿舍网三座大山：一号多用（一个账号多人蹭）、私接路由器（一个人接全家免认证）、带宽抢占（有人 24 小时下片）。对策组合拳：① Portal 账号认证 + 单账号在线数限制（portal 模板里 max-user 1，第二个终端登录踢第一个）；② DHCP Snooping + IPSG——私接的小路由器想给学生机发假 DHCP 地址直接被丢，没认证的终端连地址都拿不到；③ 每端口 CAR 限速（cir 4096 = 4Mbps，防抢占）；④ 定时策略（凌晨 1 点断网，教学区不断）。开局坑：① 寒暑假流量模型和开学差 10 倍，出口带宽按学期峰值估；② 考试周/选课系统突发流量，QoS 优先保教务系统 IP；③ 宿舍换床率高的场景绑定表按月清理（display dhcp snooping bind-table 定期导出核对）。'
+  },
+  {
+    id: 'pr-proj-factory',
+    devs: ['Switch'],
+    name: '工厂车间网部署（工业环网 + 冗余）',
+    kw: ['工厂网络', '车间网络', '工业网络', '工业交换机', '冗余环网', '产线网络'],
+    cmds: [
+      ['华为 工业交换机 VRP8', '! ===== 第1步 工业环网：ERPS 环保护（50ms 内倒换）=====\nerps ring 1\n control-vlan 100\n!\n! 环上每个节点加入\ninterface GigabitEthernet0/1\n stp disable\n erps ring 1 member-port port0\n!\ninterface GigabitEthernet0/2\n stp disable\n erps ring 1 member-port port1\n!\n! 第2步 生产网和管理网隔离（PLC 和办公分开）\nvlan batch 10 20\n!\n! 第3步 产线设备固定 IP，端口绑定防乱插\ndhcp snooping bind-table static ip 10.10.1.50 mac 00e0-fc11-2233 vlan 10 interface GigabitEthernet0/3\n!\ninterface GigabitEthernet0/3\n ip source check user-bind enable\n!\n! 第4步 宽温工业交换机 + 看门狗（现场环境恶劣）\nwatchdog enable\n!\n! 第5步 验证\ndisplay erps ring 1\n display dhcp snooping bind-table\n display interface brief']
+    ],
+    tip: '工厂车间三个特殊点：① 环境恶劣（高温/粉尘/电磁干扰）——必须用宽温工业交换机（-40~75℃），DIN 导轨安装，别拿办公室商用机糊弄，夏天机房 50℃ 商用机死机停线你赔不起；② 业务不能断——产线停机一分钟损失真金白银，用 ERPS 环网（以太环保护，单点故障 50ms 倒换，比 STP 的秒级快 20 倍，还不用等收敛）；③ 设备封闭——PLC、数控机床多是固定 IP 老系统，端口绑定防误插，升级改造前必须和产线停机窗口对齐。开局铁律：先画环网拓扑（物理环路哪台是主节点）、测通倒换（拔掉任一根环网线，display erps 看倒换时间和业务中断时间），再上生产；管理网（办公/监控）和生产网 VLAN 严格分开，IT 远程维护走管理网别直连生产网。'
+  },
+  {
+    id: 'pr-proj-retail',
+    devs: ['Router', '防火墙'],
+    name: '连锁门店网络开局（即插即用 + 4G 备份）',
+    kw: ['门店网络', '连锁', '零售', 'sdwan', '门店开局', '收银网络'],
+    cmds: [
+      ['华为 AR 路由器', '! ===== 第1步 即插即用：零配置上线 =====\n! 门店设备出厂装好，插电自动从总部下载配置\ndhcp enable\n!\ninterface GigabitEthernet0/0/0\n dhcp client request option43 ascii 10.0.0.1\n!\n! 第2步 双上行：宽带为主、4G 备份（宽带断自动切）\ninterface Cellular0/0/0\n!\nip route-static 0.0.0.0 0.0.0.0 Cellular0/0/0 preference 100\nip route-static 0.0.0.0 0.0.0.0 GigabitEthernet0/0/0 preference 60\n!\n! 第3步 收银网段保护（POS 必须能结账）\nsecurity-policy\n rule name POS-ALLOW\n  source-zone trust\n  destination-zone untrust\n  source-address 192.168.1.0 24\n  service protocol tcp destination-port 443\n  action permit\n!\n! 第4步 验证\ndisplay cellular interface\n display ip routing-table\n display security-policy statistics']
+    ],
+    tip: '连锁门店网络核心诉求：**不开IT 也能开新店**。即插即用（ZTP）三件套：门店路由器出厂什么都不配，插上网线 DHCP 拿地址（option 43 告诉它总部控制器在哪）→ 自动注册 → 从总部云平台下载自己的配置 → 上线。IT 在总部批量管几百家店，新店员工插电即用。备份链路：宽带为主路由 + 4G  Cellular 为辅（浮动路由 preference 调大），宽带一断 4G 自动接管——收银机不断网就能结账，这就是 4G 备份的意义。开局注意：① 门店路由器和总部之间走 IPSec/SSL VPN，别裸奔公网；② 收银、监控、办公三个 VLAN 分开，监控流量大别挤占收银；③ 4G 卡流量套餐选定向流量（收银/监控走专网 APN 不计费或便宜）；④ 门店路由器选 4G 全网通 + 外置天线版本，地下商场信号差。'
+  },
+  {
+    id: 'pr-proj-video',
+    devs: ['Switch', 'Router'],
+    name: '视频监控专网部署（流量估算 + 隔离）',
+    kw: ['监控网络', '视频监控', '摄像头', '安防', '监控专网', 'nvr'],
+    cmds: [
+      ['华为 VRP8', '! ===== 第1步 监控独立 VLAN + 接入层端口隔离 =====\nvlan batch 60\n!\ninterface GigabitEthernet0/0/1\n port access vlan 60\n!\n! 摄像头之间不能互访（隔离 + 安全）\ninterface GigabitEthernet0/0/1\n port-isolate enable\n!\n! 第2步 流量估算：200 路 1080P ≈ 200 × 4Mbps = 800Mbps → 上联必须千兆起\ninterface GigabitEthernet0/0/48\n port link-type trunk\n port trunk allow-pass vlan 60\n!\n! 第3步 组播优化（多客户端看同一路不占多份带宽）\ninterface Vlanif60\n igmp enable\n pim sm\n!\n! 第4步 上联核心带宽保障（QoS 优先）\ntraffic classifier MON\n if-match vlan 60\n!\ntraffic behavior MON-PRI\n queue ef wfq\n!\n! 第5步 验证\ndisplay port-isolate group\n display igmp group\n display interface brief | include GE0/0/48']
+    ],
+    tip: '监控专网和办公网完全两个物种：① 流量估算先行——1080P 主码流约 4Mbps/路、200 路就是 800Mbps 持续流量，接入交换机上联必须千兆且端口只用 60% 以下（余量给突发和录像回传），NVR 到核心按 200 路×4M 堆着算；② 摄像头 port-isolate——同交换机下摄像头互相看不见（安全 + 防 ARP 广播泛滥），但都能访问 NVR；③ 组播（IGMP/PIM）——多个客户端看同一路视频只占一份带宽，不用组播 10 个人看就 10 份流，核心链路直接爆；④ 监控 VLAN 和办公 VLAN 严格分开，但门禁/消防联动系统按需放行到指定服务器。开局清单：IP 表按点位编（楼-层-序号，如 10.60.3.25 = 3 楼第 25 个）、摄像头绑定防掉线换 IP、NVR 存储按 90 天回算容量（4Mbps×86400×90÷8÷1024≈388GB/路，别买小了）。'
+  },
+  /* ============ 批9 运维排查场景（按故障现象）============ */
+  {
+    id: 'pr-ops-nointernet',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '「上不了网」标准排查流程（终端→接入→核心→出口）',
+    kw: ['上不了网', '不能上网', '无法上网', '上不去网', '没网', '上不了外网'],
+    cmds: [
+      ['华为 VRP8', '! ===== 第1段 终端侧（30 秒）=====\n! PC 上：ipconfig /all 看四件事——有没有地址、网关对不对、DNS 对不对\n! 地址 169.x = 没拿到 DHCP；地址对但 ping 不通网关 = 二层问题\n! ===== 第2段 接入口（在接入交换机上）=====\ndisplay mac-address | include <用户MAC>\ndisplay interface GigabitEthernet0/0/1\n!\n! 第3段 网关侧（在三层交换机/防火墙上）\nping 192.168.10.1\n display arp | include 192.168.10.100\n!\n! 第4段 出口（在路由器/防火墙上）\ndisplay ip routing-table\n ping -a 出口IP 8.8.8.8\n display nat session all\n!\n! 第5段 逐段缩小：终端→网关→核心→出口→互联网\nping -c 100 192.168.10.1\nping -c 100 10.0.0.1\nping -c 100 8.8.8.8\nping -c 100 www.baidu.com']
+    ],
+    tip: '「上不了网」是最高频投诉，按五段逐段切，别一上来抓包：① 终端——ipconfig 看有没有 169.x（DHCP 没拿到，查 DHCP 服务器/中继/链路）、网关 DNS 对不对；② 接入口——display mac-address 看学没学到用户 MAC（学不到 = 线/口/VLAN 问题，学到 = 二层通）；③ 网关——ping 网关通不通、display arp 看网关有没有该终端的 ARP（网关侧看不到 = 跨网段路由或防火墙拦）；④ 出口——ping 公网 IP 通不通（通但域名打不开 = DNS；不通 = 路由/NAT/运营商）；⑤ 域名——ping IP 通、ping 域名不通 = DNS 故障，换 223.5.5.5 试试。口诀：**先 IP 后域名、先内后外、先通后策略**。三个高频根因：DHCP 池满、防火墙漏放策略、网关 ARP 表满（display arp 看 total/used，满了调 arp 表大小或查谁在扫网段）。'
+  },
+  {
+    id: 'pr-ops-ipconflict',
+    devs: ['Switch', 'Router'],
+    name: 'IP 地址冲突排查（时通时断的头号嫌疑人）',
+    kw: ['ip冲突', '地址冲突', 'ip打架', '地址重复', 'ip冲突排查', '冲突'],
+    cmds: [
+      ['华为 VRP8', '! 1. 网关上看 ARP：同一个 IP 对应两个 MAC = 实锤冲突\ndisplay arp | include 192.168.10.100\n!\n! 2. 反向查这两个 MAC 在哪台设备哪个口\ndisplay mac-address mac 0001-0002-0003-0004\n!\n! 3. 华为冲突检测日志（配了的话直接报）\ndisplay logbuffer | include conflict\n!\n! 4. 定位后处置：临时关口/踢下线\ninterface GigabitEthernet0/0/5\n shutdown\n!\n! 5. 根因修复：把地址改回规划表，并加入绑定\ninterface GigabitEthernet0/0/5\n dhcp snooping bind-table static ip 192.168.10.100 mac 0001-0002-0003-0004 vlan 10\n!\nno shutdown\n!\n! 6. 终端侧验证（Windows）\narp -d *\nipconfig /renew']
+    ],
+    tip: 'IP 冲突症状：一台机器时通时断、两台机器都「偶尔能上」、ping 丢包率 50% 左右。排查三步：① 网关上 display arp | include <冲突IP>——一个 IP 两个 MAC 就是实锤（一个静态手配、一个 DHCP 动态拿）；② display mac-address mac <MAC> 顺藤摸瓜找到两台设备各在哪个口；③ 处置：先 shutdown 口把冲突止住（保其他用户），再联系责任人改地址。根治三板斧：① IP 地址表严格执行（新增设备登记，别随手配）；② DHCP 保留（打印机/服务器走 reservation，地址不轮换）；③ DHCP Snooping 绑定 + IPSG（静态私设的地址直接丢包）。教训：冲突双方都觉得自己「本来好好的」——以 ARP 表里的 MAC 为准，别信人口述。'
+  },
+  {
+    id: 'pr-ops-flapping',
+    devs: ['Switch', 'Router'],
+    name: '时通时断排查（ARP 欺骗 / 私接 / 链路质量）',
+    kw: ['时通时断', '一会通一会断', '断断续续', '间歇', '网络不稳定', '时断时续'],
+    cmds: [
+      ['华为 VRP8', '! 1. 先看物理层：错包/光功率/协商\ndisplay interface GigabitEthernet0/0/1\n display counters error\n display transceiver diagnosis\n!\n! 2. 看有没有人在骗：ARP 表频繁变化、 gratuitous ARP\ndisplay arp\n display arp anti-attack statistics\n!\n! 3. 看有没有私接 DHCP（非信任口收到 DHCP 报文）\ndisplay dhcp snooping statistics\n!\n! 4. 看接口有没有在 up/down 跳（flapping）\ndisplay logbuffer | include GigabitEthernet0/0/1\n display interface brief\n!\n! 5. 持续 ping 看丢包规律\nping -c 1000 -t 200 192.168.10.1\n!\n! 6. 防欺骗三板斧\ninterface GigabitEthernet0/0/1\n arp anti-attack check user-bind enable\n dhcp snooping check dhcp-request enable\n port-security enable']
+    ],
+    tip: '时通时断四大根因，按出现频率排：① 物理链路质量差——网线老化/光模块劣化/接触不良，特征是丢包随机无规律，display counters error 看 CRC 缓慢上涨，清一次计数观察；② ARP 欺骗——中毒机器或私接路由器发 gratuitous ARP 抢占网关，特征是同网段批量时断时续、网关 ARP 表里网关 MAC 飘，对策 arp anti-attack check user-bind + IPSG；③ 私接小路由器——一台机器私接路由当交换机，它的 DHCP 和网关全网冲突，特征 DHCP Snooping 在接入口收到 DHCP offer，对策 dhcp snooping check dhcp-request；④ 接口 flapping——协商不稳/对端重启/网线水晶头坏，display logbuffer 看接口 up/down 记录。定位神器：长 ping（-c 1000）丢包是周期性还是随机——周期性多半 DHCP 租期，随机多半链路。'
+  },
+  {
+    id: 'pr-ops-nologin',
+    devs: ['Switch', 'Router'],
+    name: '设备远程登不上排查（管理路径全链路）',
+    kw: ['登不上', '连不上设备', 'ssh连不上', 'telnet不上', '设备失联', '登录不上'],
+    cmds: [
+      ['华为 VRP8', '! 1. 先确认设备活着：带外/console 之外，看网管 ping\nping 10.255.0.11\n!\n! 2. 设备侧自检（console 登上去看）\ndisplay ip interface | include Vlanif\n display aaa\n display ssh server status\n display access-user\n!\n! 3. 管理 ACL 有没有把自己挡了\ndisplay acl 2000\n!\n! 4. VTY 线路和用户服务类型\ndisplay line vty 0 4\n display local-user\n!\n! 5. 防火墙串在管理路径上的话\ndisplay security-policy rule all | include 10.255\n!\n! 6. 用户被锁/踢\ndisplay access-user\n clear access-user username admin\n!\n! 7. 终极手段：console 现场 + 恢复默认 SSH\nrsa local-key-pair create\n ssh server enable\n stelnet server enable']
+    ],
+    tip: '设备登不上分两种：ping 不通（网络层断了）和 ping 通但 SSH 拒（应用层挡了）。ping 不通：查管理地址在不在（display ip interface，可能重启后配置丢了/VLANif 没 up）、中间链路（带外 ping 逐跳）、管理口 ACL。ping 通但连不上：① AAA 用户服务类型——local-user 的 service-type 没含 ssh/terminal，账号就登不了 SSH（最高频！）；② VTY 线路——display line vty 看 mode/权限，被 ACL 限制或 stuck 在 ACL 配置上；③ 管理 ACL——display acl 2000 看源 IP 允不允许，自己把自己关门外是经典事故；④ 用户被锁——连续输错密码触发锁定或在线数满，console 上 clear access-user；⑤ SSH 密钥丢了/版本不兼容——rsa local-key-pair create 重建密钥。铁律：任何设备配置变更前，先确认有一条 console 后路或另一个管理地址可达，别把自己关门外。'
+  },
+  {
+    id: 'pr-ops-printer',
+    devs: ['Switch'],
+    name: '打印机/哑终端上不了网排查（无交互设备专场）',
+    kw: ['打印机', '哑终端', '打印机不通', '打印不了', '打不了', 'ip电话', '摄像头不上线'],
+    cmds: [
+      ['华为 VRP8', '! 1. 先分清是网络问题还是设备问题：换个口/换根线试试\n! 2. 地址有没有拿到/对不对\ndisplay dhcp snooping bind-table | include <打印机IP>\ndisplay ip pool interface Vlanif10\n!\n! 3. 固定 IP 的打印机：有没有被 DHCP Snooping/IPSG 拦\ndisplay dhcp snooping bind-table\n!\n! 4. 补录静态绑定（固定 IP 设备必须）\ndhcp snooping bind-table static ip 192.168.10.50 mac aaaa-bbbb-cccc vlan 10 interface GigabitEthernet0/0/8\n!\n! 5. 端口安全和语音 VLAN 误伤检查\ndisplay port-security interface GigabitEthernet0/0/8\n display voice-vlan status\n!\n! 6. 交换机侧抓包看有没有打印机流量\ndisplay packet-count interface GigabitEthernet0/0/8']
+    ],
+    tip: '打印机/摄像头/IP 电话这类哑终端「上不了网」和 PC 排查完全不同——它们不会告警、不能 ping 回来（可能禁 ICMP）、配置全靠面板。三板斧：① 换口换线先排除物理层（这类设备网口最容易坏）；② 地址确认——固定 IP 的设备开了 IPSG/DHCP Snooping 会被当「非法地址」丢包，必须 bind-table static 补录（批量换打印机时 80% 是这）；③ 别被安全特性误伤——端口安全违规 protect/restrict 会把设备静默丢掉、语音 VLAN 配置错会让电话和 PC 都上不去。经验：新装打印机先看设备面板 IP（多数支持打印配置页），拿这个 IP 在网关 display arp 验证，能学到 MAC 就说明二层三层都通，问题在应用层（驱动/防火墙/共享设置）。批量部署建议：哑终端一律走 DHCP 保留（reservation），别手配静态——地址表漂移后查死人。'
+  },
+  {
+    id: 'pr-ops-newbiz',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '新业务开通标准流程（VLAN/地址/策略一条龙）',
+    kw: ['新业务', '开通', '业务上线', '新vlan', '加网段', '新系统上线'],
+    cmds: [
+      ['华为 VRP8 全套', '! ===== 第1步 接入层：放行新 VLAN =====\nvlan batch 40\n!\ninterface GigabitEthernet0/0/1\n port link-type access\n port default vlan 40\n!\n! 第2步 汇聚/核心：trunk 放行 + 三层网关\ninterface GigabitEthernet0/0/48\n port trunk allow-pass vlan 40\n!\ninterface Vlanif40\n ip address 192.168.40.1 255.255.255.0\n dhcp select interface\n!\n! 第3步 防火墙：放行业务访问\nsecurity-policy\n rule name BIZ40-ACCESS\n  source-zone trust\n  destination-zone dmz\n  source-address 192.168.40.0 24\n  destination-address 10.10.0.10 32\n  service protocol tcp destination-port 8080\n  action permit\n!\n! 第4步 保存 + 登记（别只配不记！）\nsave\n!\n! 第5步 验证清单（逐项打勾）\ndisplay vlan 40\n display ip interface brief | include Vlanif40\n display security-policy rule name BIZ40-ACCESS\n ping 192.168.40.1']
+    ],
+    tip: '新业务开通五步，全局通用：① 接入层建 VLAN 划端口；② 核心 trunk 放行 + Vlanif 网关（**新 VLAN 忘了在 trunk 上 allow-pass 是第一大坑**——接入配了不通，一查全查这段）；③ 防火墙按最小化原则放策略（源/目的/端口三要素写清楚，别 any 图省事）；④ save 并登记 IP 地址表和端口对应表（不登记 = 三个月后没人知道这网段干嘛的）；⑤ 按清单验证。提速技巧：把常用模板做成配置片段（新 VLAN 一套 Vlanif+DHCP+ACL 模板），粘贴改参数 5 分钟开一个业务。安全红线：业务网段之间默认不通，要通必须走防火墙过策略——别在三层交换机上直接配静态路由打通，审计不过。'
+  },
+  {
+    id: 'pr-ops-cutover',
+    devs: ['Switch', 'Router'],
+    name: '网络改造割接实操（新旧并行→倒换→旧设备下线）',
+    kw: ['割接', '网络改造', '设备更换', '迁移', '倒换', '旧设备下线'],
+    cmds: [
+      ['华为 VRP8', '! ===== 割接前（T-1天）：新设备预配置 + 验证 =====\n! 新设备离线配好全部配置，别等到现场\n! ===== 割接中（窗口期）=====\n! 第1步 新设备上架加电，验证基础\ndisplay version\n display interface brief\n!\n! 第2步 旧设备配置镜像过来（逐条比对）\ndisplay current-configuration\n!\n! 第3步 链路倒换：旧口 → 新口（一次一个 VLAN！）\ninterface GigabitEthernet0/0/1\n shutdown\n!\n! 用户切到新设备后\nno shutdown\n!\n! 第4步 每倒一批验证一批\ndisplay mac-address\n ping 192.168.10.1\n!\n! ===== 割接后（T+1天）=====\n! 观察一天无问题，旧设备配置清零下线\ndisplay current-configuration\n reset saved-configuration']
+    ],
+    tip: '割接是运维里风险最高的操作，核心原则：**灰度倒换、可回退、观察期**。标准流程：① 新设备提前一天配好全部配置并离线验证（现场配 100% 出乱子）；② 旧配置导出逐条比对迁移（display current-configuration 两边 diff，尤其 IP/路由/ACL）；③ 倒换按 VLAN 或按楼分批，一批一验证（全量倒换出事你都不知道哪批炸的）；④ 每批倒换后 display mac-address 看用户学没学到、ping 网关验证；⑤ 观察 24 小时无投诉，旧设备 reset saved-configuration 再下架（**别急着拆——回滚就靠它**）。回滚预案事先写好：哪个口切回哪根线、耗时多久、谁下令。时间选凌晨 2-5 点，提前公告；核心割接厂商现场支持。铁律：割接期间不顺手改别的（「来都来了」是事故之源）。'
+  },
+  {
+    id: 'pr-ops-virus',
+    devs: ['Switch', '防火墙'],
+    name: '中毒/异常流量排查与隔离（大流量异常连接定位）',
+    kw: ['中毒', '病毒', '异常流量', '中毒排查', '蠕虫', '勒索', '中病毒'],
+    cmds: [
+      ['华为 VRP8 + USG', '! 1. 先定位谁在爆：看接口流量 TopN\ndisplay interface brief\n display counters rate\n!\n! 2. 交换机侧：看会话/连接数（华为盒子看 CPU 和表项）\ndisplay cpu-usage\n display cpu-defend statistics\n!\n! 3. 防火墙侧：看连接数/目的 IP TopN\ndisplay firewall session table statistics\n display firewall session table source-ip 192.168.10.66 verbose\n!\n! 4. 定位中毒机后：ACL 先隔离（保全网）\nacl number 3005\n rule deny ip source 192.168.10.66 0.0.0.0\n!\ntraffic-filter inbound acl 3005\n!\n! 5. 黑名单加防火墙\ndefend blacklist item VIRUS source-ip 192.168.10.66\n!\n! 6. 验证全网恢复\ndisplay cpu-usage\n display firewall session table statistics\n display interface brief']
+    ],
+    tip: '中毒/蠕虫症状：全网卡顿、CPU 飙高、某台机器流量异常大（display counters rate 看端口速率排行）、疯狂外联。应急三步：① 定位——先看哪台设备 CPU 高、哪个口流量大，顺藤摸瓜到中毒机（TopN 思维，别一台台翻）；② 隔离——ACL deny 该源 IP（接入口 traffic-filter inbound）或防火墙黑名单，先保全网再处理单机（**别为了查毒让全网陪葬**）；③ 处置——通知用尸机人断网杀毒，重装系统，检查同网段其他机器（蠕虫会横向扩散）。事后三件套：① 分析中毒机的连接目标（display firewall session table verbose 看外联 IP，收集证据）；② 补防——防火墙开反病毒/IPS 特征库、接入层 IPSG 限制中毒机横向扩散、边界封高危端口（135/139/445）；③ 复盘——怎么进来的（U 盘/邮件/弱口令），补对应策略。勒索病毒场景：隔离后第一时间断存储共享，别急着重启（可能触发加密）。'
+  },
+  /* ============ 批10 项目开局续 + 运维排查续 ============ */
+  {
+    id: 'pr-proj-gov',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '政务网开局（等保三级 + 双网隔离 + 审计）',
+    kw: ['政务网', '政府网络', '等保三级', '电子政务', '内网外网隔离', '政务开局'],
+    cmds: [
+      ['华为 VRP8 + USG', '! ===== 第1步 双网物理隔离（政务内网 / 政务外网）=====\n! 内网：跑公文/审批，完全独立设备独立上行\nvlan batch 10\ninterface Vlanif10\n ip address 10.10.0.1 255.255.255.0\n!\n! 外网：跑互联网查询，物理单独组网\nvlan batch 20\ninterface Vlanif20\n ip address 172.16.0.1 255.255.255.0\n!\n! ===== 第2步 等保必备：三权分立账号 =====\naaa\n local-user sysadmin password cipher <PWD>\n local-user sysadmin privilege level 15\n local-user secadmin password cipher <PWD>\n local-user secadmin privilege level 10\n local-user auditor password cipher <PWD>\n local-user auditor privilege level 5\n!\n! ===== 第3步 操作审计：命令记录 + 日志外发 =====\ninfo-center enable\ninfo-center loghost <AUDIT-SRV>\ninfo-center logfile size 32\n!\n! 高危命令审计（华为：command-audit 或通过 AAA 授权限制）\ncommand-alias enable\n!\n! ===== 第4步 边界防火墙：只放行业务端口 =====\nsecurity-policy\n rule name GOV-OUT\n  source-zone trust\n  destination-zone untrust\n  service protocol tcp destination-port 80\n  service protocol tcp destination-port 443\n  service protocol udp destination-port 53\n  action permit\n!\n! ===== 第5步 验证 =====\ndisplay security-policy statistics\ndisplay info-center\ndisplay local-user']
+    ],
+    tip: '政务网三条红线：① 内网外网物理隔离——两套完全独立的交换机/路由器/上行，中间不走任何软件转发（网闸/光栅除外，且需审批），一根网线串两边等于零分；② 等保三级标配——三权分立账号（系统管理员/安全管理员/审计管理员，别共用一个 admin）、日志外发到审计服务器存 6 个月以上、高危操作可回溯（谁在哪台设备上敲了什么命令）；③ 边界最小化——外网口只放 53/80/443，远程管理走堡垒机，禁止私开 3389/22。开局顺序：先画双网拓扑图（两张独立的图）→ 再上设备 → 最后配策略。验收找等保测评机构预评，别自己觉得行。'
+  },
+  {
+    id: 'pr-proj-logistics',
+    devs: ['AC', 'AP', 'Switch'],
+    name: '物流园区网开局（仓储 WiFi + PDA 漫游）',
+    kw: ['物流网络', '仓储网络', '仓库wifi', 'pda', '高架库', '物流园区'],
+    cmds: [
+      ['华为 AC + AP', '! ===== 第1步 仓储 SSID：PDA 专用（WPA2-PSK + 漫游优化）=====\nwlan security-profile SEC-PDA\n security wpa2 psk pass-phrase <PWD> aes\n!\nwlan ssid-profile SSID-PDA\n ssid name WH-PDA\n!\nwlan vap-profile VAP-PDA\n ssid-profile SSID-PDA\n security-profile SEC-PDA\n service-vlan vlan-id 30\n!\n! ===== 第2步 漫游：PDA 边走边用不能断 =====\nwlan roam-profile ROAM-PDA\n trigger-value -70\n!\n! ===== 第3步 高架库覆盖：定向天线 + 功率衰减补偿 =====\n! 货架遮挡严重，AP 密度比办公区高 1 倍，走道用定向小板状天线\nwlan radio-5g-profile RADIO-WH\n channel 149\n max-power 26\n!\n! ===== 第4步 语音/扫码优先：QoS 保 PDA 小包低时延 =====\nwlan traffic-profile TRAFFIC-PDA\n rate-limit client downlink 2048\n!\n! ===== 第5步 验证 =====\ndisplay station ssid WH-PDA\ndisplay roam-profile name ROAM-PDA\ndisplay air-scan-result']
+    ],
+    tip: '物流仓储网和办公网最大的不一样：① 客户是 PDA/扫码枪不是人——设备不会重连，漫游必须丝滑（trigger-value -70 比办公网的 -75 更早触发，货架区信号衰减快，等太弱再切就断了）；② 环境恶劣——高架库金属货架全反射，2.4G 基本废掉，全上 5G 定向天线，AP 密度翻倍；③ 业务不能停——分拣高峰（早 6-9 点）断网 = 包裹积压，设备全工业级（宽温/防尘），UPS 保障；④ 安全——PDA 只准访问 WMS 服务器（ACL 收口），员工手机另一个 SSID 隔离。开局先做现场勘测（拿测试 AP 边走边测信号画热图），再定 AP 点位——拍脑袋布点必翻车。'
+  },
+  {
+    id: 'pr-proj-hotel',
+    devs: ['Switch', 'AC', 'Router'],
+    name: '酒店客房网开局（面板 AP + Portal + 计费对接）',
+    kw: ['酒店网络', '客房网络', '面板ap', '酒店wifi', '酒店开局', '客房上网'],
+    cmds: [
+      ['华为 AC + S5700', '! ===== 第1步 客房 VLAN：每层一段，面板 AP 下行 =====\nvlan batch 40 41 42\n!\ninterface Vlanif40\n ip address 10.40.0.1 255.255.255.0\n dhcp select interface\n!\n! ===== 第2步 客房口：接面板 AP，端口隔离 =====\ninterface GigabitEthernet0/0/1\n port access vlan 40\n port-isolate enable\n!\n! ===== 第3步 客房 SSID + Portal 计费对接 =====\nwlan ssid-profile SSID-ROOM\n ssid name Hotel-Guest\n!\nportal server WEB-HOTEL\n server-url http://10.40.0.1/portal\n source-ip 10.40.0.1\n!\nportal auth-profile ROOM-AUTH\n web-auth-server WEB-HOTEL direct\n!\n! ===== 第4步 免认证放行：房控系统/IPTV 不经认证 =====\nfree-rule-template HOTEL-FREE\n free-rule 10 permit destination ip 10.40.0.10 0.0.0.0\n!\n! ===== 第5步 验证 =====\ndisplay access-user\ndisplay portal auth-profile\ndisplay vap-profile name VAP-ROOM']
+    ],
+    tip: '酒店网三个特殊点：① 面板 AP 是主力——每个客房一个 86 面板 AP（隐藏式，不用公共区域大 AP），SSID 统一但 VLAN 按楼层分（故障按层切）；② Portal 对接 PMS/计费——房卡插卡取电才给网（取电传感器信号接交换机 GPIO 或门锁系统联动），退房即断，高级玩法是 Portal 页面显示「欢迎入住 + 有效期」；③ 业务优先级——IPTV/房控系统走独立 VLAN 不经 Portal（免认证规则放行），客人网段限速（看视频不卡但别跑满）。常见坑：面板 AP 散热差（夏天客房断电就断网，选 Poe 供电款）、隔墙信号串房（功率别拉满 + 信道错开）、长包房客人路由器（IPSG + Snooping 防私接）。'
+  },
+  {
+    id: 'pr-ops-videoconf',
+    devs: ['Router', 'Switch', '防火墙'],
+    name: '视频会议卡顿排查（时延 / 抖动 / 丢包）',
+    kw: ['视频会议', '会议卡', '腾讯会议卡', 'zoom卡', '会议掉线', '视频会议排查'],
+    cmds: [
+      ['华为 VRP8', '! 1. 三指标基线：时延 < 50ms、抖动 < 30ms、丢包 < 1%\nping -c 200 <会议服务器IP>\n!\n! 2. 看路径哪一跳劣化\ntracert <会议服务器IP>\n!\n! 3. 出口带宽是否打满（会议高峰 + 下载叠加）\ndisplay interface brief\ndisplay counters rate\n!\n! 4. QoS：会议流量优先（标记 DSCP EF/CS4）\ntraffic classifier CONF\n if-match dscp ef\n!\ntraffic behavior CONF-PRI\n queue ef wfq\n car cir 20480\n!\n! 5. 防火墙：别限流/别深检会议流\n display security-policy rule all | include <会议IP段>\n!\n! 6. NAT 会话：会议流是 UDP 多路，会话表要够\ndisplay firewall session table statistics']
+    ],
+    tip: '视频会议卡顿三宗罪：时延高（>150ms 说话接不上）、抖动大（>50ms 声音机器人化）、丢包（>1% 画面马赛克冻结）。排查顺序：① 先 ping 会议服务器拿三指标基线（-c 200 看平均值和最大值，别信单次）；② tracert 看哪一跳开始劣化——最后一跳 * 是防火墙 ICMP 限制正常，中间某跳突然抬升就是那台设备/那段链路；③ 带宽——display counters rate 看出接口是否打满，会议高峰（早 9 点）叠加备份/下载直接爆，QoS 保会议（DSCP EF 标记进 EF 队列）；④ 防火墙深检——开了应用识别/反病毒的策略对会议流做深度检测会增加时延，给会议服务器段单独放行不过 profile；⑤ 单点问题还是全员问题——全员卡查出口/核心，一人卡查他的接入口/终端。会议软件选服务器就近的（腾讯会议选华南节点就别绕华北）。'
+  },
+  {
+    id: 'pr-ops-vpn',
+    devs: ['防火墙', 'Router'],
+    name: '远程办公 VPN 投诉排查（SSL/IPsec 连不上 / 慢）',
+    kw: ['vpn', '远程办公', 'ssl vpn', 'vpn连不上', 'vpn慢', '在家办公'],
+    cmds: [
+      ['华为 USG VRP', '! 1. 服务端：VPN 网关/在线用户/会话数\ndisplay sslvpn online-user\n display sslvpn gateway\n display firewall session table statistics\n!\n! 2. License/资源：并发用户数到顶了没\ndisplay license\n!\n! 3. 策略：用户组有没有被放行\ndisplay security-policy rule all | include VPN\n!\n! 4. 拨入地址池：池满新人拨不进\ndisplay ip pool\n!\n! 5. 抓包看握手到哪一步失败\ndisplay sslvpn statistics\n packet-capture 1 source ip <用户公网IP>\n!\n! 6. 客户端侧排查清单\n! 宽带 NAT 类型（对称 NAT 过不了某些 VPN）、本机时间不准（证书失效）、防火墙/杀毒拦截']
+    ],
+    tip: 'VPN 投诉分三类：① 完全连不上——先看服务端（display sslvpn online-user 有没有建立、license 并发数到顶、地址池满、策略拦了），再看客户端（账号密码/证书过期/本机时间不准——证书验证对时间敏感，差 5 分钟就失败、本地防火墙拦截、宽带对称 NAT 问题换协议）；② 连上但慢——VPN 是软件加密，家用宽带上行跑满（视频会议叠 VPN 直接爆），服务端深检策略加时延，路由是否全流量走 VPN（split-tunnel 分流，只有访问内网的走 VPN）；③ 时断时续——NAT 超时（UDP 会话被中间 NAT 掐，开 keepalive/DPD）、运营商 QoS 限 UDP、客户端切 WiFi/4G 漫游。运维技巧：display firewall session table statistics 看 VPN 会话数趋势，早上 9 点集中拨入是常态，扩容看峰值；给老板/高频用户留固定地址池（重要客户优先）。'
+  },
+  {
+    id: 'pr-ops-dns',
+    devs: ['Router', 'Switch', 'Windows'],
+    name: 'DNS 故障排查（能通 IP 打不开网页）',
+    kw: ['dns', '域名解析', '打不开网页', 'dns故障', '解析失败', 'dns排查'],
+    cmds: [
+      ['通用', '! 1. 定性：ping IP 通 + ping 域名不通 = DNS 问题\nping 114.114.114.114\nping www.baidu.com\n!\n! 2. 换公共 DNS 对比测试（Windows）\nnslookup www.baidu.com 223.5.5.5\nipconfig /flushdns\n!\n! 3. 内网 DNS 服务器侧\ndisplay dns server\n display dns host\n!\n! 4. 防火墙：53 端口放行没、DNS 映射没\ndisplay security-policy rule all | include 53\n!\n! 5. 抓包看解析请求发没发、回没回\npacket-capture 1 source ip <终端IP>']
+    ],
+    tip: '「QQ 能上但网页打不开」的经典判定：QQ 用固定 IP 直连，网页靠域名解析——所以 90% 是 DNS 问题。排查三步：① 定性——ping 公网 IP 通 + ping 域名不通，实锤 DNS；② 换 DNS 对比——nslookup 域名 223.5.5.5 能解析 = 你的 DNS 服务器有问题，不能解析 = 出口/链路问题（或域名真的挂了）；③ 逐段查——终端 DNS 配没配对（DHCP option 或手工）、内网 DNS 服务器（display dns server / 上级转发器状态）、防火墙 53 端口放行（NAT 场景 DNS 映射/ALG）。高频根因：DHCP 下发的 DNS 是台宕机的内网服务器、DNS 服务器上级线路抖动、防火墙反 DNS 检测误杀。应急：终端临时手配 223.5.5.5 恢复业务，再慢慢查根因。'
+  },
+  {
+    id: 'pr-ops-dhcp-exhaust',
+    devs: ['Switch', 'Router'],
+    name: 'DHCP 地址耗尽 / 获取慢排查',
+    kw: ['dhcp耗尽', '地址池满', '获取ip慢', 'dhcp故障', 'ip获取失败', '地址不够'],
+    cmds: [
+      ['华为 VRP8', '! 1. 池子使用率（到 80% 就该扩容）\ndisplay ip pool | include Used\n!\n! 2. 谁在占用：在线绑定表\ndisplay ip pool interface Vlanif10 used\n!\n! 3. 冲突/老化：租期到了没释放的僵尸地址\ndisplay ip pool interface Vlanif10 conflict\n!\n! 4. 地址池扩大/加段\nip pool POOL-10\n network 10.10.10.0 mask 255.255.255.0\n gateway-list 10.10.10.1\n lease day 0 hour 8\n!\n! 5. 中继场景：中继转发没、DHCP 服务器收到没\ndisplay dhcp relay statistics\n!\n! 6. 终端侧：169.x = 根本没拿到\nipconfig /all | findstr DHCP']
+    ],
+    tip: 'DHCP 问题两种表象：① 地址耗尽——池子 254 个地址，手机+电脑+打印机+监控轻松破 254，新设备拿 169.x；对策：扩段（/24 换 /23）、缩租期（lease 从 8 天改 8 小时，访客网络尤其）、僵尸地址清理（租期到了对端不在线地址不释放，display conflict 看冲突）；② 获取慢——开机半天才有地址；对策：查中继（display dhcp relay statistics 有没有转发）、查服务器性能（池子太大查询慢）、广播域太大（一个 VLAN 几百台终端，拆分 VLAN）。经验：办公网池子按终端数 1.5 倍规划（留余量给访客），监控/哑终端多的池子单独建（长租期固定绑定），访客网短租期（1 小时）加速周转。'
+  },
+  {
+    id: 'pr-ops-roam-complaint',
+    devs: ['AC', 'AP'],
+    name: '无线漫游投诉排查（走着走着就掉线）',
+    kw: ['漫游投诉', '走着掉线', 'wifi漫游问题', '切换掉线', '移动断网', '漫游失败'],
+    cmds: [
+      ['华为 AC VRP', '! 1. 先看是不是真漫游问题：漫游记录\ndisplay station roam-record\n!\n! 2. 看切换前后信号：弱信号不触发切换\ndisplay station associated-rate\n!\n! 3. 粘性客户端：死攥弱信号不走\nwlan sticky-client enable\n sticky-client rssi-threshold -78\n!\n! 4. 漫游触发阈值：仓储/走廊要更早切\nwlan roam-profile ROAM-COMPLAIN\n trigger-value -70\n!\n! 5. 空口质量：同频干扰导致切换后没信号\ndisplay air-scan-result\n!\n! 6. 认证/计费类漫游：Portal 重认证断网\nportal free-rule template ROAM-FREE\n free-rule 10 permit destination ip <PORTAL-IP> 0.0.0.0']
+    ],
+    tip: '「走着走着 WiFi 断了/卡了」排查链：① 是不是漫游——display station roam-record 看有没有切换记录，没有 = 终端根本没尝试漫游（信号还有两格它不离不弃，典型粘性客户端）；② 切换了但断——Portal/802.1X 认证类网络漫游要重认证，几秒钟空白期，视频会议场景感知明显（Portal 漫游免认证 or 快速重连）；③ 切换后没信号——空口干扰（display air-scan-result 看目标 AP 信道是否干净）、目标 AP 满负荷（单 AP 带机量超了）；④ 终端自身——部分老手机/物联网设备漫游积极度低，属于终端问题不是网络问题（借台新手机同路线测试对比）。对策三板斧：sticky-client 强制踹弱信号终端、trigger-value 调早（-70）、双频引导把终端往 5G 赶（5G 衰减快反而逼终端及时决策）。'
+  },
+  {
+    id: 'pr-proj-pece',
+    devs: ['Router', '防火墙'],
+    name: '运营商 MPLS VPN 开局（企业侧 CE 接双 PE）',
+    kw: ['mpls开局', 'mplsvpn', '运营商专线', 'pe-ce', '双pe', '专线开局', 'vpn专线', '专线接入', 'bgp专线'],
+    cmds: [
+      ['华为 VRP8', 'system-view\n sysname CE-EDGE-01\n!\n! 1. 互联地址：CE 连 PE 的点对点段\ninterface GigabitEthernet0/0/1\n ip address 172.16.0.2 255.255.255.252\n description TO-PE1\n!\ninterface GigabitEthernet0/0/2\n ip address 172.16.1.2 255.255.255.252\n description TO-PE2\n!\n! 2. 内网口\ninterface GigabitEthernet0/0/0\n ip address 10.0.0.1 255.255.255.0\n description LAN\n!\n! 3. BGP 建邻：AS 号、PE 地址运营商提供，别猜\nbgp 65001\n peer 172.16.0.1 as-number 100\n peer 172.16.1.1 as-number 100\n #\n ipv4-family unicast\n  undo synchronization\n  network 10.0.0.0 255.255.255.0\n  peer 172.16.0.1 enable\n  peer 172.16.1.1 enable\n #\n!\n! 4. 默认路由走运营商：BGP 默认 + 内网静态兜底\nip route-static 0.0.0.0 0.0.0.0 172.16.0.1 preference 60\nip route-static 0.0.0.0 0.0.0.0 172.16.1.1 preference 70\n!\n! 5. 健康检查：主线路断自动切备\nbfd PE1-MASTER bind peer-ip 172.16.0.1\n!\nsave']
+    ],
+    tip: 'CE 侧开局核心：① 所有参数（AS 号、PE 互联地址、要宣告的网段）都是运营商给的单子上的，照单子填，别自己编；② 双 PE 接两个口两条链路，BGP 天然选路，主备自动倒换；③ BGP 只宣告自己的内网段（network 逐条声明），绝不宣告运营商给的互联段；④ 没有 BGP 经验就用静态路由 + 健康检查替代，但双运营商场景静态做不出自动选优；⑤ 验收必看：display bgp peer 两条都是 Established，内网段在 display bgp routing-table 里，从外网 ping 内网服务器通；⑥ 常见坑——忘了 ipv4-family unicast 下 undo synchronization 收不到路由、宣告网段没配对应 IGP 路由（BGP network 要求路由表里有这条路由才宣告得出去）。'
+  },
+  {
+    id: 'pr-proj-replace',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '现网设备替换/堆叠扩容开局（不中断切换）',
+    kw: ['设备替换', '换交换机', '现网扩容', '堆叠加成员', '平滑替换', '替换旧设备', 'add member', 'irf加成员'],
+    cmds: [
+      ['华为 VRP8', '! 场景：老交换机 SW-OLD 换新 SW-NEW，IP/VLAN 全不变\n! 原则：配置离线准备好，割接窗口只做「插线 + 验证」\n!\n! 1. 新机先起堆叠/双机（再上电进业务前做掉）\nsystem-view\n sysname SW-NEW\n stack slot 0 priority 100\n!\n! 2. 把旧配置改好导入新机（离线改好 sysname/管理IP/堆叠ID）\n!\n! 3. 割接窗口：新机配置到位后\ninterface range GigabitEthernet0/0/1 to GigabitEthernet0/0/24\n shutdown\n!\n! 4. 逐口搬线验证（一次一口，错了能退）\ninterface GigabitEthernet0/0/1\n description TO-USER-01\n undo shutdown\n!\n! 5. 每口搬完验证\ndisplay interface brief\n display mac-address\nping 10.1.10.1\n!\n! 6. 割接后确认\ndisplay vlan\n display ip interface brief\n!\n! 7. 旧机断电下线前最后确认\ndisplay arp all | include <关键网关IP>\nsave']
+    ],
+    tip: '设备替换铁律：① 新机配置在旧机 config 上改出来（改 sysname、管理 IP、堆叠成员号），别裸配——裸配必漏；② 割接窗口内先 shutdown 所有业务口再搬线，防止搬线过程中环路/环路敲端口；③ 一次搬一个口、每口搬完 ping 关键网关 + display mac-address 看有没有学到 MAC，对了再搬下一口——批量搬线出问题你都不知道是哪口；④ 堆叠扩容：新机 stack slot 编号避开现网成员，priority 设小（老成员先竞选主），加成员前确认堆叠线版本兼容（display version 看 stack 板卡型号）；⑤ 割接时间选业务低谷，提前通知；⑥ 旧机别急着拆，观察 48 小时无回退再下线；⑦ 记好回退方案：旧机配置未动，拔回原口即可恢复。'
+  },
+  {
+    id: 'pr-ops-fiber',
+    devs: ['Switch', 'Router', 'OLT', '光模块'],
+    name: '光模块告警/收发光异常排查（时通时断先查光）',
+    kw: ['光模块告警', '收发光', '光功率', '光衰', '模块告警', 'fiber', '光口不通', '时通时断', '光纤故障'],
+    cmds: [
+      ['华为 VRP8', '! 1. 先看告警：光模块有没有掉/报错\ndisplay alarm active\n display interface <接口名>\n!\n! 2. 收发光功率：这是光链路健康度的核心指标\ndisplay transceiver diagnosis interface GigabitEthernet0/0/1\n!\n! 3. 光模块信息：型号/波长/距离是否配对\ndisplay transceiver interface GigabitEthernet0/0/1\n!\n! 4. 光模块日志：有没有 CRC/帧错误暴涨\ndisplay interface GigabitEthernet0/0/1 | include CRC|error|drop\n!\n! 5. 清洁与紧固后复测\ndisplay transceiver diagnosis interface GigabitEthernet0/0/1\n!\n! 6. 备件更换：同型号同波长\ndisplay elabel\n!\n! 7. 长距超规格：确认模块与光纤距离匹配\ndisplay version\n']
+    ],
+    tip: '「时通时断/速率协商 100M/接口 down」八成是光的事。收发光经验值：光功率 -8dBm 左右健康；低于 -20dBm 衰过头（光纤脏/弯折过度/距离超模块规格/熔接点差）；收无光 = 纤芯断或对端没发光。看到接口协商到 100M 而不是 1000M，先查光——弱光时光模块降速保连接。排查顺序：① display transceiver diagnosis 看收发两侧功率，两侧都看（可能本端发光正常但对端收不到）；② 低于门限先做物理层处理——擦纤（无水酒精+无尘纸）、检查跳线弯折半径（不小于 4cm）、法兰盘端面；③ 物理没问题还衰，用 OTDR 或光功率计分段测（现场没仪表就先换对跳线/换模块试）；④ 换模块必须同型号同波长同速率——1310nm 和 850nm 混用直接不通，单模多模混用直接不通；⑤ CRC 持续增长但功率正常，查干扰（强电并行、光纤被压）；⑥ 记录告警前后时间，配 FTP/日志服务器留证，周期性掉线的抓 display transceiver verbose。'
+  },
+  {
+    id: 'pr-ops-cpu',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '设备 CPU/内存高排查（卡顿、telnet 登不进先看这）',
+    kw: ['cpu高', 'cpu利用率', '内存高', '设备卡', 'telnet登不进', '响应慢', 'cpu100', '负载高', '设备高温'],
+    cmds: [
+      ['华为 VRP8', '! 1. 总览：CPU/内存/温度\ndisplay cpu-usage\n display cpu-usage history\n display memory-usage\n!\n! 2. 是谁在吃 CPU：进程/任务占用\ndisplay cpu-usage tasktop\n display process cpu\n!\n! 3. 是不是被流量打满：接口/协议报文\ndisplay cpu-defend statistics\n display interface brief | include <full>\n!\n! 4. ARP/路由表异常膨胀\ndisplay arp | count\n display ip routing-table | count\n!\n! 5. 日志/告警风暴：日志刷屏也是 CPU 大户\ndisplay trapbuffer | count\n display alarm active | count\n!\n! 6. 建会话数异常（防火墙/AC）\ndisplay session all | count\n!\n! 7. 止血：关掉疯狂发包的端口或加流控\ninterface GigabitEthernet0/0/1\n shutdown\n!\n! 8. 恢复后复查\ndisplay cpu-usage']
+    ],
+    tip: 'CPU 高的三板斧：先止血再定位。① display cpu-usage 看持续高还是突发（突发多半是某事件触发）；② display cpu-usage tasktop 看是哪个进程——SNMP 进程高多半是网管在猛轮询、ARP 进程高多半是 ARP 攻击/扫描、转发进程高多半是流量过载或环路、路由协议进程高多半是邻居在翻动；③ 常见元凶排名：广播风暴/环路、ARP 攻击、SNMP 频繁轮询、日志服务器不通导致日志堆积重发、端口敲错、生成树 TC 报文刷屏；④ 内存高多半是 MAC/ARP/会话表膨胀，看 display memory-usage 具体是哪块；⑤ 临时登不上设备别急着重启——先等（设备带外 console 一般还能进），重启丢现场，事后没法查为什么高；⑥ 根治：加 CPP（display cpu-defend）、限速广播、arp-miss 抑制、关不必要的 SNMP 团体字；⑦ 处理完对比 display cpu-usage history 一周曲线，确认回落到正常水位。'
+  },
+  {
+    id: 'pr-ops-stacksplit',
+    devs: ['Switch'],
+    name: '堆叠分裂/双机主备异常排查（一台脱管、配置还在）',
+    kw: ['堆叠分裂', '堆叠脱管', '主备异常', 'irf分裂', '堆叠重启', '双机热备异常', '主备倒换', 'stack split'],
+    cmds: [
+      ['华为 VRP8', '! 1. 先确认堆叠现状：成员在不在、谁是主\ndisplay stack\n display stack configuration\n!\n! 2. 堆叠链路状态：哪条链路断了\ndisplay stack topology\n display stack port statistics\n!\n! 3. 分裂检测：有没有 split-detect\ndisplay stack split-detect\n!\n! 4. MAD 检测配置（多主检测）\nmad detect mode relay\n!\n! 5. 成员离线/重启原因\ndisplay stack troubleshooting\n!\n! 6. 双机热备（VRRP）状态\ndisplay vrrp\n!\n! 7. 主备一致性\ndisplay stack configuration consistency\n!\n! 8. 重新加入成员\nstack slot 1 rejoin']
+    ],
+    tip: '堆叠分裂典型现象：两台机器一台登得上（Master）一台登不上（变 Slave 或脱管）， Slave 上业务口全 down 或 VLAN 配置丢了。① 根因几乎都是堆叠链路（堆叠口光纤/线缆）故障——拔插过、光纤老化、跨机架走线被压；② 先 display stack 看成员状态，掉线的成员 slot 状态是 Down；③ display stack topology 看堆叠链路是否全断，剩一条时虽不分裂但带宽减半要警惕；④ 防分裂三件套：MAD 检测（relay 或直连检测）、堆叠链路双链路冗余、优先级+最大成员数规划；⑤ 处理：先恢复堆叠链路（换线/换模块），断电重启脱管成员等它 rejoin，别单独给 Slave 写配置——分裂期间两套配置合并不了，后写进去的会被 Master 覆盖或以冲突方式丢掉；⑥ 双机热备场景先确认 display vrrp 状态，VRRP 频繁切换的根因也常是心跳链路故障；⑦ 预防：堆叠口走独立纤/线，不和业务线捆一起走线，机柜改造时给堆叠链路贴明显标识。'
+  },
+  {
+    id: 'pr-ops-loop',
+    devs: ['Switch'],
+    name: '网络环路/广播风暴排查（全网卡、灯爆闪）',
+    kw: ['环路', '广播风暴', '网络卡爆', 'mac漂移', '端口闪断', 'loop', 'storm', '风暴抑制', 'mac地址漂移'],
+    cmds: [
+      ['华为 VRP8', '! 1. 现象确认：哪个口/哪片区域异常\ndisplay interface brief | include UP|DOWN\n!\n! 2. MAC 漂移：环路的最大特征——同一 MAC 从多个口学\ndisplay mac-address flap\n display mac-address\n!\n! 3. 广播/组播/未知单播流量监控\ndisplay storm-constrain interface GigabitEthernet0/0/1\n!\n! 4. 定位到口：看哪个口收发报文量异常大\ndisplay interface GigabitEthernet0/0/1\n!\n! 5. 止血：临时 shut 掉嫌疑口\ninterface GigabitEthernet0/0/24\n shutdown\n!\n! 6. 确认恢复后：给该口加环网保护/风暴抑制\ninterface GigabitEthernet0/0/24\n storm-constrain broadcast min-rate 100 max-rate 200\n storm-constrain control block\n stp edged-port enable\n!\n! 7. 全局确认\ndisplay cpu-usage\n display mac-address flap\n!\n! 8. 长期防护：生成树 + 环网协议\nstp mode rstp\n stp root primary']
+    ],
+    tip: '环路症状极典型：全网卡、所有设备 CPU 高、接口指示灯疯狂同闪、MAC 地址表里同一 MAC 出现在多个口且不停跳（display mac-address flap 有记录）。处置顺序：① 先止血后查因——登核心看 display mac-address flap 找到漂移最频繁的 MAC，反查它在哪个口，shutdown 该口（或 mad/环网协议自动挡），网络 1 分钟内恢复；② 再查环：沿着链路逐个口恢复，恢复哪个口又卡就是那段有环（常见元凶：用户私接小交换机、办公室两个墙口被一根网线连起来、AP 的 LAN 口接到另一个 AP 的 LAN 口、装修临时跳线忘了拆）；③ 止血后必须加防护，否则下个月还来——接入层口 edged-port（接终端）、风暴抑制（storm-constrain）、全开 RSTP；④ 根因治理：给所有接入墙口贴标签，IT 资产外的交换机/网线见到就拆，办公区施工要 IT 在场；⑤ 经验：环路的广播包会被交换机复制放大，接 PC 的口不 shut 的话 PC 网卡也会被广播打满，用户侧表现就是「电脑也卡，网卡灯狂闪」。'
+  },
+  {
+    id: 'pr-ops-aclmiss',
+    devs: ['防火墙', 'Router'],
+    name: 'ACL/安全策略不生效排查（加了 deny 为啥还通）',
+    kw: ['acl不生效', '策略不生效', 'deny了还通', 'acl排查', '安全策略不通', '防火墙策略', 'acl匹配', '策略没效果'],
+    cmds: [
+      ['华为 USG 防火墙', '! 1. 先确认策略命中没：命中计数动没动\ndisplay firewall policy | include <规则名/源目的>\n display firewall session table source <源IP> destination <目的IP>\n!\n! 2. ACL 匹配统计：哪条规则在挡、挡了多少\ndisplay acl <ACL号>\n!\n! 3. 会话表：这条流量走的哪条策略\ndisplay firewall session table verbose source ip <源IP>\n!\n! 4. 策略顺序：前面的 permit 先命中，deny 白写\ndisplay current-configuration configuration firewall-policy\n!\n! 5. 区域间方向：trust 到 untrust 的策略 ≠ untrust 到 trust\ndisplay zone-pair security source trust destination untrust\n!\n! 6. 报文捕获：到底有没有包到防火墙\ndisplay firewall packet-filter statistics\n!\n! 7. 修正：把 deny 挪到对应 permit 前面\npolicy interzone trust untrust inbound\n rule name DENY-SCAN\n  source-address 10.1.0.0 0.0.255.255\n  destination-address 10.1.10.0 0.0.0.255\n  service protocol tcp destination-port 445\n  action deny\n #\n rule name PERMIT-ALL\n  source-zone trust\n  destination-zone untrust\n  action permit\n #\n!\n! 8. 验证：重新发包看命中计数\ndisplay firewall policy | include DENY-SCAN']
+    ],
+    tip: '「明明 deny 了还能通」的根因 90% 是这四类：① 顺序——策略自上而下匹配，deny 写在一条 permit any 后面永远不生效，把 deny 挪到前面；② 方向——防火墙按区域对（zone-pair）查策略，trust→untrust 的策略管不了 untrust→trust 的流量，两边都要写；③ 命中统计不看——display firewall policy 的 hit-count 是金标准，计数 0 = 流量根本没走到这条策略（方向/区域/优先级不对），计数在涨但还通 = 这条规则确实放行了（后面还有 permit 兜底，或者动作写错成 permit）；④ 会话表残留——老会话还活着，新策略对已建立的连接不生效，display firewall session table 找到对应会话 reset 掉再测；⑤ 附加排查：ASPF/状态检测对返回流量自动放行（别以为是漏配）、NAT server 映射的流量走的是 server-map 优先、策略引用的地址对象/时间段不对；⑥ 经验法则：改策略后先清会话再测，抓 display firewall session table verbose 确认流量匹配的规则名，一切以命中计数说话。'
+  },
+  {
+    id: 'pr-ops-hw',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '硬件告警排查（电源/风扇/温度，机房巡检必看）',
+    kw: ['电源告警', '风扇告警', '温度告警', '硬件告警', '单板不在位', '巡检', '机房检查', '环境告警', '设备告警'],
+    cmds: [
+      ['华为 VRP8', '! 1. 全量告警一览：按严重级别看\ndisplay alarm active\n display alarm history\n!\n! 2. 电源：单路掉电常见，双路才是危险\ndisplay power\n!\n! 3. 风扇状态：转速/是否停转\ndisplay fan\n!\n! 4. 温度：进风口/单板温度，超 45℃ 要处理\ndisplay temperature\n!\n! 5. 单板/模块在位与健康\ndisplay device\n display elabel\n!\n! 6. 光模块告警联动\ndisplay transceiver diagnosis interface <接口名>\n!\n! 7. 日志里的硬件事件\ndisplay logbuffer | include POWER|FAN|TEMP\n!\n! 8. 内存/CPU 联动确认\ndisplay cpu-usage\n display memory-usage\n!\n! 9. 告警恢复确认（换件后）\ndisplay alarm active\n']
+    ],
+    tip: '硬件告警处置原则：单电源掉电 = 赶紧报修换，双路电源掉一路还有一路撑着但已是带病运行；风扇停转 = 立刻处理，温度上去整机降频甚至掉电；温度 >45℃ 查机房空调/风道/防尘网（堵灰是头号原因）。① 巡检固定看这几条：display alarm active、display power（几路几路在跑）、display fan（状态 Normal）、display temperature（全单板趋势）；② display alarm history 看历史——反复出现的温度告警说明机房环境有问题，不是换设备能解决的；③ 防尘网半年一清，清的时候关机或错峰（灰尘扬起）；④ 换电源/风扇先确认型号（display elabel 看部件编码），带同型号备件，热插拔的部件按手册操作、先消手；⑤ 单板不在位（display device 里有 Absent）的查背板插条/单板锁扣；⑥ 建立告警联动——syslog 推送网管/手机，别等巡检才发现，机房停电恢复后空调晚启动半小时就能把设备热出告警；⑦ 所有 display 结果存档，故障 trends 比单点值更有价值。'
+  },
+  {
+    id: 'pr-diag-capture',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '设备本地抓包（capture-packet，转发问题实锤）',
+    kw: ['抓包', '设备抓包', 'capture', '本地抓包', '看报文', '收发报文', '报文', '转发抓包', 'capture-packet', '镜像抓包', '在线抓包','设备上能抓包','能不能抓包','设备抓包吗'],
+    cmds: [
+      ['华为 VRP8', '! 1. 关掉分页，否则长输出卡死（排障第一步）\nscreen-length 0 temporary\n!\n! 2. 在入/出方向挂抓包点：一条链路抓两头的收和发\ncapture-packet interface GigabitEthernet0/0/1 destination file flash:/cap1.pcap\n!\n! 3. 带过滤抓：只抓 10.1.1.0/24 到 10.1.2.100 的 TCP 80\nacl number 3000\n rule 5 permit tcp source 10.1.1.0 0.0.0.255 destination 10.1.2.100 0 destination-port eq 80\n#\ncapture-packet interface GigabitEthernet0/0/1 destination file flash:/cap2.pcap\n#\n capture-packet acl 3000\n capture-packet limit captured-packets 100\n capture-packet limit captured-octets 200000\n#\n!\n! 4. 三层抓：直接抓目的 IP 的报文（定位丢在哪台设备）\ncapture-packet ip destination 10.1.2.100 destination file flash:/cap3.pcap\n!\n! 5. 实时看抓了多少\ndisplay capture-packet status\n!\n! 6. 抓完停止并下载\ndisplay capture-packet packets-captured\nundo capture-packet interface GigabitEthernet0/0/1\n!\n! 7. 下载到本地用 Wireshark 看（SFTP 拉 flash:/cap1.pcap）\n!\n! 8. 清理：抓包文件占 flash，抓完就删\ndelete /unreserved flash:/cap1.pcap']
+    ],
+    tip: '设备本地抓包是排障的实锤手段——ping 通不代表业务通，抓一个包什么都清楚了。① 抓包位置选择：两头抓（源侧设备的出方向 + 目的侧设备的入方向），只在一侧抓只能判断「有没有出去」，两侧对比才能判断「在哪里丢的」；② 一定要先 screen-length 0 temporary，不然输出分页会卡在 "---- More ----"；③ 过滤用 ACL 缩小范围（一条 ACL 定义 源+目的+端口），不然核心设备上一秒几万包，抓下来的包你根本没法看；④ limit 参数必须设（captured-packets 条数、captured-octets 字节数），不设上限抓满 flash 设备会直接卡死；⑤ 三层场景可以直接 capture-packet ip destination 抓某个 IP 的报文，判断设备有没有收到、收到了丢没丢；⑥ 华为的 .pcap 文件直接拖进 Wireshark 就能看；⑦ 抓完记得 delete 文件，flash 被撑满的排障事故每年都有；⑧ H3C 用 packet-capture，思科用 monitor capture 会话，思路完全一样。'
+  },
+  {
+    id: 'pr-diag-nqa',
+    devs: ['Router', 'Switch', '防火墙'],
+    name: 'NQA 网络质量探测（时延/抖动/DNS/HTTP 全自动）',
+    kw: ['nqa', '网络质量', '探测', '质量监测', 'jitter', '抖动探测', 'dns探测', '链路质量', 'nqa实例', '自动探测'],
+    cmds: [
+      ['华为 VRP8', '! 1. ICMP 探测实例：测到网关的时延和丢包\nnqa test-instance user icmp-to-gw\n test-type icmp\n destination-address ipv4 10.1.1.1\n interval seconds 5\n timeout 2\n probe-count 3\n frequency 10\n start now\n!\n! 2. Jitter 实例：测网络抖动（语音/视频专线验收用）\nnqa test-instance user jitter-test\n test-type jitter\n destination-address ipv4 10.1.2.1\n destination-port 3000\n interval seconds 10\n frequency 30\n start now\n!\n! 3. DNS 探测：解析正常吗（要 NQA 客户端配合）\nnqa test-instance user dns-test\n test-type dns\n destination-address ipv4 8.8.8.8\n dns-server-address 8.8.8.8\n dns-domain-name www.example.com\n start now\n!\n! 4. TCP 探测：某端口服务活着吗\nnqa test-instance user tcp-test\n test-type tcp\n destination-address ipv4 10.1.3.1\n destination-port 443\n start now\n!\n! 5. 看结果\ndisplay nqa results\n display nqa history\n!\n! 6. 联动路由：探测失败自动切静态路由\ntrack nqa gw-track delay 5\n!\nip route-static 0.0.0.0 0.0.0.0 10.1.1.1 track nqa gw-track\nip route-static 0.0.0.0 0.0.0.0 10.1.2.1 preference 100\n!\n! 7. 停掉实例\nundo nqa test-instance user icmp-to-gw']
+    ],
+    tip: 'NQA 是华为的「自动体检仪」——人工 ping 只能 ping 一次，NQA 是 7×24 持续探测并把结果联动路由。① ICMP 实例测通断/时延/丢包，jitter 实例测抖动（视频会议/语音专线验收必做，端到端抖动 > 30ms 语音就开始有感知）；② DNS 探测专门测解析（能 ping 通 DNS 服务器但解析不出来的故障，DNS 探测一测一个准）；③ TCP 探测测端口级服务（对方 nginx 挂了没）；④ 最大价值在联动——track nqa + 挂静态路由，主链路探测失败 5 秒自动切备份链路，比 BFD 更贴近业务（BFD 只看链路，NQA 能看服务）；⑤ interval 别配太短（默认 5 秒，1 秒探测会持续占用设备 CPU）；⑥ display nqa history 看历史曲线，判断是持续性劣化还是突发；⑦ 巡检场景批量建 ICMP 实例到各关键网段，配合 display nqa results 一眼看出全网哪段在丢包。'
+  },
+  {
+    id: 'pr-diag-pipe',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: 'display 管道符全家桶（output 过滤 / 分页 / 存文件）',
+    kw: ['管道符', '过滤输出', 'display过滤', 'include', 'exclude', 'section', 'begin', '分页', 'screen-length', '输出过滤', 'grep'],
+    cmds: [
+      ['华为 VRP8', '! 0. 排障第一步：关分页（否则长输出卡终端）\nscreen-length 0 temporary\n!\n! 1. include：只看含关键词的行\ndisplay interface | include GigabitEthernet0/0/1\n display ip routing-table | include 10.1.2.0\n!\n! 2. exclude：过滤掉含关键词的行（看干净列表）\ndisplay current-configuration | exclude USER-INFO\n!\n! 3. begin：从关键词那行开始显示\ndisplay current-configuration | begin interface Vlanif10\n!\n! 4. section：只显示关键词所在段落（配接口/配 ACL 神器）\ndisplay current-configuration | section interface GigabitEthernet0/0/1\n!\n! 5. by-limit：从第 N 行开始显示\ndisplay mac-address | by-limit 100\n!\n! 6. 组合拳：先 section 再 include\ndisplay current-configuration | section acl 3000 | include rule\n!\n! 7. 大表统计：| count 数行数（批量脚本判断用）\ndisplay arp all | count\n!\n! 8. 输出重定向到文件（大批量取证用）\ndisplay current-configuration > flash:/backup.cfg\n!\n! 9. 恢复分页（操作完别人的终端记得改回来）\nscreen-length 24']
+    ],
+    tip: '管道符是华为 CLI 的隐藏生产力，会用和不会用效率差一倍。核心五个：include（过滤含）、exclude（过滤不含）、begin（从某行开始）、section（段落级显示，看某接口/某 ACL 全部配置不用翻屏）、by-limit（跳行）。① 排障第一命令 screen-length 0 temporary——不分页，display 多长都不会卡在 "---- More ----"；② 最常用组合：section 看单个接口配置（display current-configuration | section interface G0/0/1），比 grep 全配置快十倍；③ | count 数行数——display arp all | count 一眼看 ARP 表规模，判断是否 ARP 攻击；④ | include 后面可以跟多个关键词竖线分隔（display ip interface brief | include up|down 看状态汇总）；⑤ 重定向 > flash:/xxx.cfg 直接把输出存文件，比手动复制粘贴靠谱（取证、备份、交付文档都这么干）；⑥ H3C 同款语法（| include/exclude/section/begin），思科是 | section/begin/include/exclude + terminal length 0。'
+  },
+  {
+    id: 'pr-diag-pingadv',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'ping/tracert 参数深度用法（定位到「哪一个包」）',
+    kw: ['ping参数', 'ping用法', '指定源ping', 'ping大包', 'ping不通', 'tracert用法', 'lspv', '逐跳测试', 'mtu测试', 'ping详解'],
+    cmds: [
+      ['华为 VRP8', '! 1. 指定源地址 ping：防火墙/多出口场景定位策略问题（超常用）\nping -a 10.1.1.1 10.1.2.1\n!\n! 2. 大包 ping：小包通大包不通 = MTU/分片问题\nping -s 1472 -f 10.1.2.1\n!\n! 3. 连续 ping + 次数 + 间隔（看抖动/稳定性）\nping -c 100 -i 0.5 10.1.2.1\n!\n! 4. VPN 实例里 ping：VRF 场景必须带 vpn-instance，否则 ping 的是公网\nping -vpn-instance VPN-A 10.1.2.1\n!\n! 5. 控制 TTL 的 ping：测指定跳数可达\nping -m 5 10.1.2.1\n!\n! 6. 华为路径发现：看 MPLS/VPN 场景实际转发路径\ntracert -vpn-instance VPN-A 10.1.2.1\n!\n! 7. lspv：ping MPLS LSP 隧道（标签路径通不通）\nlspv ping lsp LSP-NAME\n!\n! 8. tracert 到公网：看从哪一跳出国（跨境卡顿定位）\ntracert 8.8.8.8\n!\n! 9. 结果解读\n! time<1ms=同机房/同交换机; 1-10ms=同城; 30-60ms=跨省; *=该跳不回 ICMP（禁 ping 或丢包）']
+    ],
+    tip: 'ping/tracert 人人会用，但 80% 的人只会裸 ping。① 指定源地址（-a）是防火墙/多出口/NAT 场景的第一诊断命令——从管理口 ping 通不代表业务口通，用业务段的源 IP 去 ping 才知道策略放不放；② 大包 ping（-s 1472 -f，1472 = 1500-28 字节头）：小包通大包不通 = 路径上某台设备 MTU 不对或分片被禁，专线/IPSec 场景高发（IPSec 加封装头，实际可用 MTU 更小，大包必挂）；③ -c 100 -i 0.5 连续发包看丢包率和时延波动，比 ping 4 个包靠谱——4 个包全通但第 100 个丢，说明链路质量问题；④ VPN 场景必须 -vpn-instance，很多人 ping 不通 VRF 里的地址是因为在公网路由表里 ping；⑤ tracert 中间某几跳全是 * 是正常的（运营商骨干禁 ICMP），关键是看从哪一跳开始后面全 *——那就是丢包点；⑥ 判断标准：同机房 <1ms、同城 1-10ms、跨省 30-60ms、国际 150ms+，超过这个数不是线路绕了就是链路拥塞；⑦ MPLS 场景用 lspv ping 测隧道，tracert 看不出标签路径。'
+  },
+  {
+    id: 'pr-dc-vxlan-manual',
+    devs: ['Switch'],
+    name: 'VXLAN 手工配置（集中式网关，不跑 EVPN 也能通）',
+    kw: ['vxlan配置', '手工vxlan', 'vni', 'bd', 'vtep', 'overlay', 'vxlan网关', '大二层', 'vxlan隧道', 'vxlan排障'],
+    cmds: [
+      ['华为 CE 系列', '! 场景：两个机房各一台 VTEP，同网段 VM 要跨机房二层互通\n! 前提：underlay 全网互通（VLAN+路由，VXLAN 只负责 overlay）\n!\n! 1. 业务 VLAN → BD（桥域）→ VNI 的映射\nbridge-domain 10\n vxlan vni 5010\n!\nbridge-domain 20\n vxlan vni 5020\n!\n! 2. 接入侧：VM 口绑 VLAN，VLAN 绑 BD\ninterface 10GE1/0/1\n port link-type trunk\n port trunk allow-pass vlan 10\n!\nl2 binding 10\n!\n! 3. VTEP 隧道端点：本端 IP + 对端 VTEP\ninterface Nve1\n source 10.0.0.1\n vni 5010 head-end peer-list 10.0.0.2\n vni 5020 head-end peer-list 10.0.0.2\n!\n! 4. 集中式网关：Vbdif 做同网段网关\ninterface Vbdif10\n ip address 10.10.10.1 255.255.255.0\n!\n! 5. underlay 打通验证（VTEP 之间必须三层可达）\nping 10.0.0.2\n!\n! 6. overlay 验证\ndisplay vxlan vni 5010\n display vxlan tunnel\n display bridge-domain 10\n!\n! 7. 抓包确认 VXLAN 头（外 UDP 4789/8472）\ndisplay vxlan statistics']
+    ],
+    tip: 'VXLAN 手工配置三要素：VNI（租户/网段隔离，24bit 12M 个）、BD（bridge-domain，一个 BD = 一个广播域 = 一个子网）、VTEP（隧道端点设备）。① underlay 先通再配 overlay——VTEP 之间三层可达是前提，VXLAN 只解决「跨三层传二层」；② 手工模式就是手工配对端 VTEP IP（peer-list），规模小（<10 台）够用，大规模必须上 EVPN 自动分发；③ 集中式网关：所有跨子网流量都到一台网关设备（Vbdif 口），简单但有瓶颈；分布式网关每个 VTEP 都有 Vbdif，配合 Anycast Gateway 同 IP 双网关；④ 排障三板斧：display vxlan tunnel（隧道在不在、对端通不通）、display vxlan vni（VNI 映射对不对）、display bridge-domain（BD 和 MAC 学没学）；⑤ 常见坑：source 接口 IP 填错（VTEP IP 必须是 loopback）、MTU（VXLAN 封装 50 字节，underlay MTU 至少 1550，jumbo frame 全局开）、防火墙没放 UDP 4789；⑥ 判断是否真封装：在对端 VTEP 抓包看外层 IP 是 VTEP 地址、UDP 4789，内层才是业务报文。'
+  },
+  {
+    id: 'pr-pon-ftth',
+    devs: ['OLT', 'ONU', '光猫'],
+    name: 'PON 光纤入户开局（OLT 侧加 ONU 全流程）',
+    kw: ['pon', 'olt', 'onu', '光猫', '光纤入户', 'ftth', 'pon开局', '加onu', 'gpon', 'xgs-pon', 'pon注册', '光接入'],
+    cmds: [
+      ['华为 MA5600T OLT', '! 1. 确认 PON 板在位、端口正常\ndisplay board 0/1\n!\n! 2. 加 ONU：SN 是光猫条码，先看看有没有发现 SN\ndisplay ont info 0/1 0 all\n!\ninterface gpon 0/1/0\n port 0 ont-lineprofile-id 1\n port 0 ont-srvprofile-id 1\n!\n! 3. 按 SN 认证加 ONU（SN 是 16 位十六进制，光猫背面条码）\n port 0 ont add 1 sn-auth 48575443ABCD0123 omci ont-lineprofile-id 1 ont-srvprofile-id 1\n!\n! 4. ONU 上线确认（状态 online 才算通）\ndisplay ont info 0/1 0 1\n!\n! 5. 看光功率：OLT 侧收光 -8~-27dBm 正常（PON 分光衰减大）\ndisplay ont optical-info 0/1 0 1\n!\n! 6. 下发业务流：上网 + IPTV/VoIP 各一条\nservice-port 1 vlan 101 gemport 1 user-vlan 101\nservice-port 2 vlan 102 gemport 1 multi-service user-vlan 102\n!\n! 7. 绑 VLAN 到上行口\nport vlan 101 102 tag 0/1 0\n!\n! 8. ONU 起不来先看告警\ndisplay ont alarm-state 0/1 0 1\n!\n! 9. 远程管理光猫（TR-069/RMS）\ntr069-server\n!\n! 10. 删 ONU（换猫/退网）\ninterface gpon 0/1/0\n port 0 ont delete 1']
+    ],
+    tip: 'PON 开局核心：OLT（机房局端）→ 分光器 → ONU/光猫（用户端），一条 PON 口下挂几十户。① ONU 上线靠 SN 认证（光猫条码，16 位十六进制），SN 打错/光猫没注册是最常见开局失败原因，先 display ont info 0/1 0 all 看有没有发现 SN；② 光功率看 OLT 侧 display ont optical-info，-8~-27dBm 是正常区间，低于 -27 查分光器/光纤，高于 -8 说明光猫发光太强（极少见）；③ 业务流用 service-port 下发（VLAN+gemport 绑定），一户多业务（上网/VoIP/IPTV）用 multi-service；④ 换猫流程：先删 ONU（port 0 ont delete）、再加新 SN，不删直接加同端口位置会报 SN 冲突；⑤ ONU 状态 offline 排查顺序：SN 认证失败 → 查 SN；光功率不够 → 查光纤/分光器；ONU 型号不在 profile 兼容列表 → 换 profile 或升级 ONU 版本；⑥ ONU 经常掉线（闪断）九成是光功率在临界值（-26/-27dBm）波动，整治手段：擦纤、换分光器出口、换光模块；⑦ 家用光猫改桥接由 OLT/RMS 统一下发，别让用户自己改——改花了投诉更多。'
+  },
+  {
+    id: 'pr-voice-e2e',
+    devs: ['Switch', 'Router', '语音网关'],
+    name: 'VoIP 语音端到端（SIP 电话从上线到能打）',
+    kw: ['voip', 'sip', '语音', 'ip电话', 'ipphone', '语音网关', '电话不通', '电话注册不上', '注册不上', 'sip注册', '语音vlan', 'option120', '电话杂音'],
+    cmds: [
+      ['华为 VRP8', '! 1. 语音 VLAN：电话和电脑分开走\nvlan 100\n!\ninterface GigabitEthernet0/0/1\n port hybrid untagged vlan 100\n port hybrid pvid vlan 100\n voice-vlan 100 enable\n!\n! 2. DHCP 给电话发网关/DNS（Option 120 告诉它 SIP 服务器在哪）\ndhcp enable\nip pool VOICE\n network 192.168.100.0 mask 255.255.255.0\n gateway-list 192.168.100.1\n option 120 as 192.168.100.1\n dns-list 8.8.8.8\n!\ninterface Vlanif100\n ip address 192.168.100.1 255.255.255.0\n dhcp select global\n!\n! 3. 语音 QoS：电话口信任 DSCP 优先转发（防杂音）\ninterface GigabitEthernet0/0/1\n qos trust dscp\n!\n! 4. 语音网关对接 SIP 服务器/IMS\nvoice\n voip-params dial-plan\n #\n!\n! 5. 看注册状态\ndisplay sip register-status\n display voice call-status\n!\n! 6. 抓语音流（SIP 走 UDP 5060，RTP 走 UDP）\ncapture-packet ip destination 192.168.200.10 destination file flash:/sip.pcap\n!\n! 7. 语音质量：抖动/丢包是杂音主因\nqos queue voice']
+    ],
+    tip: 'VoIP 端到端四件事：电话能拿到 IP（DHCP + Option 120 告诉它 SIP 服务器在哪）、能注册（SIP 服务器地址/账号密码对）、有 VLAN（语音 VLAN，和电脑数据分开，方便 QoS 和排查）、有 QoS（DSCP EF 优先转发，防杂音）。① 电话注册不上：先看它有没有拿到地址（看 DHCP 绑定，没有 = VLAN/DHCP 中继问题），再看 Option 120/66 下发对不对（拿 120 的地址 ping 一下 SIP 服务器通不通），最后查 SIP 账号密码（多数商用电话注册失败是密码大小写）；② 能注册不能打通：查 dial-plan（号码规则，外线要加出局前缀 9 还是 0）和路由（到对端网段的语音路由在不在）；③ 杂音/断续：QoS 没生效（display qos queue 看语音队列有没有在跑）或链路质量差（NQA jitter 探测实测，抖动 >30ms 语音有感知）；④ 传真必须用 G.711 编码（T.38 传真才稳），G.729 压缩省带宽但传真会挂；⑤ 经验：语音 VLAN 电脑口 hybrid untagged 数据 VLAN、电话口带 tag 语音 VLAN（或者 LLDP-MED 自动下发，省得每口手工配）；⑥ 排障抓包抓 SIP 注册报文（UDP 5060）和 RTP 流（UDP 10000-20000），Wireshark 有 SIP 和 RTP 专列解析。'
+  },
+  {
+    id: 'pr-poe-mgmt',
+    devs: ['Switch', 'AP'],
+    name: 'PoE 供电管理（功率预算 / 距离 / 优先级 / 远程复位）',
+    kw: ['poe', '供电', 'poe管理', 'poe功率', '供电不足', 'poe距离', 'poe优先级', 'poe复位', 'af', 'at', 'bt', '大功率'],
+    cmds: [
+      ['华为 VRP8', '! 1. 整机功率预算：能带多少个 PD（受电设备）\ndisplay poe power-state\n!\n! 2. 单口供电状态：实际功率 / 协议等级\ndisplay poe interface GigabitEthernet0/0/1\n!\n! 3. 接口开启供电（默认可能关）\ninterface GigabitEthernet0/0/1\n poe enable\n!\n! 4. 优先级：功率不够时先保谁（critical/high/low）\ninterface GigabitEthernet0/0/1\n poe priority critical\n!\n! 5. 最大功率限制：防一个口吃满预算\ninterface GigabitEthernet0/0/1\n poe max-power 30000\n!\n! 6. 远程给 AP/摄像头掉电复位（掉线设备远程重启神器）\ninterface GigabitEthernet0/0/1\n poe power-off\n poe power-on\n!\n! 7. 高功率 PD（802.3bt / 90W，给高密 AP/云台摄像头）\ndisplay poe power-state standard\n!\n! 8. 排查：PD 掉电/反复重启先看告警\ndisplay trapbuffer | include PoE']
+    ],
+    tip: 'PoE 三件事：供得上（功率预算）、供得稳（线缆距离）、能管理（优先级/远程复位）。① 功率预算是生死线：整机预算 = 电源功率 - 系统开销，AP（802.3af 15W）和 3.5W 摄像头混挂要算总账，超预算后低优先级口直接掉电；② display poe interface 看实际消耗（PD 上报的 requested/actual），标称 30W 实际只跑 12W 是正常的，别被标称值吓到；③ 100 米是 PoE 极限距离（CAT5e 铜缆 100m），超过必须换 PoE 中继/光口+远端供电，硬拉 150 米供电不稳（AP 反复重启的典型元凶）；④ 优先级设 critical 给关键 AP/核心摄像头，预算不足时低优先级先牺牲；⑤ poe power-off/power-on 是运维神器——AP/摄像头吊顶装好了人爬不上去，交换机上一条命令掉电再上电等于远程重启；⑥ 802.3bt（华为 90W 大功率）给高密 AP/云台摄像头/屏显供电，用备用线对（8 芯全用）才能到 60W+；⑦ 高功率口发热大，机房高温天关注 display poe temperature；⑧ PD 反复掉电重启的顺序排查：功率预算 → 线缆质量/距离 → 端口协商（强制速率到 1000M 全双工）。'
+  },
+  {
+    id: 'pr-iot-ap',
+    devs: ['AP', 'AC', 'IoT 网关'],
+    name: 'IoT 融合部署（AP 插卡 / RFID / 电子价签 / 定位）',
+    kw: ['iot', '物联网', 'rfid', '电子价签', '蓝牙定位', 'ap插卡', '融合ap', 'iot插卡', 'zigbee', 'ble'],
+    cmds: [
+      ['华为 AC', '! 1. IoT 板卡在位确认（IoT 插卡插在 AP 的 IoT 槽位）\ndisplay ap-run-info ap-name AP-01\n!\n! 2. IoT 业务模板：射频和 IoT 分模板管\ndisplay iot-service-profile\n!\n! 3. USB/串口 IoT 上报：第三方设备数据上云\niot-profile name IOT-SENSOR\n iot-usb enable\n report-server ip 10.1.9.10 port 8883\n!\n! 4. 蓝牙定位（beacon）上报：配合定位引擎\niot-profile name IOT-BLE\n iot-ble enable\n report-interval 5\n!\n! 5. RFID 读取（超高频 900MHz，物流仓储盘点）\ndisplay iot-rfid statistics\n!\n! 6. 电子价签（ESL，2.4G 专有协议，商超）\nwlan\n ap-group name AP-GROUP-01\n  radio 1\n   iot-service-profile IOT-ESL\n  #\n #\n!\n! 7. 数据上报确认\ndisplay iot-statistics\n!\n! 8. 功耗控制：IoT 板载会拉高整机 PoE 预算\npoe max-power 25400\n!\n! 9. 安全：IoT 上报必须 TLS\nreport-server protocol mqtts']
+    ],
+    tip: 'IoT 融合 = 用 AP 做「末梢采集器」，省一套 IoT 网络。① 三种玩法：AP 插 IoT 板卡（RFID/蓝牙/Zigbee）、AP USB 口接传感器（温湿度/空气质量）、电子价签基站（ESL，商超专用）；② 上报链路：AP/板卡 → AC → 物联网平台（MQTT over TLS），AP 只做采集上报，业务系统在云侧；③ 关键坑：PoE 功率——带 IoT 板卡的 AP 整机功耗上台阶，预算按 AP 峰值算，别按纯 Wi-Fi 算；④ 安全底线：上报必须 TLS/MQTTS，裸 MQTT 明文在公网跑等于裸奔，物联网平台被刷的案例一大把；⑤ 蓝牙定位（beacon）要规划部署密度（8-10 米一个），和 Wi-Fi 规划分开算覆盖；⑥ RFID 用于仓储/资产盘点前先做读率测试（金属货架反射、液体吸收是硬伤，读不到先调整天线角度而不是加设备）；⑦ 排障看 display iot-statistics 和 AC 侧 log，多数「数据不上来」是上报地址/端口不对或 TLS 证书过期。'
+  },
+  {
+    id: 'pr-time-1588',
+    devs: ['Switch', 'Router'],
+    name: '1588v2/PTP 精密时间同步（电力/轨交/金融对时）',
+    kw: ['1588', 'ptp', '对时', '时间同步', '电力对时', 'gps对时', '时钟源', 'ptp授时', '精密时间', '授时'],
+    cmds: [
+      ['华为 VRP8', '! 1. 全局开 1588（PTP）功能\nptp enable\n!\n! 2. 授时源接口（接 GPS/北斗时钟源，往下游分发）\ninterface GigabitEthernet0/0/1\n ptp enable\n ptp profile 1588v2 default\n ptp clock-mode oc\n!\n! 3. 下游口逐跳恢复精度（BC 边界时钟，现网主力模式）\ninterface GigabitEthernet0/0/2\n ptp enable\n ptp clock-mode bc\n!\n! 4. 时钟等级和优先级（主备时钟源选主用）\nptp priority1 128\nptp priority2 1\n!\n! 5. 查看时钟源与同步状态\ndisplay ptp clock\n display ptp parent\n!\n! 6. 端口状态（master/slave/passive）\ndisplay ptp interface GigabitEthernet0/0/1\n!\n! 7. 时间偏差（同步质量）\ndisplay ptp time-offset\n!\n! 8. 与 NTP 互备（1588 优先，丢了退 NTP）\nntp-service unicast-server 10.1.1.100\n!\n! 9. 告警：时钟源丢失要告警\ndisplay trapbuffer | include PTP']
+    ],
+    tip: '1588v2（PTP）是把时间同步做到亚微秒级的技术，NTP 只能到毫秒级——电力差动保护、轨交列控、金融交易时间戳必须用 1588。① 三个角色：OC（ordinary clock，终端，如继保装置）、BC（boundary clock，边界时钟，网络设备逐跳恢复精度，是现网主力）、TC（transparent clock，透传，只修正驻留时间）；② 组网原则：GPS/北斗时钟源 → 核心交换机 BC → 汇聚 BC → 接入 → 终端 OC，每层都 BC，一跳都不能少——经过非 1588 设备时间就废了；③ 精度要求 100ns 级必须硬件打时间戳，软件打时间戳只能到微秒级，采购设备时问清楚；④ 双时钟源冗余：priority1/2 选主，主时钟源丢失设备自动切备（看 display ptp parent 当前跟随谁）；⑤ 排障：display ptp parent 看选源、display ptp time-offset 看偏差（偏差持续增大 = 主时钟源不稳或链路抖动大）、端口 passive 状态通常是时钟源冲突（两个口都收到了 master 报文，成环）；⑥ 和 NTP 互备做兜底：1588 全网瘫痪（如时钟源故障）时至少还有毫秒级对时；⑦ 部署前先测：两端设备 display ptp time-offset 对比，确认精度满足业务指标再上线。'
+  },
+  {
+    id: 'pr-proto-eigrp',
+    devs: ['Router', 'Switch'],
+    name: 'EIGRP 端到端（思科经典：从邻居到汇总）',
+    kw: ['eigrp', 'eigrp配置', '思科路由协议', 'eigrp汇总', 'eigrp邻居', 'eigrp末梢', 'eigrp不等价', 'cisco eigrp', 'eigrp排障'],
+    cmds: [
+      ['思科 IOS', '! 1. 启用 EIGRP：AS 号全网必须一致（classic 模式）\nrouter eigrp 100\n eigrp router-id 1.1.1.1\n no auto-summary\n!\n! 2. 接口进 EIGRP（旧式 network 通配符）\ninterface GigabitEthernet0/0\n ip address 10.1.12.1 255.255.255.0\n!\nrouter eigrp 100\n network 10.1.12.1 0.0.0.0\n!\n! 3. 被动接口：接终端的口不建邻居\nrouter eigrp 100\n passive-interface GigabitEthernet0/1\n!\n! 4. 汇总：路由少一半，表越小网络越稳\ninterface GigabitEthernet0/0\n ip summary-address eigrp 100 10.1.0.0 255.255.0.0\n!\n! 5. 末梢：只有一条出口的路由器（stub 防查询泛洪）\nrouter eigrp 100\n eigrp stub connected summary\n!\n! 6. 不等价负载分担（variance 乘数）\nrouter eigrp 100\n variance 3\n traffic-share balanced\n!\n! 7. 认证：HMAC-SHA256\nkey chain EIGRP-KEY\n key 1\n  key-string <密码>\n  cryptographic-algorithm hmac-sha-256\n!\ninterface GigabitEthernet0/0\n ip authentication mode eigrp 100 md5\n ip authentication key-chain eigrp 100 EIGRP-KEY\n!\n! 8. 验证\ndisplay eigrp neighbors\n display eigrp topology\n display eigrp interfaces\n!\n! 9. 排障：邻居起不来\ndisplay eigrp neighbors\n debug eigrp packets\n!\n! 10. 华为对照（EIGRP 是思科私有，华为没有对应协议，多厂商环境用 OSPF）']
+    ],
+    tip: 'EIGRP 是思科私有协议（华为/H3C 没有），在纯思科环境是最好用的 IGP——配置简单、收敛快、支持不等价负载。① 核心概念：AS 号全网一致，router-id 手工指定（不指定取最大 loopback），metric = 带宽+延迟复合计算（K 值默认 1,0,0,1,0），调 metric 就是调 delay（interface delay 命令）；② 邻居起不来排查：AS 号不一致、K 值不一致、接口没进 EIGRP（network 没配或通配符写反）、认证不匹配、两端不在同子网；③ no auto-summary 必配——不配的话有类边界自动汇总，路由全乱；④ eigrp stub 给末梢路由器用，防核心向末梢查询不存在路由时末梢再泛洪查询；⑤ variance 让不等价路径也进负载分担（metric 差距在乘数范围内的备份路径也能用），比 OSPF 只能等价路径灵活；⑥ 排障三板斧：display eigrp neighbors（邻居表）、display eigrp topology（拓扑表，看 SIA/Active 卡住）、display eigrp interfaces（接口参与状态）；⑦ 现代思科推 EIGRP named 模式（router eigrp NAME 下 address-family），新设备建议用 named，旧语法也还支持。'
+  },
+  {
+    id: 'pr-aaa-tacacs',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'AAA + TACACS+ 统一认证（设备登录集中管控）',
+    kw: ['aaa', 'tacacs', 'radius认证', '统一认证', '集中登录', '设备认证', 'tacacs+', '登录审计', '认证服务器', 'aaa排障'],
+    cmds: [
+      ['华为 VRP8', '! 1. AAA 方案：认证/授权/计费三件套\naaa\n authentication-scheme AUTH-TAC\n  authentication-mode tacacs local\n #\n authorization-scheme AUTHOR-TAC\n  authorization-mode tacacs local\n #\n accounting-scheme ACCT-TAC\n  accounting-mode tacacs\n #\n!\n! 2. TACACS+ 服务器模板：堡垒机/认证平台地址+密钥\ntacacs-server template TAC-CENTER\n tacacs-server authentication 10.1.9.10 shared-key cipher <共享密钥>\n tacacs-server authorization 10.1.9.10 shared-key cipher <共享密钥>\n tacacs-server accounting 10.1.9.10 shared-key cipher <共享密钥>\n tacacs-server source-ip 10.1.9.1\n!\n! 3. 域：登录时选 realm（local 兜底防认证服务器挂了登不上）\naaa\n domain NET-ADMIN\n  authentication-scheme AUTH-TAC\n  authorization-scheme AUTHOR-TAC\n  accounting-scheme ACCT-TAC\n  tacacs-server TAC-CENTER\n #\n!\n! 4. 用户级别：管理员/普通操作员分级授权\naaa\n local-user admin privilege level 15\n local-user admin service-type ssh telnet\n local-user admin password cipher <密码>\n #\n!\n! 5. 登录口应用：VTY/console 走 AAA\nuser-interface vty 0 4\n authentication-mode aaa\n protocol inbound ssh\n!\n! 6. 验证\ndisplay tacacs-server template TAC-CENTER\n display aaa configuration\n display domain NET-ADMIN\n!\n! 7. 排障：认证服务器不通\ndisplay tacacs-server statistics\n display aaa statistics access-type authen\n!\n! 8. 应急：认证服务器挂了，local 用户兜底（务必提前建好！）\nlocal-user emergency privilege level 15\n service-type ssh\n!']
+    ],
+    tip: 'AAA+TACACS+ 是等保硬性要求——设备登录不能只靠设备本地账号，要集中到堡垒机/认证平台，谁登录、干了什么都有记录。① 三要素：认证（你是谁）、授权（你能干什么）、计费（你干了什么都记下来）；② TACACS+ vs RADIUS：TACACS+ 全加密（连认证报文体都加密）且能按命令授权，做设备管理用 TACACS+；RADIUS 一半加密（只加密密码），做网络接入（802.1X/Portal）用 RADIUS；③ 排障三板斧：display tacacs-server statistics 看服务器通不通（不通查路由/防火墙 49 端口）、display aaa statistics 看认证请求有没有发出去、shared-key 两边必须一致；④ 千万保留 local 兜底用户——认证服务器挂了或网络断了，没有 local 账号你连设备都登不上，这是运维事故高发点；⑤ 授权分级：level 15 管理员、level 1 只读，配合命令授权（command-authorization）实现「只读账号不能改配置」；⑥ 域名（domain）机制：不同登录源（console/ssh/802.1x）绑不同认证方案，别让 Wi-Fi 用户认证也走 TACACS+；⑦ 对接堡垒机后，所有运维操作在堡垒机留痕，等保测评直接过。'
+  },
+  {
+    id: 'pr-ops-telemetry',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'Telemetry 订阅（gRPC 推数据，替代 SNMP 轮询）',
+    kw: ['telemetry', 'grpc', '遥测', '数据推送', '订阅', '替代snmp', 'gRPC订阅', 'telemetry配置', '网管采集', '模型化数据'],
+    cmds: [
+      ['华为 VRP8', '! 1. 使能 gRPC 服务（Telemetry 走 gRPC over TLS/HTTP2）\ngrpc enable\n!\n! 2. 配置采集器（网管/分析平台）\ngrpc server 10.1.9.20 port 50001\n grpc server certificate flash:/grpc-cert.pem\n!\n! 3. 订阅接口状态：变化就推（事件驱动）\ntelemetry\n sensor-group IF-STAT\n  sensor path huawei-ifm:ifm/interfaces/interface\n #\n destination-group DG-1\n  ipv4-address 10.1.9.20 port 50001 protocol grpc\n #\n subscription SUB-IF\n  sensor-group IF-STAT\n  destination-group DG-1\n  sample-interval 10\n #\n!\n! 4. 订阅 CPU/内存：秒级监控\ntelemetry\n sensor-group SYS-RES\n  sensor path huawei-devm:devm/cpuInfos/cpuInfo\n  sensor path huawei-devm:devm/memoryInfos/memoryInfo\n #\n!\n! 5. 验证\ndisplay telemetry subscription\n display telemetry sensor\n display grpc server\n!\n! 6. 排障：数据没上来\ndisplay telemetry statistics\n!\n! 7. 证书部署（TLS 模式必须）\n!']
+    ],
+    tip: 'Telemetry 是 SNMP 轮询的换代技术——SNMP 是网管 5 分钟问一次设备「你还好吗」，Telemetry 是设备有变化主动推给网管（秒级甚至毫秒级）。① 核心优势：秒级实时（SNMP 5 分钟粒度根本抓不到瞬态故障）、推送按需（只推变化，省带宽和设备 CPU）、模型化（YANG 模型结构化数据，直接给分析平台用不用解析 MIB）；② 部署三件套：grpc enable（设备开服务）、destination-group（告诉它推到哪）、subscription（推什么数据什么周期）；③ sensor path 用 YANG 路径（huawei-ifm:ifm/interfaces/interface 这种），路径去华为官网 YANG 模型库查，别猜；④ sample-interval 按业务定：接口状态 10 秒、CPU 内存 5 秒、日志告警类变化即推；⑤ 排障看 display telemetry statistics（推送计数在不在涨），不涨查 gRPC 服务状态、网络（设备到采集器 TCP 可达）、证书（TLS 模式证书过期是大坑，到期前记得换）；⑥ 采集器侧：Prometheus+grpc 插件、厂商 NCE/eSight、开源 pipeline 都支持；⑦ 运维价值：链路翻动秒级告警、故障现场数据自动留存（不用等用户投诉再登设备翻日志）。'
+  },
+  {
+    id: 'pr-sec-compliance',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '等保配置基线自查清单（一条条对着改）',
+    kw: ['等保', '等保三级', '合规', '基线核查', '安全整改', '等保整改', '安全配置', '自查清单', '等保测评', '安全加固'],
+    cmds: [
+      ['华为 VRP8', '! 等保三级网络设备自查清单（按 display 逐条过）\n!\n! 1. 身份鉴别：口令复杂度 + 登录失败锁定\ndisplay aaa configuration\n display local-user\n display password-control\n!\n! 2. 空口令/默认账户：admin 默认密码必须改\ndisplay local-user | include state\n!\n! 3. 无用账户：guest/test 账号清理\ndisplay local-user\n!\n! 4. 远程管理：SSH 替代 Telnet\ndisplay ssh server status\n display telnet server status\n!\n! 5. 登录失败处理：失败锁定 + 退出超时\nuser-interface vty 0 4\n authentication-mode aaa\n!\nuser-interface console 0\n authentication-mode aaa\n!\n! 6. 超时退出：session timeout\nidle-timeout 5\n!\n! 7. 安全审计：日志送审计服务器\ndisplay info-center\n!\n! 8. 会话并发 + 权限分离\ndisplay user-interface\n!\n! 9. 访问控制：管理口 ACL（谁能登设备）\nacl number 2000\n rule 5 permit source 10.1.9.0 0.0.0.255\n rule 10 deny\n#\n!\nuser-interface vty 0 4\n acl 2000 inbound\n!\n! 10. 时间同步：日志时间必须准\ndisplay ntp-service sessions\n!\n! 11. 剩余信息保护：配置删除前清空\ndelete /unreserved flash:/old-config.cfg\n!\n! 12. 网络设备防护：防扫描/防暴力破解\nfirewall defend ip-sweep enable\n!\n! 13. 一键看全部\ndisplay security-policy-status']
+    ],
+    tip: '等保三级网络设备自查，照着 display 一条条过：① 身份鉴别——口令 8 位以上大小写数字特殊字符组合（password-control length 8 complexity）、登录失败 5 次锁 10 分钟、空闲 5 分钟自动退出；② 每个网络设备都要改默认账号密码，删掉 guest/test 之类测试账号（测评必查项）；③ 管理通道——Telnet 全关只留 SSH，VTY 口绑 ACL 只允许网管段登（rule deny 兜底），console 口也要 AAA（物理接触设备也能登是重大隐患）；④ 安全审计——日志送远端 syslog/日志平台，且时间必须 NTP 同步（不同步的日志等保直接判不合规）；⑤ 会话管理——单用户并发会话数限制、超时退出；⑥ 通信完整性——管理流量 SSH/HTTPS 加密，SNMP 用 v3；⑦ 剩余信息保护——换设备/换配置前擦除 flash 旧配置（delete /unreserved），二手设备流出的配置泄露是真实发生过的安全事故；⑧ 测评节奏：每年一次正式测评，平时按这份清单季度自查，别等测评老师来了再熬夜改。'
+  },
+  {
+    id: 'pr-wlan-mesh',
+    devs: ['AP', 'AC'],
+    name: '无线 Mesh/桥接部署（电梯/仓库/室外补盲）',
+    kw: ['mesh', '无线桥接', 'wds', '中继', 'ap中继', '补盲', '没信号', '信号弱', '电梯覆盖', '仓库覆盖', '室外ap', 'mesh组网', 'ap-to-ap'],
+    cmds: [
+      ['华为 AC', '! 1. Mesh 模板：射频角色决定谁是根谁是叶\nwlan\n mesh-profile name MESH-WAREHOUSE\n #\n!\n! 2. 根 AP（Root，接网线上行）\nwlan\n ap-group name MESH-ROOT\n  radio 1\n   work-mode root\n   mesh-profile MESH-WAREHOUSE\n  #\n #\n!\n! 3. 叶 AP（Leaf，无线回传，电梯/仓库用）\nwlan\n ap-group name MESH-LEAF\n  radio 1\n   work-mode leaf\n   mesh-profile MESH-WAREHOUSE\n  #\n #\n!\n! 4. Mesh 链路射频参数：回传专用信道/带宽\nradio-2g-profile name MESH-RADIO\n channel 6\n bandwidth 20\n!\nradio-5g-profile name MESH-RADIO-5G\n channel 149\n bandwidth 40\n!\n! 5. 绑定：AP 上线指定模板和角色\nwlan\n ap auth-mode mac-auth\n ap-id 100 ap-mac <根AP MAC>\n ap-group MESH-ROOT\n!\n ap-id 101 ap-mac <叶AP MAC>\n ap-group MESH-LEAF\n!\n!\n! 6. 看 Mesh 链路质量（ hop 跳数/信噪比/速率）\ndisplay mesh link all\n display mesh neighbor all\n!\n! 7. 叶 AP 状态\ndisplay ap all\n!\n! 8. 排障：链路断了看 RSSI/SNR\ndisplay mesh radio statistics\n!\n! 9. 防环：Mesh 之间也要开破环\nmesh-loop-protection enable']
+    ],
+    tip: 'Mesh 是「没有网线也能覆盖」的手段，三大场景：电梯井（轿厢 AP 随缆回传）、仓库/车间（布线成本高）、室外园区（拉不了光纤的楼宇之间）。① 角色分工：Root AP 接有线做入口，Leaf AP 无线回传，中间还可以加 MP（mesh point）多跳中继；② 回传必须用独立射频或独立 5G 射频——千万别用同一个射频又做回传又做覆盖，带宽直接腰斩；③ 链路质量看两个数：RSSI > -65dBm、SNR > 25dB，低于这个值 Mesh 链路不稳，加中继或调角度/换天线；④ Mesh 支持多跳（一跳一跳往外传），但每跳带宽减半，规划时控制 2 跳以内；⑤ 排障三板斧：display mesh link all（链路建没建）、display mesh neighbor all（邻居发现没）、display mesh radio statistics（信号强度）；⑥ 叶 AP 掉线排查顺序：信号太弱 → 调整 AP 位置/天线；信道干扰 → 换信道；Root 容量满 → 减少叶数量；防环没开 → 开 mesh-loop-protection；⑦ 电梯覆盖特殊点：轿厢 AP 用随行电缆供电+网线，井道每 15 米一个 AP（电梯上下跑始终有信号），这是漏缆/随缆方案不是 Mesh，别搞混。'
+  },
+  {
+    id: 'pr-auth-portal-smart',
+    devs: ['AC', '防火墙', '交换机'],
+    name: 'Portal 无感知 + 扫码/短信认证（访客体验优化）',
+    kw: ['无感知认证', 'portal认证', '扫码认证', '短信认证', '微信认证', '访客认证', 'portal无感知', 'mac快速认证', '认证优化', 'portal排障'],
+    cmds: [
+      ['华为 AC', '! 1. Portal 服务器模板（AC 做 Portal 服务器 or 外接）\nportal-server name PORTAL-WEB\n server-url https://portal.example.com\n!\n! 2. 认证模板：微信/短信 + 无感知\nauthentication-profile name AUTH-GUEST\n portal-server PORTAL-WEB\n!\nsecurity-profile name SEC-GUEST\n authentication-profile AUTH-GUEST\n!\n! 3. 无感知：首次认证后 MAC 绑定，再来直接放行\nportal-mac-prior\n!\nsecurity-profile name SEC-GUEST\n portal mac-prior\n!\n! 4. 免认证资源：认证前也能访问的（DNS/Portal 服务器）\nfree-rule-template name FREE-GUEST\n free-rule 1 destination ip <PORTAL-IP> 0.0.0.0\n free-rule 2 destination ip <DNS-IP> 0.0.0.0\n free-rule 3 destination port 53\n!\n! 5. 短信/微信认证：对接运营商/公众号接口\nportal-auth-config\n auth-mode sms\n sms-gateway <短信网关地址>\n!\n! 6. 有效期：访客账号当天有效\nauthentication-profile name AUTH-GUEST\n portal offline-detect interval 300\n!\n! 7. 应用\nauthentication-profile AUTH-GUEST bind vap-profile VAP-GUEST\n!\n! 8. 验证：在线用户列表\ndisplay portal user all\n display access-user domain portal\n!\n! 9. 排障：弹不出页面\ndisplay portal free-rule\n display security-profile name SEC-GUEST\n!\n! 10. 紧急：全员无感知放行（领导视察/大型活动）\nsecurity-profile name SEC-GUEST\n portal free-rule none']
+    ],
+    tip: 'Portal 认证最大痛点是「弹不出页面/天天输账号」，无感知和扫码是两大解法。① 无感知原理：首次 Portal/短信认证后，把 MAC 和账号绑起来（mac-prior），同一设备再来网络自动放行不再弹窗——员工手机体验和没认证一样；② 扫码/微信认证：访客连 WiFi 弹页面 → 扫码关注公众号/输手机号收验证码 → 自动放行，不用记密码，公众号认证还能顺带做营销（商场/酒店常用）；③ 弹不出页面的排障顺序：终端有没有拿到地址（DHCP）→ 访问 http 网站时有没有被重定向到 Portal（免认证规则放行了 DNS 和 Portal 服务器吗，free-rule 是「认证前允许访问」的白名单）→ Portal 服务器可达吗（AC 到 Portal 服务器路由/防火墙）→ 浏览器劫持问题（https 网站默认不弹窗，让用户先访问个 http 网站触发重定向）；④ 免认证规则必须精细：只放 DNS + Portal 服务器 + 微信/短信接口域名，放行整个互联网等于没认证；⑤ 应急手段：security-profile 下 portal free-rule none 是全员放行，领导视察/大型活动/Portal 服务器挂了应急用，用完记得恢复；⑥ display access-user 看在线的认证用户，排查「某某上不了网」先查他在不在线、用的什么认证方式。'
+  },
+  {
+    id: 'pr-nat-servermap',
+    devs: ['防火墙', 'Router'],
+    name: 'NAT server-map 排障（映射了外网却访问不了）',
+    kw: ['nat不通', 'server-map', '端口映射不通', '映射失效', 'nat server排查', '外网访问不了', 'nat回流', 'hairpin', '端口映射', 'dmz'],
+    cmds: [
+      ['华为 USG 防火墙', '! 1. 先看 server-map 表：映射生成没有、生成的地址对不对\ndisplay firewall server-map\n!\n! 2. 看 NAT server 配置本体\ndisplay current-configuration configuration nat-server\n!\n! 3. 看会话：外网进来的流量匹配到哪条策略\ndisplay firewall session table source ip <外网源IP>\n!\n! 4. 安全策略放行了吗（server-map 优先，但首包仍要过策略）\ndisplay firewall policy | include <规则名>\n!\n! 5. 反向路由：回程包有路由回外网网段吗\ndisplay ip routing-table\n!\n! 6. 内网服务器自己网关指向防火墙了吗\ndisplay arp | include <服务器IP>\n!\n! 7. 多运营商/多出口：出口选错也白映射\ndisplay ip routing-table 0.0.0.0\n!\n! 8. 重新触发：清会话让映射重建\nreset firewall session\n!\n! 9. 抓包：看外网请求到底进没进防火墙\ncapture-packet packet interface GigabitEthernet1/0/0 destination ip <外网源IP>\n!\n! 10. 验证\ndisplay firewall server-map | include <映射端口>']
+    ],
+    tip: 'NAT server（端口映射）配了不通，按这个顺序查：① display firewall server-map——映射条目有没有生成（没有 = 配置或流量没触发），生成的公网端口和私网地址对不对；② 会话表——外网进来的包匹配到哪条策略、有没有被 deny（策略没放行外网到 DMZ，映射白做）；③ 回程路由——内网服务器的回包要能路由回外网网段（服务器网关必须指向防火墙，指向别的设备回包绕路就丢）；④ 多出口场景——进的是 A 运营商的地址，回包从 B 运营商出去，对端直接丢（做 NAT server 要固定出口或做源进源出）；⑤ 内网通过公网 IP 访问自己的映射（hairpin/回流）——要单独开 NAT 回流支持，默认不通是正常的；⑥ server-map 是「状态机制」——已建立连接的映射会驻留，策略改了老连接可能还走老映射，reset firewall session 清一下再测；⑦ 真排障顺序永远是：抓包看外网请求进没进防火墙 → server-map 生成没 → 策略放行没 → 内网服务器收没收到 → 回包出不出去，一环一环缩小范围。'
+  },
+  {
+    id: 'pr-cluster-css',
+    devs: ['Switch'],
+    name: '交换机集群 CSS/VSS（两台虚拟成一台）',
+    kw: ['css', '集群', '虚拟化', 'irf', '堆叠配置', 'css集群', 'vss', '双机虚拟化', '集群配置', '主从'],
+    cmds: [
+      ['华为 S 系列', '! 场景：两台核心交换机虚拟成一台（逻辑单设备管理）\n!\n! 1. 硬件连接：集群卡/业务口做集群链路（建议双链路冗余）\n!\n! 2. 配置集群 ID（两台都要配，决定谁是主）\nsystem-view\n set css id 1\n set css priority 100\n!\n! 3. 重启生效（集群配置必须重启）\nreboot\n!\n! 4. 集群建立后：逻辑上一台，slot 1/2 是成员\ndisplay css\n!\n! 5. 成员状态\ndisplay css member\n!\n! 6. 集群链路状态\ndisplay css topology\n!\n! 7. 双主检测（MAD）：集群链路全断时的仲裁\nmad detect mode relay\n!\n! 8. 配置同步：只在主交换机配，自动同步备\ndisplay css config consistency\n!\n! 9. 排障：分裂检测\nset css mad-detect enable\n!\n! 10. 退出集群（拆回两台独立设备）\nset css id 0\n reboot']
+    ],
+    tip: 'CSS（Cluster Switch System，思科叫 VSS）把两台交换机虚拟成一台——管理一个 IP、配置一份、跨设备链路聚合不断流。① 和堆叠（stack）的区别：堆叠是模块化交换机插堆叠卡，CSS 是两台独立框式交换机，本质一样都是「一虚多」；② 集群链路必须双链路冗余（一主一备），全断 = 分裂 = 双主，业务全乱；③ set css priority 定主备（大的做主机），改 priority 要重启生效；④ 配 MAD 检测（直连检测或 relay 代理）——集群链路全断时两台都当主机互相抢业务，MAD 让输的一方自动关闭业务口保平安；⑤ 生效操作只在主机做，自动同步到备机（display css config consistency 查一致性）；⑥ 跨设备链路聚合（Eth-Trunk 成员口分属两台）是 CSS 的最大价值——单台交换机故障链路不中断；⑦ 排障：display css member 看成员状态、display css topology 看集群链路；⑧ 拆集群要两台都 set css id 0 再重启，一台先拆会双主抢地址；⑨ 升级/重启主机前确认备机同步正常，否则主挂了备的配置是旧的。'
+  },
+  {
+    id: 'pr-qinq-stack',
+    devs: ['Switch', 'Router'],
+    name: 'VLAN Stack 灵活 QinQ（按内层 VLAN 精细分流）',
+    kw: ['qinq', 'vlan stack', '灵活qinq', '双层vlan', 'vlan映射', 'stack vlan', 'qinq配置', 'vlan stacking', '外层vlan', '内层vlan', '不同楼', 'vlan冲突'],
+    cmds: [
+      ['华为 VRP8', '! 场景：园区/楼宇接入，不同楼用不同外层 Tag 隔离\n!\n! 1. 基本 QinQ：所有内层 VLAN 统一加一个外层 Tag\ninterface GigabitEthernet0/0/1\n port link-type dot1q-tunnel\n port default vlan 10\n!\n! 2. VLAN Stack：按内层 VLAN 加不同外层 Tag（灵活分流）\ninterface GigabitEthernet0/0/2\n port link-type dot1q-tunnel\n port vlan-stacking vlan 10 stack-vlan 100\n port vlan-stacking vlan 20 stack-vlan 200\n!\n! 3. 上联口透传双层 Tag\ninterface 10GE1/0/1\n port link-type trunk\n port trunk allow-pass vlan 100 200\n!\n! 4. 城域网/MPLS 场景：外层 Tag 标识用户，内层是用户自己的 VLAN\nqinq termination\n!\n! 5. 看 QinQ 表\ndisplay port vlan-stacking\n!\n! 6. 抓包看双层 Tag（外层 S-VLAN 在前）\n!\n! 7. 排障：不通先看外层 Tag 透传没\ndisplay vlan 100\n!\n! 8. 剥离：出口把外层 Tag 剥掉还给用户 VLAN\nport vlan-stacking vlan 100 stack-vlan 10']
+    ],
+    tip: 'QinQ（802.1ad）就是 VLAN 套 VLAN——用户流量带一个 Tag（C-Tag），运营商/园区再套一个 Tag（S-Tag），一个物理网络承载多租户 VLAN 不冲突。① 基本 QinQ：不管内层是什么 VLAN，统一加一个外层（楼道/楼宇共用一个 S-VLAN）；② VLAN Stack 灵活 QinQ：按内层 VLAN 加不同外层（10 号楼加 100、20 号楼加 200），核心按 S-VLAN 分流到不同部门/楼宇；③ 用武之地：园区多租户、楼宇接入（每层一个 S-VLAN，防止租户 VLAN 冲突）、城域网（CE 到 PE，S-TAG 标识 VPN）；④ 关键概念：内层 C-Tag 是用户的，外层 S-Tag 是接入商的，接入商只认 S-TAG；⑤ MTU：双层 Tag 多 4 字节，端到端大包传输（存储/iSCSI）记得 jumbo frame；⑥ 排障：display port vlan-stacking 看映射表，不通先确认上联口放行了外层 VLAN、中间设备透传不剥离；⑦ 和 VLAN mapping 的区别：mapping 是改 Tag（换标签），QinQ 是加 Tag（套标签），按场景选。'
+  },
+  {
+    id: 'pr-usb-ztp',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'USB / ZTP 开局（没有 console 线也能开局）',
+    kw: ['ztp', 'usb开局', '即插即用', '自动开局', '无console开局', 'u盘开局', 'dhcp开局', '出厂初始化', '裸机开局', '远程开局', '批量配置', '自动配置', '批量部署'],
+    cmds: [
+      ['华为 VRP8', '! 方式一：USB 开局（现场没电脑/没 console 线）\n! 1. U 盘 FAT32 格式，放好两个文件：\n!    - 版本文件 .cc（放 U 盘根目录）\n!    - 配置文件 .cfg（zip 内或指定路径）\n! 2. 设备上电前插 U 盘\n! 3. 上电后设备自动识别 USB 中的版本和配置\ndisplay usb\n!\n! 4. 确认加载\ndisplay startup\n display version\n!\n! 5. 拔 U 盘、保存、重启验证\ndevice boot-file usb flash:/<版本文件.cc>\nsave\n!\n! 方式二：ZTP（设备从工厂发出直接插线自动配置）\n! 1. DHCP 服务器预置 option 148/67：告诉设备去哪个 ZTP 服务器\n!    option 148 as 10.1.9.100\n!\n! 2. ZTP 服务器（iMaster NCE / 第三方）按 SN 下发对应配置\n! 3. 设备上电自动获取配置上线\ndisplay ztp status\n display ztp configuration\n!\n! 4. 失败兜底：ZTP 不通保留出厂配置，本地可登\n!\n! 方式三：无中生生人配置（现场裸机，用默认管理口 + Web）\n! 默认管理 IP 192.168.1.1 / Web 初始化向导\n!\n! 开局后统一动作\nundo zhone enable\nsave']
+    ],
+    tip: '开局三板斧按场景选：① USB 开局——现场没带电脑/console 线，U 盘 FAT32 拷版本+配置文件，上电自动加载，5 分钟搞定一台，是工程队最爱；② ZTP——设备没出工厂就在网管平台登记好（按 SN 匹配配置模板），现场插上网线自动从 DHCP 拿 ZTP 服务器地址、下载配置上线，适合连锁门店/海量 AP 批量部署，零现场配置；③ Web 初始化——裸机默认管理 IP + 浏览器打开初始化向导，适合有 console 但懒得敲命令的场景。① USB 开局坑：U 盘必须 FAT32（NTFS 不认）、版本文件必须放根目录、文件名别用中文；② ZTP 坑：DHCP option 148 没配（设备找不到 ZTP 服务器）、防火墙挡了 ZTP 端口、SN 登记错了配置下到别人设备上；③ 开局后必做：undo zhone enable（华为设备默认 zhone 配置，不清掉开局后跑一堆中兴兼容命令，纯累赘）、save、改默认密码；④ 安全提醒：ZTP 阶段设备是无防护状态，DHCP/ZTP 服务器要在受控网段，别在公网环境裸奔开局；⑤ 批量部署先拿一台验证流程，再让厂商/工程队批量上电——开局脚本一个小错，批量就是批量返工。'
+  },
+  {
+    id: 'pr-wlan-acdiscover',
+    devs: ['AC', 'AP', 'DHCP 服务器'],
+    name: 'AP 发现 AC 机制（option43/60/138，上线第一步）',
+    kw: ['ap发现', 'ac发现', 'option43', 'option 43', 'capwap', 'ap上线', 'dhcp选项', 'ap注册不上', 'ap获取不到地址', '发现ac', 'option138', 'option60'],
+    cmds: [
+      ['华为 AC', '! 1. AP 发现 AC 的四种方式（按优先级自动选）\n!    ① 静态 AC IP：AP 上手工指定（适合小规模）\n!    ② DHCP option 43：AP 拿 DHCP 地址时同时拿 AC 列表（主流）\n!    ③ DNS 解析：AP 解析固定域名拿 AC 地址\n!    ④ 广播/组播发现：同二层广播找 AC（仅同网段）\n!\n! 2. DHCP 服务器配 option 43（华为格式：AC IP 列表十六进制拼）\n! 示例：两个 AC 10.1.10.1 和 10.1.10.2\n! option 43 hex 020A0A0A0101020A0A0A0102\n! 拆解：02=子选项个数(2), 0A=长度(10), 0A0A0101=10.10.1.1\n! 注意：0A0A0101 是 10.10.1.1，不是 10.1.10.1——字节别写反！\n!\n! 3. DHCP option 138/60（部分厂商用，华为 AC 也支持 option 60 携带）\noption 138 ip 10.1.10.1\n!\n! 4. AP 侧：AP 拿到的 AC 列表\ndisplay ac-list\n!\n! 5. AP 侧：CAPWAP 隧道状态（正常 established）\ndisplay capwap link state\n!\n! 6. AP 侧：发现过程日志（排查注册不上看这个）\ndisplay ap-startup\n!\n! 7. AC 侧：AP 有没有连上来\ndisplay ap all\n!\n! 8. AC 侧：AP 状态异常看版本匹配\ndisplay ap-version\n!\n! 9. 排障三板斧\ndisplay capwap statistics\n display ap unauth-record']
+    ],
+    tip: 'AP 上线第一现场永远是「有没有发现 AC」——发现不了 AC，后面升级/注册/上线全无从谈起。① 四种发现方式优先级：静态 > DHCP option43 > DNS > 广播，实际工程主力是 DHCP option43（AP 插哪都能自动找到 AC）；② option 43 最大坑是字节序——华为 option 43 格式「02 0A 0A0A0101 02 0A 0A0A0102」，IP 按字节原样写，写成 0A010A01（10.1.10.1）就错了，每个字节顺序不能调；③ AP 注册不上排查顺序：AP 拿到 IP 没（DHCP/POE）→ 拿到 AC 列表没（display ac-list 空 = option43 没下发或格式错）→ CAPWAP 隧道起来没（display capwap link state）→ AC 认证通过没（MAC 认证/不认证，display ap all 看状态）；④ 跨三层场景（AP 和 AC 不同网段）必须 option43 或 DNS——广播发现过不了路由器，这是「AP 和 AC 不同网段就上线不了」的根因；⑤ AP 和 AC 版本不匹配会进升级流程，升级失败通常是被防火墙挡了 TFTP/FTP 端口，看 display ap-startup 日志；⑥ 大批量 AP 开局先在一台 AP 上验证 option43 格式，再推广，字节序错一个数字全批挂。'
+  },
+  {
+    id: 'pr-net-multiexit',
+    devs: ['Router', '防火墙'],
+    name: '多出口智能分流（双运营商 + DNS 分流 + 策略路由）',
+    kw: ['多出口', '双线路', '双isp', '负载分担', '电信联通', 'dns分流', '智能选路', '源进源出', '多线负载', '出口优化'],
+    cmds: [
+      ['华为 VRP8', '! 场景：电信+联通两条出口，电信用户走电信、联通走联通\n!\n! 1. 两条出口静态/动态路由 + 不同优先级\nip route-static 0.0.0.0 0.0.0.0 61.1.1.1 preference 10\nip route-static 0.0.0.0 0.0.0.0 219.1.1.1 preference 20\n!\n! 2. 按源地址分流：电信段走电信出口（核心手段）\nacl number 3001\n rule 5 permit source 10.1.1.0 0.0.0.255\n#\nacl number 3002\n rule 5 permit source 10.1.2.0 0.0.0.255\n#\n!\ntraffic classifier CT source\n if-match acl 3001\n#\ntraffic behavior CT\n redirect interface GigabitEthernet0/0/1\n#\ntraffic policy PBR-EXIT\n classifier CT behavior CT\n#\n!\ninterface Vlanif10\n traffic-policy PBR-EXIT inbound\n!\n! 3. DNS 分流：电信 DNS 走电信线路解析（跨网解析绕路）\ndns resolve\n dns server 202.96.209.133\n dns server 114.114.114.114\n#\n!\n! 4. 源进源出：从哪进从哪出（防回包走错出口）\nip route-static 61.1.1.0 255.255.255.0 61.1.1.1\nip route-static 219.1.1.0 255.255.255.0 219.1.1.1\n!\n! 5. 主备+自动切换：BFD 探测主出口\nbfd EXIT-CT bind peer-ip 61.1.1.1\n!\nip route-static 0.0.0.0 0.0.0.0 61.1.1.1 preference 10 track bfd-session EXIT-CT\n!\n! 6. 验证：看每条流量走了哪条出口\ndisplay ip policy-statistics\n display traffic policy statistics interface Vlanif10\n!\n! 7. 排障：源进源出问题看回包路由\ndisplay ip routing-table protocol static']
+    ],
+    tip: '多出口三板斧：按源分流、DNS 分流、源进源出。① 按源分流是核心——内网电信办公段走电信出口、联通/移动段走联通出口，用户体验最好（谁家用户走谁家线路，延迟低）；② DNS 分流容易被忽视：内网 DNS 服务器要同时配两家 DNS，且查询要分流走对应出口——电信用户用电信 DNS 解析，CDN 返回的才是就近节点，跨网解析会拿到错误 CDN 地址（用户看视频卡的隐形元凶）；③ 源进源出：回包必须从进来的出口出去（外网访问内网服务器场景，从电信进来的包回包必须走电信出去，走联通出去对端直接丢），做法是给两个运营商网段各配回程静态；④ 主备切换用 BFD 探测（毫秒级），别只靠路由优先级——链路物理断了路由撤销很快，但链路「假死」（通而不达）时只有探测能发现；⑤ 排障看 display ip policy-statistics——策略命中计数 0 = 分流没生效（检查 ACL 段、接口方向、VLANIF 绑定）；⑥ 大型组网上 SD-WAN 或专业链路负载设备（支持应用级选路），小规模企业路由器 ACL+PBR 足够。'
+  },
+  {
+    id: 'pr-ops-nms',
+    devs: ['网管平台', 'Switch', 'Router', '防火墙'],
+    name: '网管平台日常运维（eSight / iMaster NCE）',
+    kw: ['esight', 'nce', '网管', '网管平台', 'imaster', '设备纳管', '网管告警', '批量配置', '网管巡检', '告警处理'],
+    cmds: [
+      ['eSight / NCE', '! 设备侧准备（网管能连设备的前提）\n! 1. SNMP 团体字/SNMPv3（网管读设备）\ndisplay snmp-agent community\n display snmp-agent usm-user\n!\n! 2. 网管服务器可达 + 防火墙放行\nping 10.1.9.20\n!\n! 3. Trap/告警上报目标（设备推告警给网管）\ndisplay snmp-agent target-host\n!\n! 4. Netconf（NCE 用 netconf 纳管，端口 830）\ndisplay netconf service\n!\n! 5. 设备时区/NTP（告警时间不准全是它的锅）\ndisplay clock\n!\n! 网管侧日常操作\n! 6. 设备纳管：按 IP+凭证批量添加\n! 7. 告警处理：确认→清除→转工单\n! 8. 巡检任务：配置合规扫描 + 版本基线\n! 9. 批量配置：模板批量下发\n! 10. 拓扑：自动发现链路（LLDP/CDP）\n! 11. 报表：容量/告警/可用率周报\n! 12. 升级管理：版本仓库+灰度升级']
+    ],
+    tip: '网管平台（华为 eSight/iMaster NCE）是网络运维的中枢——设备再多，没有网管就是瞎子。① 纳管前提：设备侧 SNMP/Netconf 开好、网管服务器和网络设备路由通、防火墙放行对应端口（SNMP 161/162、Netconf 830、SSH 22）、设备时间同步（告警时间错乱 8 小时的根因九成是设备 NTP 没配）；② 日常四件事：看告警（未确认告警每天清，别攒着）、跑巡检（配置合规扫描自动对比基线，比人工靠谱）、做变更（批量配置模板，改 100 台设备一条命令）、出报表（容量趋势和可用率，给领导看也给排障留证据）；③ 告警处理流程：确认（确认不是我方问题）→ 定位（结合告警关联的设备/链路）→ 处理 → 清除（设备恢复后网管侧手动清除，不清除会一直挂着影响告警率统计）；④ 网管自身运维：数据库定期备份（eSight 的 MySQL/PostgreSQL）、磁盘空间监控（告警数据库涨得快）、升级窗口期避开月底结算；⑤ 排障「网管看不到设备」：设备侧 display snmp-agent target-host 看 trap 目标配没配、ping 网管服务器通不通、SNMP 团体字/版本两边一致吗、ACL 挡了吗；⑥ 价值最大化：把告警接企业微信/钉钉/短信，7×24 不等巡检。'
+  },
+  {
+    id: 'pr-vpn-reliable',
+    devs: ['Router', '防火墙'],
+    name: 'VPN 隧道可靠性（keepalive / DPD / NAT-T / 重认证）',
+    kw: ['vpn掉线', '隧道断开', 'dpd', 'nat-t', 'keepalive', 'ike重认证', 'ipsec重连', 'vpn不稳定', '隧道保活', 'vpn重协商'],
+    cmds: [
+      ['华为 USG 防火墙', '! 1. IKE 保活：DPD 检测对端死没死（秒级发现隧道断）\ndisplay ike sa\n!\nike dpd type on-demand\n!\n! 2. NAT-T：私网后 NAT 穿越（家庭/分支出口是 NAT 时必开）\ndisplay ike nat-t status\n!\n! 3. IPsec 生命周期：重协商时机\nike proposal 10\n encryption-algorithm aes-256\n dh group14\n sa duration 86400\n#\n!\n! 4. 链路探测联动：隧道断了自动重建\nnqa test-instance user vpn-keep\n test-type icmp\n destination-address ipv4 <对端公网IP>\n start now\n#\n!\n! 5. 自动重拨：tunnel 口 up/down 触发重建\ninterface Tunnel0/0/1\n tunnel-protocol gre\n source 61.1.1.2\n destination 61.2.2.2\n!\n! 6. 拨错/中断看日志\ndisplay ike error\n display ipsec statistics\n!\n! 7. 双隧道备份：主备两条 IPsec\nipsec policy P1 10 isakmp\n proposal 10\n#\n!\n! 8. 野蛮模式：对端是动态 IP 时用\ndisplay ike peer\n!\n! 9. 验证：SA 和隧道都在\ndisplay ipsec sa brief\n display interface Tunnel0/0/1']
+    ],
+    tip: 'VPN 隧道「时不时掉线」是最高频 VPN 投诉，根因和处理：① DPD（死对端检测）必开——链路中间设备（NAT/防火墙）会话老化把 UDP 500/4500 流掐了，两边都不知道，DPD 秒级发现自动重建，没开 DPD 的隧道能假死几小时；② NAT-T 必开——分支出口是路由器 NAT/光猫拨号，IPsec 流量被 NAT 改端口，不开 NAT-T 直接不通，看 display ike nat-t status 确认协商成 NAT-T 了；③ 重协商时机错开——两端 IPsec SA 生命周期设一样，同时到期同时重协商，撞车瞬间丢包，一台 86400 一台 86460 错开；④ 对端动态 IP（家庭办公/4G 分支）用野蛮模式（aggressive mode）+ FQDN 或 DDNS，主模式协商不了；⑤ 排障三板斧：display ike sa（IKE 阶段 1 起没起）、display ipsec sa（阶段 2 SA 在不在）、display ike error（认证失败原因——预共享密钥错、对端证书过期、提议不匹配）；⑥ 日志时间线：IKE SA 删除 + 重协商成功 = 正常老化；认证失败 = 密钥/证书问题；超时无日志 = 链路层断了；⑦ 关键分支上双隧道双运营商备份，一条断了另一条自动接管。'
+  },
+  {
+    id: 'pr-l2-subif',
+    devs: ['Router', 'Switch'],
+    name: '子接口 dot1q 终结（一根网线跑多个 VLAN）',
+    kw: ['子接口', 'dot1q终结', '单臂路由', 'vlan间路由', '单网线多vlan', 'subinterface', '三层子接口', 'trunk终结', 'vlanif终结'],
+    cmds: [
+      ['华为 VRP8', '! 场景：一台路由器单臂连接交换机 Trunk，一个物理口跑多个 VLAN 互通\n!\n! 1. 物理口配 trunk（不做任何三层配置）\ninterface GigabitEthernet0/0/0\n port link-type trunk\n port trunk allow-pass vlan 10 20\n!\n! 2. 每个 VLAN 建一个子接口（逻辑口，一个 VLAN 一个）\ninterface GigabitEthernet0/0/0.10\n dot1q termination vid 10\n ip address 10.1.10.1 255.255.255.0\n arp broadcast enable\n!\ninterface GigabitEthernet0/0/0.20\n dot1q termination vid 20\n ip address 10.1.20.1 255.255.255.0\n arp broadcast enable\n!\n! 3. 验证：子接口起来、ARP 学到终端\ndisplay ip interface brief\n display arp | include GigabitEthernet0/0/0\n!\n! 4. 排障：子接口不通先看这几个\ndisplay interface GigabitEthernet0/0/0.10\n!\n! 5. 抓包：tagged 帧（子接口收的是带 Tag 的）\n!\n! 6. 带宽限制：单臂是瓶颈，注意利用率\ndisplay interface GigabitEthernet0/0/0 | include rate']
+    ],
+    tip: '子接口 dot1q 终结 = 路由器/防火墙的单臂路由，一个物理口带多个逻辑口，每个逻辑口终结一个 VLAN Tag，实现 VLAN 间路由。① 三大坑：忘了 arp broadcast enable（终结子接口默认不转发广播，终端 ARP 解析不了网关，表现是「能 ping 通自己 ping 不通网关」）、vid 写错、物理口 trunk 没放行该 VLAN；② 排障顺序：display ip interface brief 看子接口 up 没（down = vid 不匹配或 trunk 没放行）→ ping 网关（不通查 arp broadcast enable 和 IP）→ display arp 看有没有学到终端 MAC；③ 单臂性能：所有跨 VLAN 流量都挤一个物理口，千兆口跑满就是瓶颈，VLAN 间流量大的场景直接用三层交换机（VLANIF），路由器单臂只适合小规模/出口场景；④ 防火墙场景同款用法（防火墙做 VLAN 间网关，子接口 + 安全区域）；⑤ 抓包注意：子接口上抓到的是带 Tag 的帧（VLAN 10 的帧带 802.1Q 头），这是正常的，Wireshark 里能看到 vlan id 字段；⑥ 和 VLANIF 方案对比：子接口适合路由器/防火墙终结，VLANIF 适合三层交换机，原理一样都是「一个 VLAN 一个网关口」。'
+  },
+  {
+    id: 'pr-l3-vrrp-track',
+    devs: ['Router', 'Switch'],
+    name: 'VRRP 优先级 + Track 联动（网关主备精细化）',
+    kw: ['vrrp配置', 'vrrp优先级', 'track联动', '网关切换', '网关倒换', '倒换', '切换慢', 'vrrp抢占', 'vrrp不切换', 'vrrp排障', '主备网关', 'vrrp vip', '双网关'],
+    cmds: [
+      ['华为 VRP8', '! 1. 基础 VRRP：两台设备同一个虚拟网关 IP\ninterface Vlanif10\n vrrp vrid 10 virtual-ip 10.1.10.254\n vrrp vrid 10 priority 120\n vrrp vrid 10 preempt-mode timer delay 10\n!\n! 2. 上行链路探测：上行断了自动降优先级（核心！）\nbfd UP-DETECT bind peer-ip 10.1.10.1\n!\ninterface Vlanif10\n vrrp vrid 10 track bfd-session UP-DETECT reduced 60\n!\n! 3. 接口联动：本机上联口 down 就降级\nvrrp vrid 10 track interface GigabitEthernet0/0/1 reduced 60\n!\n! 4. 抢占延迟：防链路翻动时频繁抢主\nvrrp vrid 10 preempt-mode timer delay 30\n!\n! 5. 验证：状态、主备、VIP\ndisplay vrrp\n display vrrp statistics\n!\n! 6. 排障：主备不切换\ndisplay vrrp interface Vlanif10\n!\n! 7. 两端配置一致性检查（vrid/vip 必须一致）\ndisplay current-configuration interface Vlanif10\n!\n! 8. 双 VRRP 组：不同网段走不同主（负载分担）\ninterface Vlanif20\n vrrp vrid 20 virtual-ip 10.1.20.254\n vrrp vrid 20 priority 80']
+    ],
+    tip: 'VRRP 组网关高可用，细节决定可靠性。① 核心是 Track 联动——光看 VRRP 心跳不够：主设备上联口断了，它自己还是 Master，但上行已经不通，流量全黑洞。track 上联口/BFD 探测，断了自动降 60 优先级，备机秒级抢占；② 抢占延迟（preempt-mode timer delay）必配——链路翻动时防止主备来回抢（flapping），备机恢复后等 30 秒再抢回；③ 排障「主备不切换」的顺序：两边 vrrp vrid 和 virtual-ip 一致吗（不一致各自为主，双主冲突）、track 配了吗、BFD 会话起来了吗、链路二层通吗（VRRP 组播被端口隔离/防火墙挡也会不切换）；④ display vrrp 看 Backup 设备有没有收到通告（收不到 = 二层不通或组播被挡）；⑤ 负载分担玩法：两个 VLAN 的 vrid 主备交叉配（VLAN10 主 A 备 B，VLAN20 主 B 备 A），两台都干活；⑥ 经验：VRRP 虚拟 IP 必须是同网段未用地址（通常用网段最后一个 .254），终端网关指向虚拟 IP，别指向真实设备 IP——指向真实 IP，主备切换时终端网关就没了。'
+  },
+  {
+    id: 'pr-sys-bond',
+    devs: ['Linux 服务器'],
+    name: 'Linux bond 网卡绑定（接入交换机端口聚合对接）',
+    kw: ['bond', '网卡绑定', '双网卡', 'bond配置', 'mode4', 'lacp', '链路聚合linux', '网卡冗余', '服务器网卡', 'bond排障'],
+    cmds: [
+      ['Linux', '! 1. 看网卡和驱动\nip link show\n!\n! 2. 加载 bonding 模块\nmodprobe bonding\n lsmod | grep bond\n!\n! 3. 创建 bond0\nnmcli connection add type bond con-name bond0 ifname bond0 mode 4\n!\n! 4. 加从属网卡\nnmcli connection add type ethernet con-name eth1-slave ifname eth1 master bond0\nnmcli connection add type ethernet con-name eth2-slave ifname eth2 master bond0\n!\n! 5. 配 IP\nnmcli connection modify bond0 ipv4.addresses 10.1.10.100/24\nnmcli connection modify bond0 ipv4.gateway 10.1.10.1\nnmcli connection modify bond0 ipv4.method manual\nnmcli connection up bond0\n!\n! 6. 验证：bond 状态、活动从属\ncat /proc/net/bonding/bond0\n ip link show bond0\n!\n! 7. 交换机侧必须配 LACP（mode 4）\ninterface Eth-Trunk1\n mode lacp-static\n!\n! 8. 排障：只有一个口在跑\ndmesg | grep bond\n cat /sys/class/net/bond0/bonding/active_slave\n!\n! 9. 抓包看 LACP 报文（ UDP 3209 组播）\ntcpdump -i any -nn port 3209']
+    ],
+    tip: '服务器双网卡接交换机做链路聚合，bond 模式和交换机侧必须对应：mode 0（round-robin 负载）、mode 1（主备）、mode 4（802.3ad LACP，推荐，和交换机 lacp-static 对接）。① 服务器侧 mode 4 ↔ 交换机侧 mode lacp-static，这是唯一正确组合，一边 LACP 一边静态 = 起不来；② 排障「只有一个口 active」的顺序：交换机侧 Eth-Trunk 成员选中了几个（display eth-trunk 1 看成员口状态）、LACP 协商成功没（接口下 display lacp statistics）、服务器 dmesg 看 bond 模块日志、网线/光模块插错口；③ mode 1 主备场景：active_slave 只有一个，另一个 standby，链路故障才切换（适合对端交换机不支持聚合）；④ 虚拟机场景（ESXi/KVM）：vSwitch/桥接也要配 LACP，别在虚拟机里再做 bond（双重聚合冲突）；⑤ 监控：cat /proc/net/bonding/bond0 看 MII Status 和 LACP 状态，写进监控脚本；⑥ 排障神器 tcpdump -i any port 3209 抓 LACP 报文——协商报文都没有 = 物理/驱动问题，有报文没协商上 = 配置不匹配。'
+  },
+  {
+    id: 'pr-sys-k8s',
+    devs: ['Linux 服务器', '容器'],
+    name: 'K8s/容器网络排查（CNI / Calico / flannel）',
+    kw: ['k8s', 'kubernetes', '容器网络', 'cni', 'calico', 'flannel', 'pod不通', '容器排障', 'service不通', 'ingress不通', 'k8s网络'],
+    cmds: [
+      ['Linux', '! 1. Pod 网络：看 Pod IP 和节点\nkubectl get pod -A -o wide\n!\n! 2. Pod 不通：先确认 Pod IP 在哪个节点、节点间路由通不通\nkubectl describe pod <POD>\n ip route get <POD-IP>\n ping <POD-IP>!\n! 3. CNI 插件状态（Calico/flannel  Pod 健康）\nkubectl get pod -n kube-system | grep -E "calico|flannel|cilium"\n kubectl logs -n kube-system <CNI-POD> --tail=50\n!\n! 4. Service 不通：kube-proxy/ipvs 规则\nkubectl get svc\n ipvsadm -Ln\n iptables -t nat -L KUBE-SERVICES -n | head\n!\n! 5. DNS 不通：CoreDNS 是否健康\nkubectl get pod -n kube-system -l k8s-app=kube-dns\n kubectl exec -it <POD> -- nslookup kubernetes.default\n!\n! 6. 进出流量抓包\nkubectl exec -it <POD> -- tcpdump -i eth0 -nn\n!\n! 7. 节点网络：Pod 网段和节点网段冲突是经典坑\nip route\n!\n! 8. NetworkPolicy：策略挡了流量\nkubectl get networkpolicy -A\n kubectl describe networkpolicy <NP>\n!\n! 9. kube-proxy 模式（iptables/ipvs）\nkubectl logs -n kube-system kube-proxy-xxx | grep mode\n!\n! 10. 排障顺序：Pod→Service→DNS→Ingress→出口']
+    ],
+    tip: 'K8s 网络排查按「Pod→Service→DNS→Ingress→出口」五层走，每层定位手段不同。① Pod 不通：先 ip route get 看路由（Pod IP 该从哪块网卡出去），再 ping——ping 不通查 CNI 插件日志（Calico 节点间 BGP 断了、flannel VXLAN 隧道没建）、查节点间防火墙（云环境安全组挡 UDP/VXLAN 是经典坑）、查 IP 冲突（Pod 网段和办公网撞了）；② Service 不通：ClusterIP 是虚拟 IP，靠 kube-proxy 的 iptables/ipvs 规则转发——ipvsadm -Ln 看规则在不在，NodePort 类型直接测节点 IP+端口绕开 DNS 定位；③ DNS 不通：CoreDNS 挂了或上游 DNS 不通，kubectl exec nslookup 直接测，CoreDNS 的 upstream 指向的 DNS 服务器要通；④ NetworkPolicy：默认拒绝的网络策略是「莫名不通」的高发原因，kubectl describe networkpolicy 看放行了谁；⑤ Ingress 不通：Ingress Controller Pod 本身、后端 Service、host 路由匹配；⑥ 抓包 kubectl exec tcpdump 在 Pod 里抓（镜像里要有 tcpdump，没有就用 nsenter 进容器 netns）；⑦ 记住：K8s 网络故障 60% 是 CNI 插件/节点网络问题，30% 是 DNS，10% 才是策略——先查基础设施再查上层。'
+  },
+  {
+    id: 'pr-dc-san',
+    devs: ['Switch', '存储'],
+    name: '存储网络部署（FC SAN / iSCSI / 巨帧 / 多路径）',
+    kw: ['fc', 'san', '存储网络', 'iscsi', 'hba', '多路径', '巨帧', '存储交换机', 'wwpn', 'lun', '存储不通'],
+    cmds: [
+      ['华为 CE 系列', '! 1. 存储网独立 VLAN/VSAN（和业务网物理或逻辑隔离）\nvlan 200\n!\n! 2. 巨帧：iSCSI/FCIP 传输大块，必须全局开 9000\njumbo enable\n!\ninterface 10GE1/0/1\n jumboframe enable\n!\n! 3. FC 场景：VSAN + zone 划分（按 WWPN 划 zone，按 HBA 卡序列号）\nvsan 1\n fcid allocation\n!\nzone name ZONE-DB01 vsan 1\n member pwwn 50:0a:09:80:88:20:1a:2b\n member pwwn 50:0a:09:81:99:20:1b:3c\n#\n!\n! 4. 看 HBA 上线（服务器侧）\ncat /sys/class/fc_host/host*/port_state\n!\n! 5. iSCSI 发现：客户端发起发现\niscsiadm -m discovery -t st -p 10.1.200.10\n iscsiadm -m node -l\n!\n! 6. 多路径：两条路径都要 active\ndevice-mapper-multipath -ll\n multipath -ll\n!\n! 7. iSCSI 会话状态\niscsiadm -m session\n!\n! 8. 排障：存储延迟高看队列\nsar -d 1\n iostat -x 1\n!\n! 9. 光模块：存储网用长距/多模，别混\n!\n! 10. 分区隔离：不同业务存储不同 zone（生产/备份分开）']
+    ],
+    tip: '存储网络是数据中心的特种网络——低时延、高带宽、不丢包，和普通办公网完全两个世界。① 隔离第一：存储网独立 VLAN/VSAN/物理网络，绝不和办公流量混（办公网一个广播风暴就能让存储阵列掉盘）；② 巨帧必须全局开：iSCSI 一个 IO 大块数据，1500 字节帧太小效率低，9000 字节 MTU 端到端所有设备都要开（漏一台设备开，路径 MTU 问题直接 IO 卡死）；③ FC 用 WWPN 划 zone（HBA 卡全球唯一标识），一台服务器只准看到自己的 LUN——zone 划错=服务器能看到别人磁盘，安全事故；④ 多路径（MPIO）：存储双控/双交换机，服务器必须两条路径都 active，只有一条 = 另一条链路或 zone 有问题，存储故障时另一条也挂就丢数据；⑤ 排障三板斧：device-mapper-multipath -ll 看路径状态、iostat -x 看 %util 和 await（存储延迟高时先分清是网络还是磁盘）、光模块/线缆排查（存储网对误码零容忍，CRC 增长就换）；⑥ iSCSI 场景 jumbo frame + 流控（flow-control）配合防丢包，TCP 重传对存储 IO 是灾难；⑦ 经验：存储网变更（划 zone、改多路径）前通知存储管理员，改错zone 的锅经常算在网络头上。'
+  },
+  {
+    id: 'pr-sec-session',
+    devs: ['防火墙'],
+    name: '防火墙会话与长连接管理（应用定时掉线排查）',
+    kw: ['长连接', '会话老化', '应用掉线', 'session老化', '连接超时', '长连接应用', '会话数满', '半连接', 'tcp老化', '大并发'],
+    cmds: [
+      ['华为 USG 防火墙', '! 1. 看会话总数和利用率（满了新连接全拒）\ndisplay firewall session table | count\n!\n! 2. 看某条连接的详细状态\ndisplay firewall session table source ip 10.1.1.100 destination ip 10.1.2.200\n!\n! 3. 长连接应用：TCP 老化时间调长（数据库/视频流/挂机软件）\nfirewall session aging-time tcp long 3600\n!\n! 4. 半连接老化：防 SYN flood 占满半连接队列\nfirewall session aging-time syn 10\n!\n! 5. 连接数限制：单 IP 上限（防一台电脑占满会话）\nfirewall defend connection-limit 10.1.1.100 maximum 5000\n!\n! 6. 应用掉线排查：看这条长连接在不在、老化没\ndisplay firewall session table verbose\n!\n! 7. 手动清某条会话（策略改了让老连接失效）\nreset firewall session source 10.1.1.100 destination 10.1.2.200\n!\n! 8. 会话统计：看新建/销毁速率\ndisplay firewall session statistics\n!\n! 9. 高危会话：看有没有异常外联\ndisplay firewall session table destination zone untrust | include 4444|5555']
+    ],
+    tip: '「应用每半小时掉一次线/数据库连接莫名其妙断」——防火墙会话老化是头号嫌疑人。① 防火墙是有状态防火墙：每个连接在会话表里记着，TCP 连接长期没有数据交互（超过老化时间）就被删，应用层不知道，等下次发包才发现连接没了——表现就是「定时掉线」；② 对策：数据库/中间件/挂机下载这类长连接应用，把 TCP 老化调长（firewall session aging-time tcp long 3600 甚至更长），或者让应用层自己发心跳包保活；③ 会话表是有限资源：display firewall session table | count 看用量，逼近上限新连接直接拒——P2P/中毒/扫描是会话数暴涨的常见元凶，按源 IP 排序找出大户限流；④ 半连接老化（SYN 老化）是防 SYN flood 的关键配置，调太短正常慢连接也被误杀，10-30 秒合理；⑤ 排障「改了策略不生效」：老连接还在走老会话，reset firewall session 清掉再测；⑥ 安全视角：display firewall session table destination zone untrust 看异常外联（4444/5555/高位端口外连是木马特征），内网主机偷偷外联的流量全在会话表里藏着；⑦ 长连接应用部署前就和网络组打招呼要老化时间，别等上线了天天掉线再改。'
+  },
+  {
+    id: 'pr-wlan-rrm',
+    devs: ['AC', 'AP'],
+    name: '无线信道与功率调优（RRM 自动 + 手工精修）',
+    kw: ['信道调优', '功率调整', 'rrm', '自动调优', 'wifi信道', '无线信道', '信道干扰', 'ap功率', '同频干扰', '信道规划', '2.4g信道', '5g信道'],
+    cmds: [
+      ['华为 AC', '! 1. 开启 RRM 自动调优（射频自动避干扰/均功率）\nwlan\n rrm-profile name AUTO-RRM\n  auto-channel-select enable\n  auto-power-assign enable\n #\n!\n! 2. 调优周期：半夜业务低峰跑\n rrm calibration-interval 7200\n rrm calibration-time 02:00:00\n!\n! 3. 手工锁信道：干扰严重区域固定干净信道\nradio-2g-profile name CH-FIXED\n channel 6\n!\nradio-5g-profile name CH-149\n channel 149\n!\n! 4. 功率调整：高密区降功率减小重叠（20dBm→15dBm）\nradio-2g-profile name PWR-HIGH-DENSITY\n eirp 15\n!\n! 5. 应用：AP 组绑不同射频模板\nap-group name OFFICE-DENSE\n radio 0\n  radio-2g-profile PWR-HIGH-DENSITY\n #\n radio 1\n  radio-5g-profile CH-149\n #\n!\n! 6. 看当前信道/功率分布（有没有重叠）\ndisplay radio all\n!\n! 7. 干扰扫描：周边 AP 都在用什么信道\ndisplay air-scan-result\n!\n! 8. 负载均衡：AP 间用户数均衡\ndisplay station load-balance\n!\n! 9. 调整效果验证：速率和漫游改善\ndisplay station associated-rate\n display station roam-record']
+    ],
+    tip: '无线调优三板斧：信道、功率、负载。① 2.4G 只有 1/6/11 三个不重叠信道——规划一个楼面 AP 多时按这三组循环，同楼层相邻 AP 错开用；② 5G 信道多（国内 36-64、149-165），用 RRM 自动分配，高密场景手工锁干净信道；③ 功率不是越大越好：功率大 = 覆盖远 = 同频干扰严重 + 终端粘滞不漫游。高密办公区（开放式工位 10 米一个 AP）要主动降功率（15-17dBm），让每个 AP 只覆盖自己那一亩三分地，重叠少、漫游快；④ RRM 自动调优适合大面积部署，但定时在凌晨跑（校准周期 2 小时一次太频，默认 24 小时合理）；⑤ 干扰排查：display air-scan-result 看周边有哪些 AP、什么信道、信号多强——隔壁公司 AP 用同一个信道还满功率，这就是你网卡的元凶；⑥ 调优前后对比：display station associated-rate 看协商速率（都掉到 6Mbps 说明信号差或干扰重）、display station roam-record 看漫游是否顺畅；⑦ 原则：先自动（RRM）后手工（局部微调），一把梭全手工锁信道的工作量在几百个 AP 的场景下不现实。'
+  },
+  {
+    id: 'pr-bgp-select',
+    devs: ['Router'],
+    name: 'BGP 选路调优实战（local-pref / MED / as-path）',
+    kw: ['bgp选路', 'local-pref', 'med', '选路调优', 'bgp优先级', '路由优选', 'as-path prepend', 'bgp控路', '出口选路', 'bgp调优'],
+    cmds: [
+      ['华为 VRP8', '! 场景：双出口，想让电信流量走主出口、联通走备\n!\n! 1. 收到路由先看默认属性（local-pref 100、med 0）\ndisplay bgp routing-table 10.1.1.0\n!\n! 2. 入向调优：改 local-pref（本地优先级，控制出方向，越大越优）\nroute-policy IN-TELECOM permit node 10\n if-match as-path-filter 100\n apply local-preference 200\n#\n!\nip as-path-filter 100 permit ^100$\n!\nbgp 65001\n peer 61.1.1.1 route-policy IN-TELECOM import\n#\n!\n! 3. 出向调优：MED 影响邻居怎么选进来（越小越优）\nroute-policy OUT-TELECOM permit node 10\n apply cost 50\n#\n!\nbgp 65001\n peer 61.1.1.1 route-policy OUT-TELECOM export\n#\n!\n! 4. as-path prepend：对端多跳就绕路（排他性控路）\nroute-policy PREPEND permit node 10\n apply as-path 65001 65001 additive\n#\n!\n! 5. 验证：看每条路由的属性和最终选择\ndisplay bgp routing-table\n display bgp routing-table 10.1.1.0 detail\n!\n! 6. 排障：为什么没走预期路径\ndisplay bgp routing-table peer\n!\n! 7. 选路顺序（背下来）\n! weight(Cisco私有) > local-pref > 本地起源 > as-path最短 > origin > med > eBGP>iBGP > 最老邻居']
+    ],
+    tip: 'BGP 选路七步（华为无 weight，从 local-pref 开始）：local-pref（越大越优，控制出方向流量）→ 本地起源（本地生成优先）→ AS-Path（越短越优）→ origin 类型 → MED（越小越优，影响入方向流量）→ 选路方式 → 最优路径入路由表。① 分清方向：local-pref 管「我的流量怎么出去」（出方向），MED 管「别人的流量怎么进来」（入方向）——这是最容易搞混的点；② as-path prepend 是「我不想去你这」的经典手段：给自己的 AS 号多重复几遍再发给对端，对端觉得路远就不往你这送，但 prepend 是劝退不是强制，对端可以不认；③ 实战套路：主备出口——主线路 peer 的入向 apply local-preference 200，备线路 100，出方向流量自然全走主；双出口负载——按网段 route-policy 分别 apply 不同 local-pref；④ 验证必看 display bgp routing-table 10.1.1.0 detail，每个属性都列出来（PrefVal/LocalPref/Med/AS path），哪一步不符合预期一眼看出来；⑤ 调优铁律：一次只改一个属性，改完 display 验证再改下一个——多属性一起改，选路结果变了你都不知道是谁起的作用；⑥ 排障「改了不生效」：route-policy 绑错方向（import 是收，export 是发）、node 编号顺序错了（route-policy 按 node 顺序匹配，deny 在前全拦）、if-match 条件没匹配上。'
+  },
+  {
+    id: 'pr-ospf-multi',
+    devs: ['Router'],
+    name: 'OSPF 多进程 + 多区域 + 路由引入（中大型组网）',
+    kw: ['ospf多进程', 'ospf多区域', 'ospf引入', '重分发ospf', 'ospf进程', 'ospf大型网络', 'ospf设计', '骨干区域', 'ospf特殊区域'],
+    cmds: [
+      ['华为 VRP8', '! 场景：总部-分支中大型网络，OSPF 多区域 + 多进程隔离\n!\n! 1. 多进程：不同业务/不同租户各跑一个进程（互不干扰）\nospf 1 router-id 1.1.1.1\n area 0\n!\nospf 2 router-id 2.2.2.2\n area 0\n!\n! 2. 进程 1 管办公，进程 2 管生产\ninterface Vlanif10\n ospf enable 1 area 0\n!\ninterface Vlanif20\n ospf enable 2 area 0\n!\n! 3. 多区域：核心在 area 0，分支各自 area\nospf 1\n area 1\n!\ninterface Vlanif30\n ospf enable 1 area 1\n!\n! 4. 区域间路由汇总（ABR 上配，路由表减半）\nospf 1\n area 1\n abr-summary 10.1.0.0 255.255.0.0\n#\n!\n! 5. 特殊区域：分支只收默认路由（stub）\narea 2\n stub\n!\n! 6. 路由引入：两个进程互引（防环打 tag）\nospf 1\n import-route ospf 2 tag 100\n#\n!\nroute-policy OSPF2-IN permit node 10\n if-match tag 100\n#\n!\nospf 2\n import-route ospf 1 route-policy OSPF2-IN\n#\n!\n! 7. 验证：路由从哪个进程/区域学来\ndisplay ospf 1 routing\n display ospf 2 routing\n display ospf 1 peer\n!\n! 8. 排障：邻居起不来\ndisplay ospf 1 error']
+    ],
+    tip: '中大型网络 OSPF 设计三板斧：分区域、分进程、做汇总。① 多区域——area 0 只放核心和骨干链路，分支/楼层各自 area，区域间路由靠 ABR 汇总，单区域几百台设备的 LSDB 爆炸问题迎刃而解；② 多进程——一台设备跑多个 OSPF 进程，进程间路由不自动共享（要 import-route 互引），适合一机多业务/多租户隔离（办公一个进程、生产一个进程，生产网路由波动不影响办公网）；③ 汇总 + 特殊区域——ABR 上 abr-summary 把分支明细汇成一条，末端区域用 stub/nssa 只收默认路由，路由表最小化；④ 防环是引入的命门：两个进程互引可能成环，route-policy 打 tag + if-match tag 过滤是标准解（A 引给 B 的打 tag 100，B 收到打 tag 100 的不再引回给 A）；⑤ 排障三板斧：display ospf 1 peer（邻居表，看区域/进程对不对）、display ospf 1 routing（路由来源）、display ospf 1 error（常见错误：区域不匹配、MTU 不一致、mask 不一致、认证失败）；⑥ 设计建议：路由器超过 50 台或网络分层超过 3 层，就老老实实上多区域 + 汇总，单区域裸奔到几百台再改是割接噩梦。'
+  },
+  {
+    id: 'pr-net-ipplan',
+    devs: ['网络规划'],
+    name: 'IP 地址规划与子网划分（VLSM 按需分配）',
+    kw: ['ip规划', '子网划分', 'vlsm', '地址规划', '网段划分', '掩码计算', '子网计算', '地址分配', 'ip地址规划', '编址', '网段不够', '地址不够', 'ip不够分'],
+    cmds: [
+      ['华为 VRP8', '! 一、办公网按部门分段（VLSM 大小按需切）\n! 大部门 200 人 → /24；小部门 50 人 → /26；互联段 → /30\nvlan batch 10 20 30\n!\ninterface Vlanif10\n ip address 10.1.10.1 255.255.255.0    ! 技术部 200人 /24\n!\ninterface Vlanif20\n ip address 10.1.20.1 255.255.255.192  ! 财务 50人 /26\n!\ninterface GigabitEthernet0/0/1\n ip address 10.1.99.1 255.255.255.252   ! 设备互联 /30\n!\n! 二、服务器/网络设备管理段单独留\ninterface LoopBack0\n ip address 10.1.255.1 255.255.255.255  ! 管理/路由协议用 /32\n!\n! 三、DHCP 池对应网段\nip pool DEPT-FIN\n network 10.1.20.0 mask 255.255.255.192\n gateway-list 10.1.20.1\n!\n! 四、预留：每个网段留 .1-.10 给网络设备/服务器\n! 预留原则：网关 .1、设备管理 .2-.10、终端从 .50 起（DHCP 排除段）\ndhcp enable\nip pool DEPT-TECH\n network 10.1.10.0 mask 255.255.255.0\n gateway-list 10.1.10.1\n excluded-ip-address 10.1.10.2 10.1.10.50\n!\n! 五、验证：地址用没冲突\ndisplay ip interface brief\n ping 10.1.20.1\n!\n! 六、汇总路由：对外只宣告汇总段\nbgp 65001\n network 10.1.0.0 255.255.0.0']
+    ],
+    tip: 'IP 规划决定网络 5 年的运维难度，宁可多留不可抠门。① 分层预留：每段前 10 个地址给网络设备和服务器（.1 网关、.2-.10 设备管理），DHCP 从 .50 之后发（excluded-ip-address），防止终端拿了设备的地址；② VLSM 按规模切：200 人 /24、50 人 /26、30 人 /27、设备互联 /30、Loopback /32——别一个大平层全 /24，地址浪费且网段多了不好管；③ 按部门/楼宇/业务连续编址（10.1.x.0/24，x = 部门号），路由汇总才能一条 summar 一整片，BGP/OSPF 汇总才有意义；④ 必须单独留的段：服务器段（安全策略单独做）、管理段（设备带外+ loopback）、监控段（摄像头）、访客段（隔离）、设备互联段（/30，别拿业务段做互联，安全策略没法做）；⑤ 编址文档化：地址表（网段-网关-VLAN-位置-负责人）和拓扑一样重要，没有地址表的网络排障全靠猜；⑥ 变更红线：网段分配出去就写进文档，不再回收复用——复用历史地址是 IP 冲突投诉的头号来源；⑦ IPv6 环境同步规划（每段一个 /64，别省，SLAAC 要用）。'
+  },
+  {
+    id: 'pr-ops-monitor-system',
+    devs: ['网管平台', 'Linux 服务器'],
+    name: '网络监控体系搭建（Zabbix / Prometheus / 告警联动）',
+    kw: ['监控', 'zabbix', 'prometheus', 'grafana', '告警', '监控搭建', '网络监控', 'telemetry监控', '巡检自动化', '监控告警', '发到手机', '手机告警', '短信告警', '微信告警', '钉钉告警', '告警推送', '告警通知'],
+    cmds: [
+      ['Zabbix', '! 一、Zabbix 侧（传统 SNMP 监控，覆盖广）\n! 1. 加主机：SNMP v2c/v3，填设备 IP + 团体字\n! 2. 模板：华为通用模板（ICMP/SNMP接口/CPU/内存）\n! 3. 触发器：接口 down > 5min、CPU > 80%、丢包率 > 1%\n! 4. 自动发现：LLDP 拓扑、接口列表自动监控\n!\n! 二、Prometheus 侧（Telemetry/Exporter，秒级）\n# 设备侧 gRPC Telemetry → 采集器\n! 5. snmp_exporter / telemetry collector 配置\n! 6. 抓指标：接口流量/错包/CPU/BGP 邻居状态\n!\n! 三、Grafana 看板\n! 7. 全网链路利用率 Top10\n! 8. 告警趋势、可用率报表\n!\n! 四、告警通道（关键：告警必须到人）\n! 9. 钉钉/企业微信/短信 webhook\n! 10. 分级：P1 电话 + P2 微信 + P3 邮件\n!\n! 五、设备侧配合（被监控的前提）\ndisplay snmp-agent community\n display snmp-agent target-host\n!\n! 六、监控自身也要被监控\nsystemctl status zabbix-server']
+    ],
+    tip: '监控体系 = 指标采集 + 可视化 + 告警触达，缺一个环节都是摆设。① 采集层：Zabbix（SNMP，覆盖全设备含老设备）+ Prometheus/Telemetry（秒级，新设备）双轨，别追新全推倒——存量华为/华三老设备 SNMP 最稳；② 告警分级是灵魂：P1（核心断/全网瘫）电话通知、P2（单链路/单设备）企业微信、P3（趋势劣化）邮件日报——全走微信等于全都不看，告警疲劳比没监控更糟；③ 触发器阈值经验：接口流量 > 70% 告警（留 30% 突发余量）、错包率 > 0.1% 告警（光模块劣化早期信号）、CPU > 80% 持续 5 分钟、BGP 邻居 down 立即告警（比接口 down 更贴近业务）；④ 自动发现配 LLDP，设备一上线拓扑自动更新，省手工维护；⑤ 告警收敛：同一根光纤断了，两端设备+下游全告警会刷屏——按链路/区域聚合告警，一条根因告警带一串受影响设备；⑥ 监控目标：从「设备活着没」进化到「业务通没通」（拨测/HTTP 探测/NQA），设备全绿但业务不通的坑太多了；⑦ 自身运维：Zabbix 数据库清理（history/trends 保留 30/90 天）、磁盘监控、告警通道每月演练一次（不演练的告警通道 100% 会在真故障时坏掉）。'
+  },
+  {
+    id: 'pr-trans-spn',
+    devs: ['传输设备', 'PTN', 'SPN', 'OTN'],
+    name: '运营商传输网认知与排查（SPN / PTN / OTN）',
+    kw: ['传输网', 'spn', 'ptn', 'otn', '承载网', '5g承载', '传输排查', '分组传输', '前传', '中传', '回传', '传输告警'],
+    cmds: [
+      ['华为 PTN/SPN', '! 1. 设备与单板状态\ndisplay board\n display version\n!\n! 2.  tunnel 状态（MPLS-TP 隧道是传输的命脉）\ndisplay mpls-tp tunnel\n!\n! 3. 伪线（Pseudo Wire，业务承载）\ndisplay mpls-tp pw\n!\n! 4. OAM 检测：连通性/丢包/时延\ndisplay oam cc\n display oam lb\n!\n! 5. 保护倒换：1:1/1+1 隧道保护状态\ndisplay protection-group\n!\n! 6. 时钟：传输网对时间是同步以太/1588\ndisplay clock\n!\n! 7. 告警：当前/历史\ndisplay alarm active\n display alarm history\n!\n! 8. 光层（OTN 场景）：收发光/OSNR\ndisplay optical-module info\n!\n! 9. 性能：15 分钟/24 小时误码\ndisplay performance\n!\n! 10. 业务：以太网专线 E-Line 通不通\ndisplay evc\n display evc statistics']
+    ],
+    tip: '传输网（SPN/PTN/OTN）是运营商和大型园区的「承载底座」——基站回传、专线、办公网都跑在它上面，和企业网完全是两个技术体系。① 核心概念：tunnel（隧道，相当于管道）+ PW（伪线，管道里的一根业务线）+ EVC（以太虚电路，最终业务），三层封装，排障逐层剥；② 和企业网最大的区别：硬隔离硬 QoS——传输网给每业务分带宽（CIR/PIR），超了直接丢不缓冲，所以「专线带宽明明买了 100M 为什么只有 50M」先查 CIR 配置和 tunnel 占用；③ 保护是命门：1+1/1:1 隧道保护 50ms 内倒换，display protection-group 看保护组状态，倒换不了 = 业务会断；④ OAM（CC/LB/LM）是传输网的 ping——连通性检测、环回、丢包测量，专线不通先用 OAM 定位是哪段 tunnel；⑤ 时间同步：5G 基站要求 ±1.5us，传输网全程 1588/SyncE，时钟链断一环节点全漂；⑥ 排障习惯：先看 display alarm active（光告警优先——LOS/LOF/误码越限），再看 tunnel/PW 状态，最后看业务；⑦ 和企业网工程师协作：你们只对接 CE 侧（UNI），传输侧问题找传输专业团队，给他们提供准确的告警时间和 tunnel/PW 编号能省 80% 扯皮。'
+  },
+  {
+    id: 'pr-wlan-survey',
+    devs: ['AP', 'AC', '规划软件'],
+    name: '无线覆盖规划与工勘（勘测到 AP 点位落地）',
+    kw: ['工勘', '无线勘测', '覆盖规划', 'ap点位', 'ap数量', 'ap装多少', '多少个ap', '热力图', '信号仿真', 'wifi规划', '覆盖验收', '无线设计'],
+    cmds: [
+      ['华为 AC', '! 一、工勘阶段（设计输入）\n! 1. 现场测干扰：周边 AP/信道/强度（手机 WiFi 分析仪）\n! 2. 障碍物记录：承重墙/金属柜/电梯井（衰减大头）\n! 3. 用户密度：工位/会议室/食堂分场景估 AP 数\n! 4. 布线条件：POE 距离 < 100m、吊顶可走线\n!\n! 二、仿真设计（规划软件：WLAN Planner/AirMagnet）\n! 5. 导入平面图，按场景布点：\n!    办公开放区：8-12 米一个（2.4G 覆盖）\n!    会议室：室内 1-2 个（容量优先）\n!    走廊：15-20 米一个\n! 6. 功率与信道自动规划（避开干扰源）\n! 7. 输出：AP 点位图/信道功率表/点位清单\n!\n! 三、实施后验证（验收实测，不能只看仿真）\n! 8. 场强实测：每个点位 -65dBm 以上（语音要 -60）\ndisplay station associated-rate\n!\n! 9. 漫游测试：走动业务不中断\n!\n! 10. 速率实测：speedtest 每点位达标\ndisplay station ap-id\n!\n! 四、容量校验\n! 11. 单 AP 在线用户数 < 30（办公）/ < 20（高密）\ndisplay station count\n!\n! 12. 信道利用率 < 70%\ndisplay air-scan-result']
+    ],
+    tip: '无线网络质量 80% 在规划阶段就定了，不要指望后期调优救回来。① 覆盖 vs 容量是两个目标：普通办公按覆盖（信号强度达标），高密场景（会议室/礼堂）按容量（每 AP 带机量倒推数量）——高密区按覆盖布点必翻车；② 障碍物衰减经验：承重墙 20-30dB、玻璃 6dB、金属门/电梯井全遮挡，穿两堵承重墙基本没信号，点位要绕开；③ 信号标准：普通数据 -65dBm 达标，语音/视频 -60dBm 以上，低于 -75 体验断断续续；④ 工勘必做干扰扫描（手机装 WiFi 分析仪），周边公司同信道 AP 满功率的，你的覆盖规划全是空中楼阁；⑤ 仿真≠现实：仿真软件算出来 100 分，现场因为吊顶材质/金属家具/人身体吸收（2.4G 人体衰减 3-5dB）能差 20dB，必须实施后实测验收，拿着场强仪一格一格测；⑥ 验收三件套：场强实测（每点位达标）、漫游测试（边走边视频通话不断）、速率实测（每点位 speedtest 达标），写进验收报告；⑦ 点位清单要细到：AP 型号、安装位置（吊顶/壁挂）、MAC、信道、功率、所属 POE 交换机端口——没有这张表，以后加一个 AP 都不知道接哪。'
+  },
+  {
+    id: 'pr-net-toolbox',
+    devs: ['客户端工具'],
+    name: '网络工程师工具箱（软件 + 在线工具 + 设备脚本）',
+    kw: ['工具箱', '工具推荐', '软件', 'securecrt', 'xshell', 'putty', 'wireshark', '在线工具', '子网计算器', '排障工具', 'ip计算', '有什么工具', '用什么工具', '排障神器'],
+    cmds: [
+      ['通用', '! 一、终端登录（每天用 8 小时的生产力）\n! SecureCRT/Xshell：多标签+脚本+日志留痕（企业级）\n! PuTTY：轻量单机用，串口直连首选\n! MobaXterm：带 X11/ SFTP 一体化\n! 手机端：JuiceSSH/Server Auditor 应急\n!\n! 二、抓包分析\n! Wireshark：协议解析全能王（过滤 ip.addr== / tcp.port==）\n! tcpdump：服务器上远程抓（tcpdump -i any -nn port 80 -w cap.pcap）\n! 手机抓包：tPacketCapture（免 root）\n!\n! 三、扫描诊断\n! Advanced IP Scanner/Nmap：找设备 IP\n! PingInfoView：批量 ping 全网段存活\n! Angry IP Scanner：跨平台\n!\n! 四、在线工具（收藏夹常备）\n! 子网计算：ipcalc / 子网掩码计算器（VLSM 分配）\n! MAC 查询：macvendorlookup（查厂商）\n! ASN/路由：bgp.he.net（看公网路由）\n! IP 归属：ipip.net / ipinfo.io\n! 端口查询：canyouseeme.org（映射生效没）\n! Whois/反查：whois.domaintools.com\n!\n! 五、配置辅助\n! 华为命令速查（本小程序）\n! 文本对比：Beyond Compare（配置改前改后 diff）\n! 流程图：draw.io / Visio（拓扑图）\n!\n! 六、压测/拨测\n! iperf3：测真实带宽（服务端 iperf3 -s，客户端 iperf3 -c）\n! smoke ping：持续探测留证据']
+    ],
+    tip: '工欲善其事必先利其器，网络工程师的武器库分六类。① 终端工具是吃饭的家伙：SecureCRT/Xshell 的多标签+会话管理+脚本+日志功能，一天登 200 台设备的效率差三倍，日志自动留痕还是排障后追责的证据；② 抓包二重奏：Wireshark 桌面分析（Follow TCP Stream 看应用层对话、Statistics 看流量分布）+ tcpdump 服务器上远程抓（-w 存 pcap 拉回来分析）；③ 扫描定位：新设备上架不知道 IP——接 VLAN 后 Advanced IP Scanner 扫段找 MAC，比一台台试快十倍；④ 在线工具收藏夹：bgp.he.net（查公网路由/AS 关系，排跨境绕路）、子网计算器（VLSM 分配前先算）、canyouseeme.org（NAT 映射到底生没生效，端口映射排障第一问）；⑤ iperf3 是带宽真裁判——用户说「网慢」别信测速网站，两端 iperf3 一跑，真实带宽、抖动、丢包全出来；⑥ 配置管理：Beyond Compare 做配置 diff（割接前改后对比，一眼看出改了什么），比人眼靠谱；⑦ 工具箱原则：每类装一个精通的，别当工具收集癖——真排障时你只会用最熟的那几个。'
+  },
+  {
+    id: 'pr-ops-capacity',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '容量管理（链路利用率 / 趋势 / 扩容决策）',
+    kw: ['容量', '利用率', '带宽不够', '扩容', '链路占用', '流量趋势', '容量规划', '拥塞', '带宽升级', '峰值流量'],
+    cmds: [
+      ['华为 VRP8', '! 1. 当前利用率：进出口方向速率\ndisplay interface GigabitEthernet0/0/1\n!\n! 2. 历史趋势（设备本地 5 分钟粒度）\ndisplay interface GigabitEthernet0/0/1 | include rate\n!\n! 3. 错包/丢包：拥塞的信号\ndisplay interface GigabitEthernet0/0/1 | include error|drop|CRC\n!\n! 4. 队列丢包：QoS 队列满的信号（拥塞实锤）\ndisplay qos queue statistics interface GigabitEthernet0/0/1\n!\n! 5. 会话数趋势：防火墙容量维度\ndisplay firewall session table | count\n!\n! 6. CPU/内存：设备容量天花板\ndisplay cpu-usage history\n display memory-usage\n!\n! 7. 光模块利用：端口占用率（交换机端口数规划）\ndisplay interface brief | count up\n!\n! 8. 长期数据：靠网管/telemetry 历史报表\n! 单口带宽 > 70% 持续两周 = 扩容信号\n! 端口占用 > 80% = 加设备信号\n!\n! 9. 突发流量：业务峰值分析（上班/备份/下班三个峰）\ndisplay traffic-analysis\n!\n! 10. 扩容决策输出：报告给领导']
+    ],
+    tip: '容量管理是「网络不背锅」的关键——不拥塞时没人想起网络，拥塞了全是网络的锅。① 三个容量维度：链路带宽（利用率）、设备能力（CPU/内存/会话数/端口数）、业务并发（用户数/终端数）；② 扩容红线：链路利用率持续 > 70%（留 30% 给突发）、交换机端口占用 > 80%、防火墙会话数 > 70%、CPU 持续 > 70%，到线就申请扩容，别等 100% 拥塞了走应急采购；③ 流量有三个峰：上班打卡（9 点）、午休、夜间备份（21-24 点）——很多人只看白天平均值做规划，结果备份时间全公司卡；④ 判断拥塞看队列丢包（display qos queue statistics）——带宽跑满不可怕（链路设计就是用来跑的），可怕的是队列丢包导致 TCP 重传，业务感知就是「慢」；⑤ 历史数据是决策依据：设备本地 display 只存短期，必须靠网管/telemetry 攒 6-12 个月趋势，扩容报告拿趋势图说话，没数据的扩容申请就是拍脑袋；⑥ 扩容前先优化：QoS 保关键业务（视频会议优先，下载限速）、错峰（备份挪到凌晨）、链路聚合（两条 10G 变 20G）——升级带宽是最贵的选项，放最后；⑦ 容量报告每月一页：Top 链路利用率曲线、容量健康度、风险清单、扩容建议——这就是网络部门的 KPI 证据。'
+  },
+  {
+    id: 'pr-net-deliver',
+    devs: ['项目管理'],
+    name: '网络交付文档体系（拓扑/配置/验收/应急预案）',
+    kw: ['交付文档', '验收', '拓扑图', '配置清单', '运维手册', '应急预案', '交付物', '项目验收', '网络文档', '变更文档'],
+    cmds: [
+      ['通用', '! 一、拓扑文档（网络的户口本）\n! 1. 物理拓扑：设备-线缆-端口-机柜位置\n! 2. 逻辑拓扑：VLAN/路由/VRRP/隧道关系\n! 3. IP 地址表：网段-网关-VLAN-用途-负责人\n!\n! 二、配置文档（改坏的后悔药）\n! 4. 设备配置基线（每台 device 的「标准配置」）\ndisplay current-configuration\n! 5. 配置备份策略：版本化保存（设备+日期+变更单号）\ndisplay current-configuration > flash:/cfg-20261025.cfg\n!\n! 三、验收文档（交付的及格线）\n! 6. 验收测试表：逐条功能测试记录\n!    - VLAN 间互通\n!    - DHCP 自动获取\n!    - 出口 NAT/上网\n!    - VPN 隧道\n!    - 无线覆盖/漫游\n! 7. 性能测试：iperf3 带宽/丢包/时延\n! 8. 故障倒换测试：主备切换/链路中断\n!\n! 四、运维文档（交接的底线）\n! 9. 运维手册：日常巡检项+常见故障处理 SOP\n! 10. 账号密码表：分级保管（核心账号双人分段）\n! 11. 应急预案：核心故障的 30 分钟处置流程\n! 12. 供应商台账：设备型号/序列号/保修期/400 电话\n!\n! 五、变更文档（甩锅的证据链）\n! 13. 变更单：时间/内容/影响/回退方案/审批\n! 14. 变更记录：每次改动前后配置 diff\n! 15. 复盘报告：故障/变更后的改进项']
+    ],
+    tip: '文档不是形式主义，是网络工程师的职业保险。① 五件套缺一不可：拓扑（网络长什么样）、地址表（IP 都用在哪）、配置基线（标准状态是什么）、验收表（交付时测过什么）、应急预案（出事第一步干什么）；② 配置管理是核心：每台设备的「标准配置」存版本化基线，每次变更前后 diff（Beyond Compare），变更单编号关联——三个月后「网络怎么变慢了」，翻变更记录 5 分钟定位，没有记录就是抓瞎；③ 应急预案要具体到命令级：核心交换机挂了 → 拿备件 → 导配置（哪份、什么版本）→ 上线验证（ping 哪些地址）——写「重启设备」四个字的预案等于没写；④ 账号密码分级保管：核心设备账号密码分段双人保管（防单点泄露和单点失联），个人密码锁进密码管理器，写 Excel 存桌面的做法等保一查一个准；⑤ 验收表逐条实测留痕：功能测试+性能测试+倒换测试，测试记录双方签字——交付后扯皮「当时就是好的」，白纸黑字说话；⑥ 交接三件套：拓扑图打印贴机柜、地址表+账号表交接签字、应急联系人清单（含厂商 400）——人走了网络不能瘫；⑦ 经验：文档跟着变更走（每次变更更新对应文档），别攒到项目结束一起补——补出来的文档全是假的，现场和文档差十万八千里。'
+  },
+  {
+    id: 'pr-diag-display-master',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '华为必会 display 全景速查（按场景分组）',
+    kw: ['display速查', '必会display', 'display命令', '常用display', '查看命令', 'display大全', '速查表', 'display list', '命令速查'],
+    cmds: [
+      ['华为 VRP8', '! 一、设备状态类（每天看）\ndisplay version                  ! 版本/序列号/uptime\ndisplay device                   ! 单板在位\ndisplay cpu-usage                 ! CPU\ndisplay memory-usage              ! 内存\ndisplay power / display fan       ! 电源/风扇\ndisplay temperature               ! 温度\ndisplay alarm active              ! 当前告警\ndisplay clock                     ! 时间\n!\n! 二、接口类（排障第一现场）\ndisplay interface brief           ! 所有接口状态+速率\ndisplay interface <接口>          ! 单口详情（错包/流量）\ndisplay ip interface brief        ! 三层口 IP 状态\ndisplay transceiver diagnosis interface <接口>  ! 收发光\ndisplay qos queue statistics interface <接口>   ! 队列丢包\n!\n! 三、表项类（转发排查）\ndisplay mac-address               ! MAC 表\ndisplay arp all                   ! ARP 表\ndisplay ip routing-table          ! 路由表\ndisplay fib                       ! 转发面（FIB）\ndisplay vlan                      ! VLAN\ndisplay ip pool                   ! DHCP 池\ndisplay session all               ! 防火墙会话\n!\n! 四、协议状态类\ndisplay ospf peer / display ospf routing\ndisplay bgp peer / display bgp routing-table\ndisplay stp brief\n display vrrp\n display eth-trunk <号>\n!\n! 五、日志与配置类\ndisplay trapbuffer                ! 陷阱日志\ndisplay logbuffer                 ! 系统日志\ndisplay current-configuration     ! 当前配置\ndisplay saved-configuration       ! 保存的配置\ndisplay startup                   ! 启动文件\n!\n! 六、安全类\ndisplay acl all / display acl <号>\ndisplay security-policy\n display dhcp snooping\n display ip source check\n!\n! 七、无线类\ndisplay ap all / display ap run-info\ndisplay station all / display station roam-record\n!\n! 八、文件与维护\ndisplay usb / display flash:\n display patch-information\n display diagnostic-information   ! 一键诊断（报障给厂商）']
+    ],
+    tip: '排障 90% 的时间在 display，这 40 条覆盖日常全部场景。① 背不下来没关系，记住分组逻辑：状态类（设备活着没）→ 接口类（链路通没通）→ 表项类（转发对不对）→ 协议类（邻居起没起）→ 日志类（发生过什么）——排障就按这个顺序走；② 必会三兄弟：display interface brief（一眼看全接口状态，down/up/速率错配全在这）、display ip routing-table（路由有没有、从哪学的）、display trapbuffer（最近发生了什么，掉线/翻动/重启全在这）；③ 搭配管道符用：display current-configuration | section interface G0/0/1（看单口配置）、display interface | include error（看所有错包口）、display arp all | count（表项规模）；④ display interface brief 看速率的技巧：1000M 协商成 100M = 光/电模块问题或线缆问题，直接定位光模块；⑤ display diagnostic-information 是一键收集（报障给厂商时先跑这个，比手动复制一百条 display 全）；⑥ 养成习惯：故障时先 display version 和 display clock——版本不对（该升级没升级）和时间不同步（日志对不上）是两个隐形坑；⑦ H3C 命令基本同款（display 开头一样），思科是 show（show ip route、show run）。'
+  },
+  {
+    id: 'pr-wlan-wifi6',
+    devs: ['AP', 'AC'],
+    name: 'Wi-Fi 6/6E/7 新特性落地（OFDMA / BSS / 6GHz）',
+    kw: ['wifi6', 'wifi7', 'wifi6e', '6ghz', 'ofdma', 'tws', 'bss着色', 'wifi6配置', '新特性', 'ax', 'be'],
+    cmds: [
+      ['华为 AC', '! 1. 确认 AP 支持 Wi-Fi 6（AX）及以上\ndisplay ap attribute ap-name AP-01\n!\n! 2. 射频模板开 Wi-Fi 6 特性\nradio-2g-profile name WIFI6-2G\n channel 6\n!\nradio-5g-profile name WIFI6-5G\n ofdma enable\n bss-color enable\n!\n! 3. 6GHz 频段（Wi-Fi 6E，需要新 AP + 国家码支持）\nradio-6g-profile name WIFI6E-6G\n channel 5\n!\n! 4. TWT：终端省电（IoT/手机续航）\nradio-5g-profile name WIFI6-5G\n twt enable\n!\n! 5. 上下行 MU-MIMO / OFDMA 调度\ndisplay radio all\n!\n! 6. 空间流：Wi-Fi 6 起步 2x2，高密 4x4\nradio-5g-profile name WIFI6-5G\n mimo-mode 4x4\n!\n! 7. 速率验证：Wi-Fi 6 协商速率应该 1Gbps 起步\ndisplay station associated-rate\n!\n! 8. 老终端兼容：Wi-Fi 6 AP 兼容 5/4 终端\nssid-profile name SSID-6\n!\n! 9. 排障：协商速率低\ndisplay station ap-id\n!\n! 10. 容量验证：高密场景单 AP 用户数\ndisplay station count']
+    ],
+    tip: 'Wi-Fi 6（802.11ax）不是「更快」而是「更扛挤」——高密场景（会场/食堂/教室）体验提升巨大，普通办公和 Wi-Fi 5 差别不大。① 核心技术三个：OFDMA（把信道切成子载波给多用户并行用，专治高密拥塞）、BSS Coloring（给不同 AP 的报文上色，同频干扰只算自己颜色的，密集部署不互杀）、TWT（终端和 AP 约好唤醒时间，IoT 设备省电 80%）；② 落地前提：AP 要支持 AX、终端要支持 AX（老手机只支持到 ac，协商速率还是 WiFi5 的水平，这是正常的——Wi-Fi 6 是向下兼容不是强行加速）；③ 6GHz（Wi-Fi 6E）是净土：160MHz 大带宽无干扰，但需要新 AP + 终端支持，国内开放进度看工信部政策，园区场景先评估；④ 高密部署（会议室几百人）：Wi-Fi 6 + 关闭低速率（禁 1/2/6/24Mbps 这些拖后腿的老速率）+ 最小 RSSI 接入（-75dBm 以下不让连，逼终端连近的 AP）；⑤ 排障「买了 Wi-Fi 6 AP 还是慢」：先看终端协商标（display station associated-rate 是 HE 还是 VHT）——终端是老的就是老的速度，AP 再新也没用；⑥ 升级节奏：AP 换代时选 Wi-Fi 6 起步，射频模板把 OFDMA/BSS color 打开，别让新 AP 跑老配置。'
+  },
+  {
+    id: 'pr-dc-evpn-trouble',
+    devs: ['Switch'],
+    name: 'EVPN VXLAN 排障（路由类型 / ESI / DF 选举）',
+    kw: ['evpn排障', 'evpn不通', 'vxlan排障', 'esi', 'df选举', 'evpn路由', 'evpn邻居', 'type5', 'type2', '分布式网关排障', 'mac ip通告'],
+    cmds: [
+      ['华为 CE 系列', '! 1. 先看控制面：EVPN 邻居建没建（BGP EVPN address-family）\ndisplay bgp evpn peer\n!\n! 2. 看 EVPN 路由收没收到（按路由类型统计）\ndisplay bgp evpn all routing-table\n display bgp evpn all routing-table type-5\n!\n! 3. 看具体 MAC/IP 路由（Type 2）\ndisplay evpn mac routing-table\n display evpn arp routing-table\n!\n! 4. 看 VNI 和 BD 绑定、实例关联\ndisplay evpn instance\n display vxlan vni\n!\n! 5. ESI 与 DF 选举：多归一场合谁是 DF（指定转发者）\ndisplay evpn esi\n display evpn df election\n!\n! 6. 隧道状态\ndisplay vxlan tunnel\n!\n! 7. 转发面：VTEP 学到的远端 MAC\ndisplay mac-address\n!\n! 8. 排障：控制面 OK 但不通\ndisplay vxlan statistics\n!\n! 9. 排障：邻居起不来（EVPN 是 MP-BGP 的一个 family）\ndisplay bgp evpn peer verbose\n!\n! 10. 路由策略：EVPN 路由被过滤了没\ndisplay bgp evpn all routing-table peer\n!\n! 11. 抓包：VTEP 之间 UDP 4789\ndisplay vxlan vni 5010']
+    ],
+    tip: 'EVPN 排障分层走：控制面（BGP EVPN 邻居+路由）→ 映射面（VNI/BD/ESI）→ 转发面（隧道+MAC）。① EVPN 是 BGP 的一个 address-family（evpn），邻居起不来的排查和普通 BGP 一样：AS 号、更新源、路由反射器可达性、AF 激活了没；② 路由类型记三种：Type 2（MAC/IP 通告，主机路由）、Type 3（组播/ARP 广播抑制）、Type 5（IP 前缀，跨子网）——VM 上线发 Type 2，跨网段走 Type 5，广播抑制靠 Type 3；③ ESI 多归属：一个站点双归到两台 VTEP，ES 段防环靠 DF 选举（同一 ESI 只有一个 VTEP 做 DF 转发 BUM 流量），DF 选举看 display evpn df election——两边都以为自己是 DF 就是双活异常，查 ESI 配置一致性；④ 常见不通：VNI 两端的 BD-VLAN 映射不一致（一端 VLAN10 绑 VNI 5010 另一端没绑）、Type 5 路由被路由策略过滤、RT（route-target）导入导出配反（A 导出 RT1 B 导入 RT2，互不相认）；⑤ 分布式网关要求每个 VTEP 都有同网段 Anycast IP，display evpn arp routing-table 看 ARP 路由同步没；⑥ 排障顺序永远先控制面后转发面——BGP 路由都没收到，查隧道查 MAC 全是白费。'
+  },
+  {
+    id: 'pr-net-cutover-plan',
+    devs: ['项目管理'],
+    name: '割接方案编制（窗口 / 步骤 / 回退 / 验证四要素）',
+    kw: ['割接方案', '割接', '变更窗口', '回退方案', '割接步骤', '割接验证', '网络变更', '停机窗口', '割接计划'],
+    cmds: [
+      ['通用', '! 割接方案模板（四要素缺一不可）\n!\n! 一、基本信息\n! 割接日期/窗口：如 10-26 23:00-02:00（业务低谷）\n! 影响范围：哪些网段/系统/用户受影响\n! 参与人员：操作/验证/厂商/业务方对接人\n!\n! 二、操作步骤（每步带时间点和验证命令）\n! 步骤1 23:00 备份配置\n!   display current-configuration > flash:/pre-cutover.cfg\n! 步骤2 23:10 预配置检查\n!   display current-configuration | section interface\n! 步骤3 23:30 执行割接（插线/改配）\n!   <具体操作>\n! 步骤4 23:50 业务验证\n!   ping 网关 / tracert 外网 / 测速 / 应用登录\n! 步骤5 00:00 观察 30 分钟无异常\n! 步骤6 00:30 保存并撤离\n!   save\n!\n! 三、回退方案（每步都能退回）\n! 触发条件：验证不通过/核心业务中断 > 15 分钟\n! 回退动作：拔回原口/恢复 pre-cutover.cfg\n! 回退时限：30 分钟内完成\n!   rollback configuration\n!   display configuration rollback\n!\n! 四、验证清单（逐项打勾）\n! □ 各 VLAN 互通\n! □ DHCP 获取正常\n! □ 上网/NAT 正常\n! □ VPN/专线业务\n! □ 无线业务\n! □ 关键应用（OA/ERP）可访问\n! □ 监控告警恢复\n!\n! 五、事后：更新文档 + 复盘\n! 配置 diff、拓扑更新、地址表更新、复盘改进项']
+    ],
+    tip: '割接是网络工程师风险最高的工作——「改坏了」和「改好了回不去」是两种事故，方案就是防这两种。① 窗口选业务低谷（凌晨/周末），提前 3 天发通知（影响面广的提前一周）；② 步骤拆细到「每条命令+验证点」，每步执行完验证通过再下一步——大步快跑是割接事故的头号原因；③ 回退方案是保命符：执行前必做配置备份（display current-configuration > flash:/pre-cutover.cfg），回退动作写具体（拔哪根线、恢复哪个文件、敲什么命令），且每步可独立回退；④ 验证清单事先写好（连通性/业务/监控），割接完逐项打勾，别凭感觉「应该没问题」；⑤ 红线：核心割接两人操作一人复核，禁止单人夜间操作核心设备；⑥ 时间盒：超过回退时限（一般 30-60 分钟）立即回退，别恋战——凌晨 3 点人的判断力是打折的，硬扛往往把小问题扛成大故障；⑦ 事后三件事：更新文档（配置/拓扑/地址表）、diff 留档（display current-configuration 对比）、复盘（哪里卡了、哪里漏了、下次怎么改）——不复盘的团队同一个坑踩三遍；⑧ 大型割接先演练：拿测试环境或低风险设备走一遍全流程，流程顺了再上生产。'
+  },
+  {
+    id: 'pr-sys-logserver',
+    devs: ['Linux 服务器', '网管平台'],
+    name: '日志/trap 服务器搭建（syslog + SNMP trap 集中）',
+    kw: ['日志服务器', 'syslog', 'trap集中', '日志集中', 'syslog搭建', 'rsyslog', 'trap接收', '日志审计', '日志留存', 'elk','trap收不到','日志收不到','收不到日志','trap 不上送','告警收不到'],
+    cmds: [
+      ['Linux', '! 一、rsyslog 搭建（企业最常用）\n! 1. 安装\napt install rsyslog\n!\n! 2. 配置接收（UDP/TCP 514，设备侧发过来）\n! /etc/rsyslog.conf:\n! module(load="imudp")          ! UDP 接收\n! input(type="imudp" port="514")\n! module(load="imtcp")          ! TCP 接收（可靠）\n! input(type="imtcp" port="514")\n! $template RemoteLogs,"/var/log/network/%HOSTNAME%/%$YEAR%/%$MONTH%/%$DAY%.log"\n! *.* ?RemoteLogs\n!\n! 3. 按设备分目录存（一台设备一个目录，好查）\n! 4. 日志轮转（防磁盘爆）\n! /etc/logrotate.d/network-logs: daily/rotate 180/compress\n!\n! 5. 重启生效\nsystemctl restart rsyslog\n ss -ulnp | grep 514\n!\n! 二、设备侧配合（华为）\n! 发 syslog 到服务器\ninfo-center loghost 10.1.9.20\n info-center loghost source-ip 10.1.9.1\n!\n! 发 trap\nsnmp-agent target-host trap address udp-domain 10.1.9.20 udp-port 162 params securityname public\n!\n! 三、验证\ntail -f /var/log/network/<设备名>/$(date +%Y)/$(date +%m)/$(date +%d).log\n tcpdump -i any port 514\n!\n! 四、日志分析（可选进阶）\n! ELK/Graylog：采集+索引+告警\n! 告警规则：接口 down / BGP down / 登录失败\n!\n! 五、等保要求：日志留存 180 天\n! du -sh /var/log/network']
+    ],
+    tip: '日志集中是等保硬性要求（日志留存 6 个月），也是故障追溯的唯一依据。① 设备侧两步：info-center loghost（发系统日志）+ snmp-agent target-host（发 trap），源 IP 指定管理口 IP（多管理口设备指定错源 IP 服务器收不到）；② 服务器端 rsyslog 按设备名分目录（%HOSTNAME% 模板），一台设备一个文件夹，查「昨天 3 点那台核心发生了什么」直接翻目录；③ 磁盘是生死线：网络设备日志量巨大（一台核心一天几百 MB），必须配 logrotate（按天轮转+压缩+保留 180 天），见过太多日志服务器磁盘爆了业务停摆的案例；④ 排障「收不到日志」：tcpdump port 514 抓包看设备有没有发过来（没发 = 设备侧配置/路由问题），发过来了没落盘 = rsyslog 配置/模板路径问题；⑤ UDP 快但可能丢，TCP 可靠但设备压力大，重要设备（核心）用 TCP，接入层 UDP 够了；⑥ 进阶上 ELK/Graylog：全文检索（搜「GigabitEthernet0/0/1」全网设备日志一把出来）、告警规则（BGP down 立即推送）——几百台设备后纯文本翻日志会翻死人；⑦ 备份策略：日志目录定期归档到备份服务器，磁盘坏了 180 天日志从头再攒。'
+  },
+  {
+    id: 'pr-linux-adv',
+    devs: ['Linux 服务器'],
+    name: 'Linux 网络高级（bridge / netns / tc 流控）',
+    kw: ['linux网桥', 'bridge', 'netns', '命名空间', 'tc', 'qdisc', '流控', 'linux高级', 'veth', '容器网络', 'tc限速'],
+    cmds: [
+      ['Linux', '! 1. 网桥（bridge，虚拟交换机）\nip link add br0 type bridge\n ip link set br0 up\n ip link set eth1 master br0\n ip link set eth2 master br0\n bridge link show\n!\n! 2. veth pair（网线，两头：容器/命名空间用）\nip link add veth0 type veth peer name veth1\n ip link set veth1 netns ns1\n!\n! 3. 网络命名空间（隔离网络栈，容器基础）\nip netns add ns1\n ip netns exec ns1 ip addr add 10.0.0.2/24 dev veth1\n ip netns exec ns1 ip link set veth1 up\n ip netns exec ns1 ip route add default via 10.0.0.1\n ip netns list\n!\n! 4. NAT 打通命名空间上网\niptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE\n!\n! 5. tc 限速（模拟/控制带宽，排障神器）\ntc qdisc add dev eth0 root tbf rate 100mbit burst 32kbit latency 400ms\n!\n! 6. tc 看队列/删除限速\ntc qdisc show dev eth0\n tc qdisc del dev eth0 root\n!\n! 7. 模拟丢包/延迟（复现用户投诉）\ntc qdisc add dev eth0 root netem delay 100ms 10ms loss 1%\n!\n! 8. 网桥 VLAN（Linux 上做 802.1Q）\nip link add link br0 name br0.100 type vlan id 100\n!\n! 9. 抓指定命名空间的包\nip netns exec ns1 tcpdump -i any\n!\n! 10. 持久化：netplan/network-scripts/nmcli']
+    ],
+    tip: 'Linux 网络高级三板斧：bridge（二层）、netns（隔离）、tc（流控）。① bridge 就是台虚拟交换机——KVM 虚机、Docker 容器、LXC 全用它，bridge link show 看哪个口在哪个桥；② netns 是隔离网络栈的沙箱——同机不同容器/虚机各跑各的 IP 不冲突，ip netns exec 进去操作，配错网络把服务搞隔离了就用它救；③ tc 是网络工程师的「时光机」：netem 子命令能注入延迟/丢包/乱序（用户投诉「网络卡」，在服务器上用 tc 复现 100ms 延迟+1% 丢包，定位是应用问题还是网络问题）、tbf 限速（测试带宽不足场景）；④ 排障场景：用户说「访问某系统慢」——在服务器侧 tc 注入 200ms 延迟，应用还慢 = 应用自身问题（和网络无关），不慢了 = 网络延迟敏感型应用；⑤ 改完记得删（tc qdisc del），tc 忘了删是半夜网络抖动的隐形元凶；⑥ 容器网络就是这三件套的组合：veth pair 一头在容器 netns 一头在宿主 bridge，iptables NAT 出网，K8s 的 CNI 插件底层全是这些；⑦ 会这三样，K8s/容器/虚机网络排障全通。'
+  },
+  {
+    id: 'pr-win-server',
+    devs: ['Windows Server'],
+    name: 'Windows Server DHCP/DNS 服务端配置',
+    kw: ['windows server', 'dhcp服务器', 'dns服务器', 'ad域网络', '域控', 'windows dhcp', 'windows dns', 'scope', '作用域', '域网络排障'],
+    cmds: [
+      ['Windows Server', '! 一、DHCP 服务端（PowerShell）\n! 1. 安装角色\nInstall-WindowsFeature DHCP -IncludeManagementTools\n!\n! 2. 新建作用域\nAdd-DhcpServerv4Scope -Name "OFFICE-10" -StartRange 10.1.10.50 -EndRange 10.1.10.200 -SubnetMask 255.255.255.0\n!\n! 3. 配网关/DNS/租期\nSet-DhcpServerv4OptionValue -ScopeId 10.1.10.0 -OptionId 3 -Value "10.1.10.1"\nSet-DhcpServerv4OptionValue -ScopeId 10.1.10.0 -OptionId 6 -Value "10.1.9.10"\nSet-DhcpServerv4Scope -ScopeId 10.1.10.0 -LeaseDuration 0.08:00:00\n!\n! 4. 保留（固定 IP 给打印机/服务器）\nAdd-DhcpServerv4Reservation -ScopeId 10.1.10.0 -IPAddress 10.1.10.88 -ClientId "AA-BB-CC-DD-EE-FF" -Name "PRINTER-01"\n!\n! 5. 排除段（设备管理段不发）\nAdd-DhcpServerv4ExclusionRange -ScopeId 10.1.10.0 -StartRange 10.1.10.1 -EndRange 10.1.10.49\n!\n! 6. 中继对接（华为 DHCP 中继场景）\n! 交换机上配 dhcp relay 指向本服务器，无需在服务器配中继\n!\n! 7. 看租约/排障\nGet-DhcpServerv4Lease -ScopeId 10.1.10.0\n Get-DhcpServerv4Statistics\n!\n! 二、DNS 服务端\n! 8. 内部域名解析（AD 依赖 DNS）\nAdd-DnsServerPrimaryZone -ZoneName "corp.local" -ReplicationScope "Forest"\n!\n! 9. 转发器（内外网分流解析）\nAdd-DnsServerForwarder -IPAddress 114.114.114.114\n!\n! 10. 排障：解析记录\nResolve-DnsName www.corp.local\n Get-DnsServerResourceRecord -ZoneName "corp.local"\n!\n! 11. 客户端验证\nipconfig /all | findstr DNS\n nslookup www.corp.local\n!\n! 12. 服务状态\nGet-Service DHCPServer, DNS\n systemctl status iscsid  # 别混']
+    ],
+    tip: '企业网里 Windows Server 的 DHCP/DNS 是标配，网络工程师必须会日常操作。① DHCP 三要素：作用域（地址段）、选项（网关 3/DNS 6/域名 15）、租期（办公 8 小时、服务器用保留不用长租期）；② 排除段是刚需——每段前 50 个地址留给网络设备和服务器，DHCP 从 50 之后发（Add-DhcpServerv4ExclusionRange），不然终端抢了设备地址全网冲突；③ 保留（Reservation）按 MAC 绑固定 IP：打印机、服务器、摄像头、AP 管理地址全用它，比设备上配静态 IP 好管（改地址在一处改）；④ 和华为设备组网：交换机做 DHCP 中继（dhcp select relay + relay server ip 指向 Windows），服务器一个作用域管多个网段，比在每台交换机上建池集中好维护；⑤ AD 域环境 DNS 是命根子：域控必须指向自己 DNS、转发器配上游 DNS、SRV 记录（_ldap._tcp）自动注册——「域登录慢/找不到域控」十有八九是 DNS；⑥ 排障三板斧：Get-DhcpServerv4Statistics（池子用量/命中率）、Get-DhcpServerv4Lease（谁拿了哪个 IP）、客户端 ipconfig /all 看拿到的网关 DNS 对不对；⑦ PowerShell 一条命令顶点击十次，把常用命令存脚本，批量建作用域/备份租约表（Export-DhcpServer）半小时干完一天的活。'
+  },
+  {
+    id: 'pr-optic-select',
+    devs: ['光模块', 'Switch', 'Router'],
+    name: '光模块选型速查（速率 / 距离 / 波长 / 介质）',
+    kw: ['光模块选型', '光模块型号', '单模', '多模', 'om3', 'om4', 'aoc', 'dac', '高速线', '光模块距离', '波长', 'sfp', 'qsfp', '模块不兼容'],
+    cmds: [
+      ['华为', '! 选型决策表（按距离+速率）\n!\n! 电口（DAC/AOC 高速线）\n! 机内/机柜间（<5m）：DAC 高速铜缆（SFP+ 10G / QSFP+ 40G）\n! 机柜间（<10m）：AOC 有源光缆（省模块钱，即插即用）\n!\n! 多模（OM3/OM4，机房内几百米）\n! 850nm 波长，LC 接口\n! 10G SR：OM3 300m / OM4 400m\n! 25G SR：OM4 100m\n! 40G SR4：OM4 150m（并行 4 芯）\n! 100G SR4：OM4 100m\n!\n! 单模（OS2，楼宇间/园区几公里）\n! 1310nm 波长，LC 接口\n! 10G LR：10km\n! 25G LR：10km\n! 100G LR4：10km\n! 100G ER4：40km\n!\n! 长距（城域）\n! 100G ZR：80-100km（相干）\n!\n! 兼容性原则\n! 1. 华为设备用华为原厂或认证模块（第三方模块设备告警但不影响用）\n! 2. 两端必须同速率同波长同距离档位\n! 3. 单模多模不能混用（纤芯粗细不同）\n! 4. 一端 SR 一端 LR 可以通（LR 收 SR 的光，功率够）\n!\n! 查看与验证\ndisplay transceiver interface <接口>\n display version\n!\n! 常见不匹配\n! 40G 模块插 100G 口：物理不兼容（QSFP28 口能插 QSFP+ 但降速）\n! 1310nm 配 850nm：不通\n! 单模模块配多模纤：距离暴跌（功率够近距能通，远距不行）']
+    ],
+    tip: '光模块选型三要素：速率、距离、介质，错一个就是「不通」或「不稳」。① 先定距离：机柜内 <10m 用 DAC/AOC（便宜省电）、机房内 <400m 多模 SR、楼宇间 10km 单模 LR、城域 40km+ ER/ZR；② 波长别混：850nm 是多模专属、1310nm 是单模常用、1550nm 长距专用，一端 850 一端 1310 直接不通；③ 单模多模物理不兼容——多模纤芯 50/62.5μm、单模 9μm，模块和纤必须配套（单模模块插多模纤近距能通，但功率和距离全乱）；④ 跨档位小技巧：一端 SR 一端 LR 可以通（LR 接收灵敏度高能收 SR 的光），反之 LR 发光太强可能烧 SR 接收端，不推荐；⑤ 华为原厂模块优势：设备识别无告警、质保、和网管联动；第三方模块性价比高但设备会报「非认证模块」告警（不影响业务，等保场景建议用原厂）；⑥ 高速线（DAC）最长 5m、AOC 10-20m，超过必须模块+光纤；⑦ 采购前看设备端口类型：SFP（1G）、SFP+（10G）、QSFP+（40G）、QSFP28（100G）——QSFP28 口能插 QSFP+ 模块（向下兼容降速用），反过来不行；⑧ 到货先试：两端模块+纤上电 display transceiver 看收发光正常再上架，省得爬机柜。'
+  },
+  {
+    id: 'pr-ops-versiondiff',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '版本升级命令差异应对（VRP 新旧命令对照）',
+    kw: ['版本差异', '命令变化', 'vrp升级', '升级后命令', '新旧命令', 'v200r020', '命令不识别', '版本迁移', '升级排障', '语法错误'],
+    cmds: [
+      ['华为 VRP8', '! 常见新旧命令差异（VRP 各版本）\n!\n! 1. display 输出格式变化：新版本结构化输出（XML/JSON）\ndisplay version\n display current-configuration | include interface\n!\n! 2. 命令改名（老脚本/文档失效）\n! 老：display interface          新：display interface（同）\n! 老：firewall packet-filter      新：traffic-filter/traffic-policy\n! 老：traffic behavior           新：同\n! 老：acl number 2000 rule       新：同（注意 rule 默认步长变化）\n!\n! 3. ACL 步长默认值变化：新版本 rule 5 permit 后默认步长不同\ndisplay acl 2000\n!\n! 4. 命令行风格：yaml/json 输出（脚本解析注意）\ndisplay current-configuration | format json\n!\n! 5. 升级后老配置不识别：进系统前提示\n! 处理：配置文件转换工具 / 手工改命令\n!\n! 6. license 变化：新版本功能要新 license\ndisplay license\n!\n! 7. 升级前必做（差异清单）\ndisplay version > 旧版本信息\n display current-configuration > 旧配置\n!\n! 8. 升级后验证：业务全跑一遍\ndisplay interface brief\n ping 网关\n!\n! 9. 排障：某条命令敲不进去\ndisplay this\n display history-command\n!\n! 10. 回退：版本回退到旧包\ndisplay startup\n undo startup system-software\n reboot']
+    ],
+    tip: '版本升级最大的坑不是升级本身，是「升级后老命令不好使了」。① 升级前铁律：存旧版本信息（display version）+ 旧配置（display current-configuration）——出问题对照排查；② 升级后第一件事：拿业务配置清单逐项验证（接口/路由/VPN/ACL/无线），display this 看命令还在不在、参数有没有变；③ 常见坑：ACL rule 步长默认值变（老配置 rule 5 10 15 新版本默认 5 10 15 20，插入位置变了行为就变）、traffic-policy 新旧语法混用、display 输出格式变（脚本用正则解析 display 输出的全挂，改 JSON 输出）；④ 命令行增强（tab 补全、? 帮助）在新版本更完善，不确定的命令先 ? 看当前视图下有什么；⑤ 升级窗口做好回退准备：旧版本包留着（display startup 能切回去）、配置备份在 flash，回退命令 undo startup system-software + reboot 记熟；⑥ 补丁包（patch）优先打——修 bug 不动大版本命令兼容性，大版本升级要评估 2-4 周（测试环境先升）；⑦ 文档同步：升级后把交付文档里的命令示例更新，老文档误导新人；⑧ 经验：跨两个大版本的升级（V200R010 → V200R020）必须先在测试设备验证，生产直接跨是赌博。'
+  },
+  {
+    id: 'pr-ops-parts',
+    devs: ['Switch', 'Router', '防火墙', '光模块'],
+    name: '备件管理与故障件更换（RMA / 库存 / 更换流程）',
+    kw: ['备件', 'rma', '故障件更换', '坏件更换', '备件库存', '保修', '换板', '更换流程', '坏件返修', 'atms', '板卡', '板卡坏', '换板卡'],
+    cmds: [
+      ['华为 VRP8', '! 一、故障确认（换之前先留证据）\ndisplay version                 ! 记录序列号（RMA 要）\ndisplay device                  ! 哪块板/模块坏\ndisplay alarm active             ! 告警截图\ndisplay diagnostic-information  ! 一键诊断信息（报障附件）\n!\n! 二、备件匹配（换错型号白跑）\n! 1. 板卡/模块部件编码（display elabel 看 BAR CODE）\ndisplay elabel 1\n!\n! 2. 同型号/兼容型号确认（查兼容列表）\ndisplay version\n!\n! 三、更换流程（热插拔按手册）\n! 1. 戴防静电手环/摸机柜放电\n! 2. 拔出坏件 → 插新件（金手指对准）\n! 3. 上电观察：板卡灯状态\ndisplay device\n!\n! 四、更换后验证\ndisplay device\n display alarm active\n display interface brief\n!\n! 五、RMA 流程（保修内）\n! 1. 400 报障：序列号 + 告警 + 诊断信息\n! 2. 拿到 RMA 号 + 返修地址\n! 3. 15 天内寄回（逾期 RMA 失效）\n! 4. 新件到货后归还\n!\n! 六、备件库存管理（网络不瘫的底气）\n! 关键备件：核心板卡、电源、风扇、光模块、跳线\n! 库存原则：单点设备（无冗余的）必有备件\n! 定期检查：备件固件版本兼容性\n!\n! 七、记录\n! 更换记录：时间/设备/部件/序列号/操作人']
+    ],
+    tip: '备件管理是网络可用性的最后一道防线——核心设备板卡坏了，有备件 2 小时恢复，没备件等 RMA 一周起步。① 故障确认先留证据：display version 的序列号、display alarm active 的告警、display diagnostic-information 的完整诊断——这三样是 RMA 和复盘的材料，没留证据返修被驳回；② 换件前三查：查部件编码（display elabel 的 BAR CODE，备件必须同编码或兼容列表内）、查是否热插拔（电源/风扇/光模块一般支持，主控板重启）、查光纤/线缆别拔错；③ 静电是杀手：板卡上的芯片摸一下就废，防静电手环是必需品，没条件至少摸机柜金属框放电 10 秒；④ 更换后验证三连：display device（在位状态）、display alarm active（告警消没消）、业务 spot check（跑一遍关键业务）；⑤ 备件策略：核心设备（无冗余的单点）必须有板卡备件，冗余设备（双电源/双主控）可以不备，光模块按 5% 比例备、常用速率（10G/25G LR）优先；⑥ 备件要管起来：库存清单（型号/编码/数量/位置）、定期上电检测（电子件放三年也可能坏）、固件版本记录（换上去的备件版本和现网不一致可能起不来，提前刷好）；⑦ 更换记录必填——同一个位置三个月坏两次同一类部件，就是环境问题（温度/电压/振动），记录是发现系统性隐患的唯一线索。'
+  },
+  {
+    id: 'pr-v6-trouble',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: 'IPv6 端到端排障（双栈网络 IPv6 不通）',
+    kw: ['ipv6不通', 'ipv6排查', 'ipv6上不了', 'v6排障', 'ipv6网站打不开', 'ipv6地址', '双栈', 'ipv6丢包', 'ipv6慢'],
+    cmds: [
+      ['华为 VRP8', '! 1. 终端有没有 IPv6 地址（自动配置看 RA）\ndisplay ipv6 interface GigabitEthernet0/0/1\n!\n! 2. RA 通告在不在（终端拿不到地址的根因）\ndisplay ra guard statistics\n display ipv6 nd\n!\n! 3. 网关连通：ping 链路本地地址\ndisplay ipv6 neighbors\n!\n! 4. 路由表有没有 IPv6 路由\ndisplay ipv6 routing-table\n!\n! 5. DNS：AAAA 记录解析\ndisplay dns server\n!\n! 6. 出口有没有 IPv6 出方向路由（默认路由）\ndisplay ipv6 routing-table protocol static\n!\n! 7. ACL 有没有挡 IPv6（IPv6 ACL 和 v4 是两套）\ndisplay ipv6 acl 2000\n!\n! 8. 防火墙：IPv6 安全策略/会话\ndisplay firewall session table ipv6\n!\n! 9. MTU：IPv6 不分片，PMTU 问题大包不通\ndisplay ipv6 interface | include MTU\n!\n! 10. 抓包：看 RA/NS/NA/报文\ndisplay tcp statistics\n!\n! 11. 常见：设备有 v6 地址但上不了网\n!     = 没有默认 v6 路由 / DNS 没有 AAAA / 运营商没给 v6 前缀']
+    ],
+    tip: 'IPv6 不通和 IPv4 完全两套体系，排查不能用 v4 的思路硬套。① 先分清现象：终端没有 v6 地址（RA/ND 问题）→ 有地址但 ping 不通网关（二层/ND 问题）→ 网关通但上不了网（路由/DNS/ACL 问题）；② 终端拿不到地址九成是 RA——display ipv6 interface 看 RA 发没发、终端口有没有收到（RA Guard 配太严会把正常 RA 也挡了）；③ v4 通 v6 不通的经典根因：ACL！IPv4 ACL 和 IPv6 ACL 是两套独立的，配了 v4 deny 没管 v6，反之亦然——防火墙/路由器上 display ipv6 acl 单独查；④ 没有默认 v6 路由（::/0）也上不了网——很多网络 v4 配了默认路由 v6 忘了；⑤ DNS 解析：浏览器走 v6 需要 AAAA 记录，网站没有 AAAA 记录就回退 v4，用户侧感知是「IPv6 时有时无」；⑥ IPv6 不分片——路径 MTU 比 v4 更容易出问题（PMTU 探测被防火墙挡 = 小包通大包死），display ipv6 interface 确认 MTU 1500；⑦ 排障顺序和 v4 一样分层：地址→网关→路由→DNS→ACL，一层一层过，别跳。'
+  },
+  {
+    id: 'pr-cloud-vpc',
+    devs: ['云平台', 'Router', '防火墙'],
+    name: '云网络排查（VPC / 安全组 / 路由表 / 对等连接）',
+    kw: ['云网络', 'vpc', '安全组', '阿里云', '腾讯云', '云上不通', '云vpc', '对等连接', '云路由', '弹性网卡', 'nat网关'],
+    cmds: [
+      ['云控制台 + 设备侧', '! 一、云网络四件套（和物理网络一一对应）\n! VPC = 一个大内网（相当于数据中心）\n! 子网 = VLAN\n! 安全组 = 有状态防火墙（实例级，不是子网级）\n! 路由表 = 静态路由\n!\n! 二、「云上两台ECS不通」排查顺序\n! 1. 同 VPC 同子网：查安全组（默认拒全部，要放行）\n! 2. 同 VPC 跨子网：查安全组 + 路由表（默认已通）\n! 3. 跨 VPC：查对等连接/云企业网 + 两端路由表 + 安全组\n! 4. 云上访问公网：查 NAT 网关/EIP 绑定\n! 5. 公网访问云上：查 EIP + 安全组放行\n!\n! 三、安全组细节（和防火墙最大区别：有状态）\n! 出方向放行的回流自动放行（不用写成对规则）\n! 默认规则：出放行、入拒绝\n! 优先级：数字越小越优先\n!\n! 四、路由表专项\n! 系统路由（VPC 内自动）+ 自定义路由\n! 自定义路由的下一跳：ECS/NAT/对等连接/专线\n! 排查：路由表的关联子网对不对\n!\n! 五、专线/云企业网（混合云）\n! 本地 IDC 上云：专线 + 边界路由器 + 两端路由\n! 备份：IPsec VPN over 公网\n!\n! 六、排障工具\n! 云监控流日志（VPC Flow Logs）\n! 实例内抓包：tcpdump\n! 云厂商的「网络智能诊断」一键检测\n!\n! 七、常见坑\n! 安全组放行了但协议端口写反\n! 对等连接没加路由（连了不通）\n! Windows 实例自己的防火墙没关（云里双重防火墙）\n! EIP 带宽买小了（不是不通，是慢）']
+    ],
+    tip: '云网络排查 = 物理网络的翻版，但安全组的机制和传统防火墙不一样，这是最大的思维转变。① 安全组是有状态的——入方向放行 80，回包自动过（不用写回程规则），这比 ACL 省事；但安全组默认拒绝所有入方向，新业务「不通」第一反应就是查安全组；② 安全组是实例级的：一台 ECS 可以绑多个安全组，一台实例不通先看它绑了哪几个组、合并后的规则是什么；③ VPC 内跨子网默认通（系统路由），不通就是安全组或自定义路由被改；④ 跨 VPC 三件套：对等连接（或云企业网）+ 两端路由表加路由 + 安全组放行——只连对等连接不加路由是「连了不通」的头号原因；⑤ 混合云（本地 IDC + 云）：专线做主通道、IPsec VPN 做备份，两边路由要互相引入，专线断了 VPN 自动接管（BFD/健康检查）；⑥ VPC Flow Logs 是云上的「镜像抓包」——实例间不通又登不上机器抓包时，看流日志有没有 drop 记录，drop 原因直接告诉你；⑦ Windows 云服务器记得关系统自带防火墙（云安全组 + Windows 防火墙双层拦截，很多人卡在这一层）；⑧ 带宽和不通是两回事：EIP 带宽 1Mbps 访问卡但不丢连接，先看监控带宽曲线再怀疑网络。'
+  },
+  {
+    id: 'pr-cloud-dc',
+    devs: ['Router', '防火墙', '云平台'],
+    name: '混合云专线接入（云专线 + VPN 备份 + 路由联动）',
+    kw: ['云专线', '混合云', '专线上云', 'idc上云', '云专线开通', '专线备份', '边界路由器', 'bgp专线', '云内网', 'hybrid cloud'],
+    cmds: [
+      ['华为 VRP8', '! 场景：本地 IDC 和云上 VPC 走专线，IPsec VPN 备份\n!\n! 1. 物理链路：运营商专线（MSTP/OTN）到云 PoP 点\n! 本地侧：CE 路由器 → 专线 → 云侧边界路由器\n!\n! 2. 本地 CE 侧：BGP 和云侧建邻（云侧给 ASN 和对端 IP）\nbgp 65001\n peer <云侧地址> as-number <云侧ASN>\n #\n ipv4-family unicast\n  peer <云侧地址> enable\n #\n!\n! 3. 宣告本地网段给云\nnetwork 10.0.0.0 255.0.0.0\n!\n! 4. 收云上网段：云 VPC 的 CIDR 自动通过 BGP 下发\n!\n! 5. 备份链路：IPsec VPN over 公网（浮动路由）\nip route-static 172.16.0.0 255.255.0.0 <VPN对端> preference 100\n!\n! 6. 专线健康检测：断了自动切 VPN\nbfd DEDICATED bind peer-ip <云侧地址>\n!\nip route-static 172.16.0.0 255.255.0.0 <专线下一跳> track bfd-session DEDICATED\n!\n! 7. 验证：路由从专线走\ndisplay bgp peer\n display ip routing-table 172.16.0.0\n!\n! 8. 专线恢复验证：BFD up 后路由回切\n!\n! 9. 安全：专线是内网通道，但防火墙区域还是隔开\nfirewall zone name dmz\n!\n! 10. 监控：专线带宽利用率 + BFD 状态双监控']
+    ],
+    tip: '混合云专线 = 本地 IDC 和云上 VPC 的内网高速通道，核心设计是「专线主 + VPN 备 + BFD 联动」。① 开通三要素：物理专线（运营商侧，1-3 周工期，急活提前申请）、云侧边界路由器/VBR（控制台买）、BGP 配置（云侧会给 ASN 和对端 IP，本地 CE 配上建邻）；② 路由交互：本地 BGP 宣告 IDC 网段，云侧 BGP 下发 VPC CIDR + 其他 region 网段——双向学习，谁记不清路由就 display bgp routing-table 看；③ 备份链路用 IPsec VPN over 公网，静态路由给大 preference（100），专线路由小 preference（10）+ BFD track——专线断了 BFD 秒级感知，静态路由失效，VPN 路由顶上；④ 带宽规划：专线按跨云流量峰值买（先买小后扩容，专线升带宽是分钟级不伤筋动骨），VPN 备份给专线的 20-30% 够用（备份期降级服务）；⑤ 安全边界：专线≠内网全通，防火墙还是要做区域隔离（IDC 到 VPC 的生产区/办公区分开过策略），云上安全组是第二层；⑥ 排障：专线不通先看 BFD 状态（物理断/协障）再 ping 云侧地址（路由问题）最后看安全组/防火墙（策略问题）；⑦ 监控：专线利用率 > 60% 就该扩容（云专线带宽是订阅制，超了限速），BFD 状态和 BGP 邻居状态进告警。'
+  },
+  {
+    id: 'pr-cpe-5g',
+    devs: ['CPE', 'Router'],
+    name: '4G/5G CPE 接入部署（门店 / 应急 / 备份线路）',
+    kw: ['5g', '4g', 'cpe', '5g路由器', '流量卡', '物联网卡', '拨号上网', '移动网络', 'cpe配置', '备份线路上网', '5g慢'],
+    cmds: [
+      ['CPE / 4G 路由器', '! 1. 装卡开机：物联网卡/流量卡（APN 由运营商给）\n!\n! 2. 拨号参数：APN/认证方式（卡商提供）\ndisplay cellular\n!\n! 3. 拨号状态：拿到 IP 才是通了\ndisplay cellular interface\n!\n! 4. 信号强度：RSRP -90dBm 以上可用，-110 以下没信号\ndisplay cellular signal\n!\n! 5. 拨号接口当 WAN 口（DHCP/PPPoE 自动）\ninterface Cellular0\n dhcp client enable\n!\n! 6. NAT 上网\nacl number 2000\n rule 5 permit source 192.168.1.0 0.0.0.255\n#\n!\ninterface Cellular0\n nat outbound 2000\n!\n! 7. 主备切换：固网主 + 5G 备（或反过来）\nip route-static 0.0.0.0 0.0.0.0 <5G对端> preference 100\n!\n! 8. 流量监控：流量卡超额断网（按月套餐）\ndisplay cellular traffic\n!\n! 9. 排障：拨不上号\n! APN 错 / 卡没激活 / 信号弱 / 欠费\n!\n! 10. 排障：能拨上但慢\n! 信号强度 / 基站拥塞 / 限速（达量降速）']
+    ],
+    tip: 'CPE（4G/5G 路由器）三大场景：门店临时上网（装修期不等宽带）、应急通信（光纤挖断时的保命线路）、备份链路（固网+5G 双活）。① 拨号三要素：APN（物联网卡 cmiot/普通卡 3gnet，卡商提供）、认证方式（大部分无认证）、SIM 卡槽；② 信号是生命线：display cellular signal 看 RSRP，-90dBm 以上流畅，-100 边缘，-110 以下基本废——CPE 摆放位置决定信号（靠窗/高处，避开弱电间金属柜）；③ 流量卡套路：物联网卡便宜但有达量降速（100G 后限 1Mbps）和地域限制，采购前问清楚限速阈值和实名要求；④ 主备设计：固线主（preference 10）+ CPE 备（preference 100），固线断了 CPE 自动顶上；门店场景反过来（5G 主固线备）看业务容忍度；⑤ 监控必做：流量余量监控（超额断网是门店投诉重灾区，配 80% 告警）、信号强度监控、在线状态监控；⑥ 排障顺序：拨号状态（拿到 IP 没）→ 信号强度 → APN/卡状态（打运营商电话查卡）→ 限速（达量降速打客服）；⑦ 安全：CPE 默认密码必须改（公网 IP 暴露的 CPE 被扫爆是常态）、管理口不要暴露公网、WiFi 密码 WPA2 起步；⑧ 大型门店用企业级 CPE（双 SIM 双网备份 + 内置路由 + SNMP 网管），别拿家用插卡路由器扛生产。'
+  },
+  {
+    id: 'pr-sec-tls',
+    devs: ['防火墙', '服务器'],
+    name: 'HTTPS/证书故障排查（握手失败 / 证书错误）',
+    kw: ['https不通', '证书错误', 'ssl握手失败', '证书过期', '证书链', 'tls排障', 'https打不开', 'ssl_error', '证书不信任', 'https慢'],
+    cmds: [
+      ['通用', '! 1. 看证书全貌（链/有效期/域名匹配）\nopenssl s_client -connect www.example.com:443 -servername www.example.com\n!\n! 2. 只看证书有效期（批量巡检）\necho | openssl s_client -connect www.example.com:443 2>/dev/null | openssl x509 -noout -dates -subject\n!\n! 3. 证书链完整性（缺中间证书是经典坑）\nopenssl s_client -connect www.example.com:443 -showcerts\n!\n! 4. TLS 版本和加密套件（老客户端连不上）\nopenssl s_client -connect www.example.com:443 -tls1_2\n nmap --script ssl-enum-ciphers -p 443 www.example.com\n!\n! 5. 抓包看握手（Wireshark 过滤 ssl.handshake）\n!\n! 6. 设备侧：防火墙 SSL 解密/卸载配置\ndisplay ssl policy\n!\n! 7. 时间不同步 = 证书全部失效（排查证书先查时间！）\ndate\n display clock\n!\n! 8. SNI 问题：一个 IP 多证书，看 SNI 对不对\nopenssl s_client -connect <IP>:443 -servername <正确域名>\n!\n! 9. 客户端报错对照\n!    证书过期/未生效 → 看 dates\n!    不受信任 → 缺中间证书或自签\n!    域名不匹配 → SNI/证书 CN/SAN\n!    握手失败/协议不匹配 → TLS 版本/套件\n!\n! 10. 证书监控：到期前 30 天告警（证书忘续期是重大事故）']
+    ],
+    tip: 'HTTPS 故障 90% 是证书问题，排查三板斧：openssl s_client 看握手、x509 看证书、先查设备时间。① 第一反应查时间——证书校验依赖系统时间，设备/服务器时间不对（差几年），所有 HTTPS 全部失败且报「证书无效」，这类故障最迷惑，先 date 一下；② 证书过期/未生效：x509 -dates 看 notBefore/notAfter，批量巡检把所有域名扫一遍，到期前 30 天续（忘续期的典型案例：大厂官网证书过期上热搜）；③ 缺中间证书：服务端只发了叶子证书没发中间证书，浏览器能连（有缓存/AIA 抓取）但 App/老客户端直接失败——s_client -showcerts 看链完整不完整，服务端补全链文件；④ 域名不匹配：证书 CN/SAN 里没有你访问的域名（泛域名 *.example.com 不覆盖子子域），换证书或换域名；⑤ SNI：一个 IP 托管多个 HTTPS 站点，客户端必须带正确 SNI，openssl 不带 -servername 会拿到默认站点证书——「证书显示是别人的站点」就是 SNI 问题；⑥ 协议/套件：等保要求 TLS 1.2+，关了 1.0/1.1 后老客户端（Win7 IE、老 POS 机）连不上——业务兼容性和安全要求打架时用双协议过渡；⑦ 证书管理：所有证书登记造册（域名/颁发者/到期日/负责人），监控自动扫到期，别靠人脑记；⑧ 防火墙做 SSL 解密（检测加密流量里的攻击）会改变证书链，用户侧报错时先确认是不是出口防火墙在解密。'
+  },
+  {
+    id: 'pr-fw-ha-trouble',
+    devs: ['防火墙'],
+    name: '防火墙双机排障（HRP 不同步 / 配置漂移 / 倒换异常）',
+    kw: ['hrp不同步', '双机不同步', '防火墙主备', 'hrp排障', '配置漂移', '备机配置旧', 'hrp不同步', '双机倒换', 'hrp状态', '防火墙备机'],
+    cmds: [
+      ['华为 USG 防火墙', '! 1. HRP 状态总览（正常应该 standby）\ndisplay hrp state\n!\n! 2. 心跳口状态（hrp 通道断 = 双主抢业务）\ndisplay hrp interface\n!\n! 3. 配置一致性（不一致 = 有手工直备机改过）\ndisplay hrp config consistency\n!\n! 4. 会话同步状态\ndisplay hrp session\n!\n! 5. 强制同步配置（主 → 备）\nhrp sync config\n!\n! 6. 手动倒换（主备切换测试）\nhrp switch standby\n!\n! 7. 排障：备机配置旧/漂移\n! 根因：有人在备机上直接改配置（双机禁止直备操作！）\n! 修复：主机上 hrp sync config 强制同步\n!\n! 8. 排障：频繁倒换\n! 心跳链路质量差（display hrp interface 看丢包）\n! 心跳口用了业务口（必须独立心跳口！）\n!\n! 9. 排障：会话不同步（切换丢业务）\ndisplay hrp session\n!\n! 10. 双主机冲突（都当 master）\n! 心跳断了，开启 mad 检测自动关闭一台业务口']
+    ],
+    tip: '防火墙双机（HRP）的规矩比配置更重要：所有操作只在主机做，备机只负责同步。① HRP 三根线：心跳线（独立接口，别用业务口）、配置同步通道、会话同步通道——心跳线断两台都当主机互相抢业务（双主冲突），mad 检测能自动关一台的业务口保平安；② 配置漂移是最大管理问题——有人在备机上直接改配置，下次同步被主机覆盖，故障时备机配置是旧的；铁律：备机是只读副本，任何修改走主机；③ 排查第一步永远 display hrp state：standby 正常、master/standby 都不是或两台都 master = 心跳问题；④ display hrp config consistency 查一致性，不一致就 hrp sync config 强制同步（同步前确认主机配置是对的！）；⑤ 会话同步（display hrp session）决定切换丢不丢业务——长连接业务（数据库/视频流）切换必断，这是正常的，提前告知业务方；⑥ 心跳口必须独立专用，拿业务口当心跳口 = 业务口一抖动双机就倒换；⑦ 倒换测试每季度做一次（hrp switch standby），不测试的双机等于没有双机——真故障时倒换失败的案例全是没演练过的；⑧ 版本一致性：两台防火墙版本必须一样，升级要同升，版本不一致 HRP 同步直接报错。'
+  },
+  {
+    id: 'pr-net-gray',
+    devs: ['防火墙', 'DNS 服务器', '负载均衡'],
+    name: '网络侧灰度发布配合（DNS 权重 / 摘流 / 引流）',
+    kw: ['灰度', '灰度发布', '金丝雀', '摘流', '引流', 'dns权重', '轮询权重', '新版本', '版本上线', '应用发布', '切流量', '蓝绿发布'],
+    cmds: [
+      ['通用', '! 一、DNS 灰度（最常见的应用层灰度）\n! 同一域名配多条 A 记录 + 权重\n! 权重 DNS（如 BIND/云 DNS）：\n! 老机房 90% / 新机房 10%\n! 优点：简单，无需网络设备参与\n! 缺点：DNS 缓存导致切换不即时（TTL 提前调短）\n!\n! 二、GSLB/全局负载（多机房流量分配）\n! 按地域/运营商/健康检查分配\n!\n! 三、网络侧摘流引流（防火墙/路由器/LB）\n! 1. 引流：把新服务器加进负载均衡池（权重 10%）\n! 2. 观察：监控新服务器错误率/时延\n! 3. 扩量：10% → 30% → 50% → 100%\n! 4. 摘流：出问题把权重调 0（秒级回滚）\n!\n! 四、防火墙策略配合（新机房放行）\nsecurity-policy\n rule name GRAY-NEW\n  source-zone trust\n  destination-address 172.16.1.0 0.0.0.255\n  action permit\n #\n!\n! 五、NAT 映射（新服务器对外端口）\nnat server zone untrust protocol tcp global <公网IP> 8081 inside 172.16.1.10 80\n!\n! 六、健康检查（摘流的触发条件）\nlb health-check http url /health\n!\n! 七、回滚预案（30 秒内恢复）\n! 权重调 0 / DNS 切回 / 防火墙 deny\n!\n! 八、网络侧观测\n! 新链路利用率 / 时延 / 丢包对比']
+    ],
+    tip: '灰度发布网络侧的核心能力是「细粒度调权重 + 秒级回滚」。① 三层灰度手段：DNS 权重（最简单，TTL 缓存是硬伤，发布前把 TTL 从 86400 调到 60）、负载均衡权重（nginx upstream weight / F5 pool ratio，秒级生效推荐）、网络策略（防火墙/NAT 层面引流，适合机房级灰度）；② 标准流程：先 5-10% 灰度 → 观察核心指标（错误率/时延/转化率，至少一个完整业务周期）→ 逐步放量 → 全量；③ 回滚要预设好：权重调 0、DNS 切回、防火墙 deny——三个手段选一个写进预案，故障时 30 秒执行；④ 网络侧配合清单：新服务器/机房的放行策略提前配好（灰度当晚才配策略 = 自己给自己添堵）、健康检查接监控（业务挂了自动摘流比人工快）、带宽预留（新机房流量涨上来链路别爆）；⑤ 观测对比：新旧链路并跑期的时延/丢包/带宽对比数据，是扩容决策和故障定位的素材；⑥ 机房级灰度（迁移/双活）用 DNS+GSLB 按比例切，切完观察一周再下老机房——别一次性全切，没有回滚余地的发布是赌博；⑦ 和经验：灰度期问题暴露最充分的阶段是 30-50% 放量时（流量够大能触发边界 case，又不至于全网故障）。'
+  },
+  {
+    id: 'pr-dns-master',
+    devs: ['Linux 服务器', 'Switch', 'Router'],
+    name: 'DNS 排障全家桶（dig / nslookup / dnsmasq）',
+    kw: ['dig', 'nslookup', 'dns排查', 'dns排障', '解析慢', '解析失败', 'host命令', 'dnsmasq', 'dns转发', 'dns污染', 'dns缓存'],
+    cmds: [
+      ['通用', '! 1. 指定 DNS 服务器查（绕开本地缓存）\ndig @8.8.8.8 www.example.com\n dig @114.114.114.114 www.example.com A\n!\n! 2. 查 AAAA（IPv6 解析）\ndig @8.8.8.8 www.example.com AAAA\n!\n! 3. 看完整应答过程（有没有被劫持/投毒）\ndig +trace www.example.com\n!\n! 4. 只看到不到（快查）\nnslookup www.example.com 8.8.8.8\n host www.example.com\n!\n! 5. 查 MX / NS / TXT（邮件/域归属）\ndig example.com MX\n dig example.com NS\n!\n! 6. 查 SOA 和 TTL（发布/排期用）\ndig example.com SOA\n!\n! 7. 反向解析（IP 查域名，邮件服务器常用）\ndig -x 1.1.1.1\n!\n! 8. 反复查看是否稳定（DNS 轮询/负载）\nfor i in 1 2 3 4 5; do dig +short www.example.com; done\n!\n! 9. dnsmasq 自建 DNS（内网解析+转发）\n! /etc/dnsmasq.conf:\n! server=114.114.114.114        ! 上游\n! address=/intra.corp/10.1.1.100 ! 内网域名固定解析\n! cache-size=10000\n!\n! 10. 刷新本地缓存\n! Windows: ipconfig /flushdns\n! Linux: systemd-resolve --flush-caches\n!\n! 11. 排障：能 ping IP 打不开网页 = DNS 问题\n! 对比：dig 直连公网 DNS vs 用内网 DNS']
+    ],
+    tip: 'DNS 排障第一原则：区分「解析问题」和「连通问题」——能 ping 通 IP 打不开域名 = 解析问题，域名能解析打不开 = 连通问题。① dig @指定服务器 是绕开一切本地缓存问真凶的标准动作——本地解析失败时，先 dig @8.8.8.8 和 dig @114 对比，公网 DNS 能解析 = 你的内网 DNS 出了问题；② dig +trace 从根服务器开始迭代，看哪一级开始异常——被劫持/投毒的定位利器（某级返回了不该返回的地址就是那一级的问题）；③ 解析慢：逐个测上游 DNS 的响应时间（dig 的 Query time），换快的上游；内网自建 dnsmasq 缓存（cache-size 拉大）能显著加速重复解析；④ 内网 split-horizon（内外解析不同）：内网域名走内网 DNS、公网域名转发上游——dnsmasq 的 address= 和 server= 配合是最轻量方案；⑤ MX/TXT 记录排查邮件问题（SPF/DKIM/DMARC 三件套在 TXT 里，邮件进垃圾箱先查 SPF）；⑥ 反向解析（dig -x）在邮件服务器场景必查——对端服务器可能因你没有 PTR 记录直接拒收；⑦ 污染/劫持特征：dig +trace 看到某级返回错误 A 记录、不同 DNS 服务器解析结果不一致、HTTPS 证书错误和解析异常同时出现；⑧ TTL 策略：日常 3600，发布/迁移前提前 24 小时调到 60（切换才快），迁移完再调回——TTL 是发布效率的隐藏开关。'
+  },
+  {
+    id: 'pr-vpn-client',
+    devs: ['防火墙', '客户端'],
+    name: '远程接入客户端排障（SSL/IPsec 连不上 / 慢）',
+    kw: ['vpn客户端', 'sslvpn连不上', 'vpn连不上', 'easyvpn', 'anyconnect', 'vpn慢', 'vpn掉线', 'vpn认证失败', 'vpn隧道', '远程办公'],
+    cmds: [
+      ['华为 USG 防火墙 + 客户端', '! 服务端侧\n! 1. 看 SSL VPN 网关状态和在线用户\ndisplay sslvpn gateway\n display sslvpn session\n!\n! 2. 看 IPsec 在线用户和 IKE 状态\ndisplay ike sa\n display ipsec sa\n!\n! 3. 认证失败：看认证日志\ndisplay aaa statistics access-type authen\n!\n! 4. 地址池够不够（池满 = 新用户连不上）\ndisplay ip pool\n!\n! 5. 授权资源：用户能访问哪些网段\ndisplay sslvpn policy\n!\n! 客户端侧\n! 6. 客户端日志（AnyConnect/OpenVPN 都有详细日志）\n! 日志级别调到 Debug\n!\n! 7. 客户端报错对照\n!    超时连不上 = 服务端不通/端口挡\n!    认证失败 = 账号密码/二次认证/证书\n!    连上没网 = 地址池/路由/分LAN下发\n!    时断时续 = DPD/NAT-T/运营商 QoS\n!\n! 8. 分LAN下发：客户端只走内网流量（split tunnel）\ndisplay sslvpn split-tunnel\n!\n! 9. 抓包：IKE 阶段1/2\ndisplay ike error\n!\n! 10. 排障黄金组合\n! 换网络测试（手机热点 vs 宽带）\n! 换设备测试（同事电脑 vs 本机）\n! 服务端日志 + 客户端日志对时间']
+    ],
+    tip: 'VPN 客户端问题要「服务端日志 + 客户端日志 + 对照测试」三管齐下。① 先定位问题层级：连不上（服务端/链路问题）vs 认证失败（账号/密码/证书）vs 连上没网（地址池/路由/策略）vs 时断时续（稳定性）——客户端报错信息基本能归类；② 认证失败排前三：密码错/过期、二次认证（短信/令牌）没收到、客户端证书过期（看服务端 display aaa statistics 的失败原因码）；③ 连上没网：地址池耗尽（display ip pool 看余量）、分 LAN 没下发（客户端没拿到内网路由，display sslvpn split-tunnel）、内网路由不通（连上 VPN ping 内网服务器）；④ 时断时续四大根因：DPD 没开（链路中间设备会话老化，开 keepalive）、NAT-T 问题（换网络环境测试：宽带 OK 手机热点挂 = 运营商 QoS UDP）、客户端休眠断网、多 ISP 场景路由绕；⑤ 黄金测试法：换网络（手机热点排除本地宽带/防火墙）、换设备（同事电脑能连 = 本机问题：客户端版本/系统防火墙/杀毒软件拦 VPN 驱动）、对时间（服务端和客户端日志时间戳对齐看）；⑥ 客户端日志调到 Debug 级别——「Error 1330」这类错误码背后的详细信息全在日志里，发厂商工单也要日志；⑦ 大规模远程办公：SSL VPN 并发数买够（license 限制）、地址池按并发 1.5 倍规划、分 LAN 下发减轻网关压力（只有访问内网的流量走 VPN）。'
+  },
+  {
+    id: 'pr-net-emergency',
+    devs: ['Switch', 'Router', '防火墙', 'AC'],
+    name: '网络应急预案编制（核心故障 30 分钟处置卡）',
+    kw: ['应急预案', '故障预案', '核心故障', '处置卡', '断网处置', '应急响应', '故障演练', 'runbook', '处置流程', '应急预案'],
+    cmds: [
+      ['通用', '! 处置卡模板（每个核心场景一张，打印贴墙）\n!\n! 场景一：核心交换机故障\n! 现象：整片网络不通，设备 red 灯\n! 第一步（0-5min）：确认范围（ping 测试/网管告警）\n! 第二步（5-15min）：切备机（VRRP/HRP 应自动，手动 hrp switch）\n! 第三步（15-25min）：备机顶不上 → 换备件/恢复配置\n!   display current-configuration > flash:/backup.cfg 提前备好\n! 第四步（25-30min）：通知业务方/启动降级\n!\n! 场景二：出口全部中断\n! 第一步：确认是单运营商还是全断\n! 第二步：切备用出口（静态路由/BFD 自动）\n! 第三步：4G/5G CPE 应急上线\n! 第四步：联系运营商（400 + 工单）\n!\n! 场景三：DHCP 服务中断\n! 第一步：新设备拿 169 地址\n! 第二步：切备用 DHCP（交换机 DHCP 顶服务器）\n! 第三步：给关键设备临时静态 IP\n!\n! 场景四：大面积无线掉线\n! 第一步：AC 是否在线\n! 第二步：AP 批量离线 → 重启 AC\n! 第三步：Portal/认证服务器故障 → 应急放行\n!\n! 通用：\n! 联系清单：运营商/厂商 400/云厂商/业务负责人\n! 降级原则：先保核心业务（生产/收银/OA），后保一般\n! 时间线记录：故障发现/定位/恢复每步时间（复盘用）']
+    ],
+    tip: '应急预案的价值在故障发生时兑现——那时人是最慌的，照着卡片做比现场决策靠谱十倍。① 每个核心单点一张处置卡：核心交换机、出口、DHCP、DNS、AC、防火墙、专线——列清现象/第一步/第二步/降级手段/联系人；② 时间盒设计：0-5 分钟确认范围、5-15 分钟尝试自愈（切备/重启）、15-25 分钟启用备用链路/备件、25-30 分钟通知降级——超过 30 分钟不恢复就走降级方案，别硬扛；③ 降级原则事先定好：核心业务（生产/收银/支付）优先保，一般办公可以后恢复——故障时资源有限，优先级是提前谈好的不是现场拍的；④ 备份手段前置：核心配置提前 backup 到 flash 和多处（网管/本地/云端各一份）、备件在手边、CPE 应急卡预激活——「备而不用」是应急预案的成本，「用而不备」是灾难；⑤ 演练每半年一次：模拟核心故障真切一次备机/真拔一次网线——没演练的预案 90% 执行不到位（谁负责、备件在哪、命令忘了全是演练才能发现的）；⑥ 时间线记录：发现/定位/恢复每一步的时间点记下来，复盘用——故障复盘是唯一能系统性提升团队能力的手段；⑦ 联系清单置顶：运营商 400、厂商 400、云厂商工单、业务负责人，故障时翻通讯录的时间都省得出来。'
+  }
+];
+
+module.exports = { PRACTICE };

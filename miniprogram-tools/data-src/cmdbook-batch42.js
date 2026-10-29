@@ -1,0 +1,199 @@
+/* 第 42 轮：参数调优与细节坑
+   这批全是"知道就快、不知道就耗一天"的参数级知识：
+   生成树四道防护、接口计数逐项含义、链路抖动抑制、协议调优、哈希不均。
+*/
+const BATCH42_EXTRA = [
+  {
+    id: 'stp-protect',
+    devs: ['Switch'],
+    name: '生成树四道防护（BPDU / Root / Loop / TC）',
+    kw: ['bpdu 保护', 'root guard', 'loop guard', 'tc 保护', '生成树防护', 'stp 防护', '私接路由器'],
+    cmds: [
+      ['四道防护各防什么', '① BPDU Guard：接入口收到 BPDU 就关端口（防私接交换机）\n② Root Guard：禁止该口成为根方向（防别人抢根桥）\n③ Loop Guard：收不到 BPDU 时不误进转发（防单向链路造成环）\n④ TC 保护：限制拓扑变化消息频率（防震荡拖垮整网）'],
+      ['BPDU Guard（接入口必配）', 'interface GigabitEthernet 0/0/1\n stp edged-port enable\n stp bpdu-protection\n# 配了之后再私接交换机，端口直接 err-disable\n# 恢复：shutdown 再 undo shutdown（或配自动恢复）'],
+      ['Root Guard（接入口 + 汇聚下联）', 'interface GigabitEthernet 0/0/24\n stp root-protection\n# 有人把私接路由器优先级调低抢根桥时，该口被阻塞\n# 根桥位置不对，全网的流量走向就变了'],
+      ['Loop Guard（光纤/单向上行必配）', 'interface GigabitEthernet 0/0/24\n stp loop-protection\n# 单向链路（收不到 BPDU）时，普通 STP 会让端口进入转发 → 形成环\n# Loop Guard 让端口进入 Blocking，避免环路\n# 注意：不能和 Root Guard 配在同一口'],
+      ['TC 保护（防震荡）', 'stp tc-protection\nstp tc-protection threshold 3\n# 每 2 秒最多处理 3 次 TC，多的忽略\n# 没这个，一次环路能让全网 MAC 表反复清空，业务全卡'],
+      ['配置速查（按端口角色）', '接入口：edged-port + bpdu-protection\n汇聚下联接入口：+ root-protection\n上联口（光纤）：+ loop-protection\nglobal：tc-protection\n# 四道防护配齐，二层事故能挡掉八成']
+    ],
+    tip: '这四道防护里，性价比最高的是 BPDU Guard——一个私接路由器就能把整栋楼打瘫，而它只要两行配置。上线时先全量铺这一条，其余按端口角色补。'
+  },
+  {
+    id: 'if-counters',
+    devs: ['Switch', 'Router'],
+    name: '接口错误计数逐项解读',
+    kw: ['crc', '错包', 'runts', 'giants', '输入错误', 'fcs', 'late collision', '接口计数'],
+    cmds: [
+      ['先看哪几项（别被几十个字段吓住）', 'Input errors / CRC / Frame / Runts / Giants / Overruns\nOutput errors / Collisions / Late collisions / Underruns\n# 记住一条：错包计数要看"增长速率"，不是绝对值'],
+      ['CRC / FCS 增长', '含义：帧校验失败，物理层比特出错\n原因：光衰、网线质量、接头脏、电磁干扰、双工不匹配\n# 处理：清洁接头 → 换尾纤/网线 → 查光功率 → 查双工'],
+      ['Runts（小于 64 字节）', '原因：冲突（半双工）、线缆故障、网卡异常\n# 大量 runts + collisions 同时涨 = 双工不匹配（一端全双工一端半双工）'],
+      ['Giants（大于 MTU）', '原因：MTU 不一致、对端设备异常、环路\n# 常见于隧道/封装场景：一端调了 MTU 另一端没调'],
+      ['Overruns / Ignored', '含义：缓冲区满，来不及处理\n原因：入向流量突发超过处理能力（微突发）\n# 处理：查上游是否打满、开流量整形，而不是简单扩带宽'],
+      ['Late Collisions', '含义：发送到第 64 字节之后才检测到冲突\n原因：几乎必然是双工不匹配 或 线缆过长\n# 这个计数只要在涨，就要立刻查双工'],
+      ['操作建议', '① 每条链路记一次基线（开通时）\n② 每周比对，涨得快就查\n③ CRC 增长 > 1/万包 就要处理\n# 有基线才有对比，否则永远是"看着有点多"']
+    ],
+    tip: '接口计数里只有两个能立刻定位问题：Late Collisions 涨 = 双工不匹配；Overruns 涨 = 微突发。其余（CRC/Runts）都是"物理层有问题"，得靠换线换模块去试。'
+  },
+  {
+    id: 'link-flap',
+    devs: ['Switch', 'Router'],
+    name: '链路抖动抑制（flapping dampening）',
+    kw: ['链路抖动', '端口 flapping', '接口震荡', 'carrier-delay', 'dampening', '端口时通时断', '接口反复up down'],
+    cmds: [
+      ['先确认是"抖"还是"断"', 'display logbuffer | include "GigabitEthernet0/0/1"\n# 同一端口反复 up/down = 抖动\n# 抖动会引发：路由震荡、STP 重算、会话重建'],
+      ['物理层原因（按概率）', '① 光模块老化/光衰临界（最常见，刚好在门限边缘）\n② 尾纤/网线接触不良\n③ 供电不稳（PoE 设备）\n④ 端口硬件故障\n# 光功率恰好在门限附近时，温度变化就会引发抖动'],
+      ['华为：抑制配置', 'interface GigabitEthernet 0/0/1\n carrier-delay up 10000\n carrier-delay down 10000\n# 单位毫秒：链路状态稳定 10 秒才上报\n# 作用：抖动不再引发协议重算，但会延迟真实故障的发现'],
+      ['Cisco：对应配置', 'interface GigabitEthernet1/0/1\n carrier-delay msec 10000\n# 或用 dampening（针对路由）：\nbgp dampening 15 750 2000 60'],
+      ['根治 vs 抑制', '抑制只是让上层"看不见"抖动，物理问题还在\n# 正确顺序：先查光功率与错包 → 换模块/尾纤 → 仍有抖动再考虑抑制\n# 只抑制不修，会在某天变成彻底中断'],
+      ['PoE 设备的特殊抖动', '供电不足时，设备会周期性重启 → 端口反复 up/down\n# 查：display poe power（剩余功率是否为 0）\n# 处理：减载或换高功率交换机'],
+      ['验证', '抑制后观察 24 小时日志：\n# 端口状态不再刷屏 = 生效\n# 但仍要定期查错包计数，确认物理层在好转']
+    ],
+    tip: '链路抖动先查光功率，尤其是"刚好卡在门限上"的情况——温度一变就抖，白天正常夜里断。换模块比配 carrier-delay 有用，后者只是把问题藏起来。'
+  },
+  {
+    id: 'ospf-tuning',
+    devs: ['Router', 'Switch'],
+    name: 'OSPF 稳定性与性能调优',
+    kw: ['ospf 调优', 'spf 计算', 'lsa 泛洪', 'ospf 震荡', '区域设计', 'ospf 优化', '邻居抖动'],
+    cmds: [
+      ['影响稳定性的四个参数', '① Hello / Dead 定时器（默认 10/40 秒）\n② SPF 计算间隔（防频繁重算）\n③ LSA 泛洪抑制\n④ 邻居认证（防误接入）'],
+      ['SPF 节流（大网必配）', 'spf-schedule-interval 5 50 200\n# 含义：初次 5ms、最小 50ms、最大 200ms\n# 默认值在小网没问题，几百个节点时需要调大防 CPU 飙高'],
+      ['LSA 泛洪抑制', 'lsa-originate-interval 5 5000\n# 防止拓扑频繁变化时 LSA 刷屏\n# 链路抖动场景下这条能救 CPU'],
+      ['区域设计原则', '① 单区域路由条目控制在 1000 以内\n② 末梢区域（Stub/NSSA）减少 LSA\n③ ABR 数量适中（每多一个 ABR，区域间路由计算多一份）\n# 大网扁平化（全在 area 0）是常见错误'],
+      ['邻居抖动排查顺序', '① display ospf error（看有没有收到错误包）\n② 查 MTU 是否一致（卡 ExStart）\n③ 查 Hello/Dead 是否一致\n④ 查链路是否有丢包（组播 Hello 丢失）\n⑤ 查 CPU 是否过高导致 Hello 未及时处理'],
+      ['认证（不是可选）', 'interface GigabitEthernet 0/0/1\n ospf authentication-mode md5 1 cipher <PWD>\n# 不配认证，任何人接进来都能建邻居、发假路由'],
+      ['调优后的验证', 'display ospf peer            # 邻居是否全 Full\ndisplay ospf routing         # 路由是否完整\ndisplay cpu-usage            # SPF 是否还吃 CPU\n# 调整后至少观察 24 小时']
+    ],
+    tip: 'OSPF 大网出问题，八成不是协议本身，是「区域没设计好 + SPF 没节流」。几百个节点全塞进 area 0，一次链路抖动就能让 CPU 打满——先把区域拆开比调任何参数都有效。'
+  },
+  {
+    id: 'bgp-stability',
+    devs: ['Router'],
+    name: 'BGP 震荡与保护（前缀限制 / dampening / 会话保护）',
+    kw: ['bgp 震荡', '路由震荡', 'dampening', '最大前缀', 'bgp 保护', '会话翻动', 'bgp 邻居抖动'],
+    cmds: [
+      ['BGP 邻居反复断的危害', '每次断开会话：全表路由撤销 + 重建（几十万条）\n# 后果：CPU 打满、转发中断、上游设备压力剧增\n# 所以 BGP 保护的核心是"别让它轻易断，断了别让它反复重连"'],
+      ['最大前缀数（必配）', 'peer 200.1.1.1 route-limit 500000 80\n# 含义：超过 50 万条告警，超过 80% 就告警\n# 作用：防止对端误配导致的路由爆炸打满内存'],
+      ['路由震荡抑制（dampening）', 'bgp dampening 15 750 2000 60\n# 15=半衰期(分钟) 750=抑制阈值 2000=解除阈值 60=最大抑制时间\n# 作用：反复震荡的前缀被临时压住，不参与选路\n# 注意：配了之后故障恢复会变慢，要权衡'],
+      ['会话保护', 'peer 200.1.1.1 bfd min-tx-interval 100 min-rx-interval 100\n# BFD 让故障检测从 180 秒降到毫秒级\n# 但 BFD 太敏感会误切，需配合 damping'],
+      ['常见震荡原因', '① 物理链路抖动（先查接口计数）\n② MTU 不一致导致大包丢（Keepalive 走小包，业务大包不通）\n③ 对端路由策略频繁变更\n④ 会话数/前缀数超限\n⑤ CPU 或内存不足'],
+      ['排查顺序', 'display bgp peer                # 看 Up/Down 时间与次数\ndisplay bgp peer verbose        # 看最后一次断开原因\ndisplay logbuffer | include BGP\n# 日志里通常直接写了原因（hold timer expired / notification）'],
+      ['通告稳定性', 'network 命令只在必要时用，优先用重分发 + 路由策略\n# 路由策略要幂等（同样的输入永远同样输出）\n# 策略里避免依赖动态条件（如 IP 前缀列表的自动更新）']
+    ],
+    tip: 'BGP 震荡最怕的是"两个路由反射器和满表在互相刷"。所以保护要三道：最大前缀、dampening、BFD。缺任何一道，都能靠一次链路抖动把设备打挂。'
+  },
+  {
+    id: 'ecmp-hash',
+    devs: ['Switch', 'Router'],
+    name: 'ECMP 哈希与负载不均（大象流）',
+    kw: ['ecmp', '负载不均', '哈希', '大象流', '多路径', '链路不均衡', '等价路由'],
+    cmds: [
+      ['现象：两条万兆，一条 90% 一条 10%', 'display interface brief | include 10GE\n# 链路都 up、路由都是等价，但流量严重不均\n# 根因：哈希把大部分会话映射到同一条链路'],
+      ['哈希看什么（决定分布）', '常见哈希因子：\n① 仅源/目的 MAC（最差，网关场景几乎全撞一条）\n② 源/目的 IP（好一些，但同一对 IP 的多条流仍撞）\n③ IP + L4 端口（最好，不同会话能散开）\n# 关键：五元组哈希才能让"多条会话"分散'],
+      ['华为：改哈希算法', 'load-balance-profile LB\n ipv4 field src-ip dst-ip l4-src-port l4-dst-port\n!\ninterface Eth-Trunk 1\n load-balance-profile LB\n# 注意：不同型号命令不同，有的用 hash-mode 或 ecmp load-balance'],
+      ['Cisco：对应配置', 'port-channel load-balance src-dst-mixed-ip-port\n# 或 per-flow：show etherchannel load-balance\n# Nexus 用：show port-channel load-balance granular'],
+      ['大象流的本质限制', '即使五元组哈希，单条流（同一会话）只能走一条链路\n# 所以：单条 TCP 流最多跑一条链路带宽\n# 场景：备份、大文件传输、存储复制 —— 这些是单流，哈希帮不了'],
+      ['大象流的解法', '① 应用层多线程/多连接（最有效）\n② 用支持"逐包负载"的设备（代价：乱序）\n③ 给大象流单独规划链路\n④ 用 M-LAG/vPC 的逐流哈希 + 多条并行'],
+      ['验证方法', '① 看每条链路实际计数（是否均衡）\n② 抓包看源/目的端口分布\n③ 打流测试：多会话 vs 单会话的差异\n# 单会话跑不满是正常的，别当故障查']
+    ],
+    tip: '「链路不均」先确认是"多条会话也没散开"还是"只有一条大流"。前者改哈希因子，后者改应用（多线程）——拿单条备份流去测负载均衡，永远测不出效果。'
+  },
+  {
+    id: 'qos-policing',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '限速 / 整形 / 丢弃（CAR / Shaping / WRED）',
+    kw: ['限速', '整形', 'car', '流量监管', 'shaping', 'wred', '尾丢弃', '流量控制'],
+    cmds: [
+      ['三种动作的本质区别', '① 监管（Policing/CAR）：超了就丢（或降级），不缓存\n② 整形（Shaping）：超了先缓存，再慢慢发\n③ 拥塞避免（WRED）：队列快满时随机丢，提前通知 TCP 降速'],
+      ['什么时候用哪个', '入向：只能用监管（收到就收到了，没法缓存）\n出向：优先整形（缓存能减少丢包）\n队列将满：用 WRED（避免全局同步）\n# 记住：入口限速必然丢包，出口整形不丢包但增加时延'],
+      ['华为：监管（入向）', 'interface GigabitEthernet 0/0/1\n qos car inbound cir 100000 cbs 1250000\n# cir 单位 kbps，cbs 是突发字节\n# 超限动作默认 discard，可改为 remark 降级'],
+      ['华为：整形（出向）', 'interface GigabitEthernet 0/0/2\n qos shaping cir 100000 cbs 1250000\n# 缓存后再发，不丢包\n# 代价：时延增加（队列越长时延越大）'],
+      ['WRED（防全局同步）', 'drop-profile WRED1\n wred dscp-based\n dscp 0 low-limit 40 high-limit 80 discard-percentage 10\ntraffic behavior BE\n drop-profile WRED1\n# 普通队列用 WRED，语音队列不要用（直接丢更合适）'],
+      ['CBS 怎么定（最容易配错）', 'CBS ≈ CIR × 突发容忍时间（通常 10~50ms）\n# 例：100Mbps × 10ms = 125000 字节\n# CBS 太小：实际速率跑不到标称（频繁丢）\n# CBS 太大：突发冲垮下游'],
+      ['验证', 'display qos car statistics interface X\ndisplay qos queue statistics interface X\n# 监管：看 green/yellow/red 计数\n# 整形：看队列深度与 drop（有 drop 说明缓存不够）']
+    ],
+    tip: '「入口限速一定丢包，出口整形不丢包」——这句话决定了 90% 的 QoS 配错。很多人想"限上行带宽"，却配在入口做整形，结果配置根本不生效。'
+  },
+  {
+    id: 'nat-alg',
+    devs: ['防火墙', 'Router'],
+    name: 'NAT ALG 与特殊协议穿越',
+    kw: ['alg', 'nat 穿越', 'ftp 不通', 'sip 不通', 'pptp', 'h323', 'nat 特殊协议'],
+    cmds: [
+      ['为什么有些协议过不了 NAT', '协议在载荷里携带 IP/端口（如 FTP 的 PORT 命令、SIP 的 SDP）\n# NAT 只改报文头，不改载荷 → 对端拿到的是私网地址 → 连不上\n# ALG（应用层网关）就是专门改载荷的模块'],
+      ['常见需要 ALG 的协议', 'FTP（主动模式）、SIP/H.323（VoIP）、PPTP（GRE）、RTSP（视频）、SQL*Net\n# 现代应用多用被动模式或走 TLS，需求减少了'],
+      ['华为：ALG 开关', 'firewall interzone trust untrust\n detect ftp\n detect sip\n detect pptp\n# 部分版本在 nat alg 下配置\n# 注意：开了 ALG 可能引入兼容问题，按需开'],
+      ['FTP 主动/被动模式', '主动（PORT）：服务器主动连客户端 → 必须 ALG 或客户端可被访问\n被动（PASV）：客户端连服务器的高位端口 → 放行端口范围即可\n# 建议：客户端侧改用被动模式，比配 ALG 更省事'],
+      ['SIP 穿越的三种方案', '① 开 ALG（最省事，但兼容性最差）\n② 用支持 NAT 的 SIP 服务器（SBC）\n③ 让终端走 TLS + 服务器侧中继媒体\n# 生产环境推荐②/③，ALG 只做兜底'],
+      ['排障顺序', '① 抓包看：报文里的地址是公网还是私网\n② 私网 = ALG 没生效或协议不被识别\n③ 检查 ALG 是否被全局关闭（安全加固时常见）\n④ 检查加密：TLS/加密的载荷 ALG 无能为力'],
+      ['安全与 ALG 的矛盾', '很多安全加固要求"关闭所有 ALG"（防 ALG 漏洞）\n# 这时只能靠应用侧改造（被动模式 / SBC / 中继）\n# 这是制度与技术冲突，要提前和业务方说清']
+    ],
+    tip: '「FTP 能登录不能列目录」是 ALG 的经典症状。但更省事的解法是让客户端用被动模式——改一个客户端设置，比在防火墙上调 ALG 稳得多。'
+  },
+  {
+    id: 'table-aging',
+    devs: ['Switch', 'Router'],
+    name: '表项老化时间调优（MAC / ARP / 会话）',
+    kw: ['老化时间', 'arp 老化', 'mac 老化', '会话老化', '表项老化', 'arp 表满', '会话表满'],
+    cmds: [
+      ['三个老化时间的默认值', 'MAC：300 秒（5 分钟）\nARP：1200 秒（20 分钟，华为）或 14400 秒（Cisco）\n会话（防火墙）：TCP 长连接 3600 秒，UDP 120 秒\n# 默认值大多够用，问题出在"特殊场景"'],
+      ['什么时候要调短', '① VIP 漂移场景（切换后 ARP 缓存不更新）→ ARP 调 60 秒\n② 终端频繁换位置（笔记本/无线）→ MAC 调 150 秒\n③ NAT 池紧张 → TCP 会话老化调短（有副作用：长连接被掐）'],
+      ['什么时候要调长', '① 大量长连接业务（数据库、监控）→ 会话调长，避免被误清\n② 空闲终端多（如 IoT）→ ARP 调长，减少广播\n# 调长会增加表项压力，要同时看表容量'],
+      ['华为：调老化', 'interface Vlanif 10\n arp expire-time 60\n!\nmac-address aging-time 150\n!\n# 防火墙会话：\n firewall session aging-time tcp 1800'],
+      ['表满的表现（很隐蔽）', '① 新 MAC 学不到 → 未知单播泛洪 → 性能下降但无告警\n② 新 ARP 建不了 → 主机间不通，但网关能通\n③ 会话建不了 → 偶发连接失败\n# 查：display mac-address total-number / display arp statistics'],
+      ['表项压力的来源', '① 大二层（VXLAN）→ MAC 表暴涨\n② 攻击/扫描 → ARP 表被打满\n③ 虚拟机漂移 → 大量临时表项\n④ 老化时间设太长 → 僵尸表项堆积'],
+      ['调优原则', '① 先看表项使用率（是否接近上限）\n② 再决定调老化还是扩容\n③ 每次只调一个，观察 24 小时\n# 表项是全局资源，调错了影响整机']
+    ],
+    tip: '「网关 ping 得通，但两台主机互 ping 不通」很可能是 ARP 表满了——新表项建不进去，只能泛洪。这个故障没有任何告警，只能靠看表项使用率发现。'
+  },
+  {
+    id: 'debug-safe',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '安全使用 debug（限流 / 定时关闭 / 替代方案）',
+    kw: ['debug', '调试', 'debugging', '调试命令', '设备卡死', 'debug 风险'],
+    cmds: [
+      ['debug 为什么危险', '每包都打印 → CPU 飙升 → 控制面失联 → 只能现场重启\n# 生产环境直接 debug 导致宕机的案例非常多\n# 高危场景：debug all、debug ip packet（大流量下必死）'],
+      ['三条铁律', '① 必须先确认设备有足够的 CPU 余量（> 50% 空闲）\n② 必须配限流或只对特定条件开\n③ 必须设自动关闭（定时器或 terminal monitor 超时）'],
+      ['华为：安全开 debug', 'terminal monitor\nterminal debugging\n# 只针对特定 ACL：\ndebugging ip packet acl 3000\n# 定时关闭（关键）：\nschedule job DEBUG_OFF at 02:15 command "undo debugging all"\n# 或手动：undo debugging all'],
+      ['Cisco：对应做法', 'terminal monitor\nlogging console\n# 限流：\ndebug ip packet 100    # 每秒最多 100 个\ndebug condition ip 10.1.1.1/32 eq 10.2.2.2/32\n# 自动关：用 kron 定时执行 undebug all'],
+      ['先考虑替代方案（优先顺序）', '① 看计数器（display interface / display qos statistics）\n② 抓包（镜像 + tcpdump，不影响设备 CPU）\n③ 看日志（info-center 分级）\n④ 才考虑 debug\n# 80% 的 debug 需求其实抓包就能解决'],
+      ['必须 debug 时的流程', '① 报备（有人知道你在做）\n② 设定时关闭（10 分钟）\n③ 准备好重启方案（有人能到现场）\n④ 只开最小范围（特定接口/特定 ACL）'],
+      ['已经卡死的处理', '① 尝试 Ctrl+C / Ctrl+Z 中断输出\n② 尝试从其他会话登录（可能还有资源）\n③ 最后手段：断电重启（配置未保存会丢）\n# 所以第④条"准备重启方案"不是客套话']
+    ],
+    tip: '「先抓包，再 debug」应该成为肌肉记忆。抓包在旁路做，最坏情况只是丢包；debug 在最核心的控制面上做，最坏情况是整机失联——风险差着两个数量级。'
+  },
+  {
+    id: 'pipe-tricks',
+    devs: ['Switch', 'Router'],
+    name: '输出过滤与分屏技巧（include / 正则 / 分屏）',
+    kw: ['过滤', 'include', 'exclude', '管道', '分屏', 'more', '输出太长', '正则过滤'],
+    cmds: [
+      ['三个基础过滤符（华为/H3C）', 'display current-configuration | include vlan\n display current-configuration | exclude #\ndisplay interface brief | begin GigabitEthernet0/0/1\n# include：只显示匹配行\n# exclude：排除匹配行\n# begin：从匹配行开始显示到末尾'],
+      ['Cisco：对应写法', 'show running-config | include vlan\nshow running-config | exclude !\nshow running-config | section interface\n# section：按配置块显示（比 include 好用）'],
+      ['正则过滤（大网必备）', 'display current-configuration | include "interface|ip address"\n# 华为支持用 | 表示"或"\n# 复杂正则用双引号包起来\ndisplay logbuffer | include "ERROR|FAIL|DOWN"'],
+      ['关掉分屏（输出太长时）', 'screen-length 0 temporary\n# 一次性关闭，下次登录恢复\n# 永久：user-interface vty 0 4 / screen-length 0\n# Cisco：terminal length 0'],
+      ['组合技巧', '① 数行数：display current-configuration | include vlan | count\n② 看接口配置：display current-configuration | section interface\n③ 找某 IP：display arp | include 10.1.1.100\n④ 看告警：display logbuffer | include "ERROR|WARN"'],
+      ['一次抓全（排查用）', 'display diagnostic-information\n# 华为一键收集所有关键信息（几百页）\n# 保存到文件：display diagnostic-information > flash:/diag.txt\n# 报障时附这个文件，比逐条敲命令快得多'],
+      ['日志里的"看不见的字符"', '有些输出含控制字符，grep 匹配不到\n# 处理：先导出到文件再分析，不要在终端里硬筛\n# 或用 | no-more 先把分屏关掉再重定向']
+    ],
+    tip: '`| include` 和 `| section` 是省时间最多的两个技巧。尤其是查配置块——`| section interface` 一下就把几十个接口的配置分块列出来，比翻两百页快得多。'
+  },
+  {
+    id: 'ping-traceroute',
+    devs: ['Router', '防火墙', 'Switch'],
+    name: 'ping / traceroute 高级用法（定界利器）',
+    kw: ['ping 参数', 'traceroute', 'tracert', '指定源地址', '大包 ping', '路径探测', '分段 ping'],
+    cmds: [
+      ['指定源地址（多出口必备）', '# 华为：\nping -a 10.1.1.1 8.8.8.8\n# Cisco：\nping 8.8.8.8 source 10.1.1.1\n# 不指定源，设备会用"出接口地址"，回程可能不对称'],
+      ['大包 + 禁分片（测 MTU）', 'ping -s 1472 -f 8.8.8.8\n# -s 1472 = 1500 - 20(IP) - 8(ICMP)\n# -f 禁止分片：不通说明链路 MTU < 1500\n# 常用于：隧道、MPLS、VPN 场景'],
+      ['高频 + 长时（测抖动/丢包）', 'ping -c 1000 -i 0.01 10.1.1.1\n# -i 0.01 每 10ms 一个（需权限）\n# 看 mdev（抖动）：语音要求 < 30ms\n# 看丢包率：> 1% 就有问题'],
+      ['traceroute 的三种探测方式', 'ICMP（默认）、UDP（Linux 默认）、TCP\n# 中间设备屏蔽 ICMP 时，ICMP trace 会显示 * * *\n# 改用 TCP trace 到具体端口，能穿过去：\ntraceroute -T -p 443 目标'],
+      ['路径上的"假断点"', '某些跳显示 * * * 但后面又通了：\n# 不是断，是那台设备不回应 TTL 超时\n# 判断：后续跳正常 = 中间设备屏蔽了 ICMP'],
+      ['分段 ping 定界法', '① ping 终端网关 → 通：接入没问题\n② ping 汇聚 → 通：汇聚没问题\n③ ping 核心 → 通\n④ ping 出口 → 通\n⑤ ping 目标 → 不通 = 问题在出口之后\n# 哪一跳开始不通，问题就在那一跳之前'],
+      ['常见误判', '① "ping 不通就是网络断"——可能是被 ACL/防火墙禁了 ICMP\n② "ping 通就是网络好"——小包通不代表大包通（MTU）\n③ "丢包 50% 就是线路坏"——可能是双工不匹配或限速']
+    ],
+    tip: '定界最快的动作不是 traceroute，是「分段 ping + 指定源地址」。在多出口/双栈环境里不指定源，ping 通了也说明不了走的是哪条路。'
+  }
+];
+
+module.exports = { BATCH42_EXTRA };

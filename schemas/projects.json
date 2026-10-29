@@ -1,0 +1,14 @@
+{
+  "title": "eo_项目库",
+  "properties": [
+    { "name": "项目名称", "config": { "text": "" } },
+    { "name": "项目日期", "config": { "date": { "format": "yyyy-mm-dd" } } },
+    { "name": "项目角色", "config": { "text": "" } },
+    { "name": "项目状态", "config": { "select": { "options": [ { "text": "进行中" }, { "text": "已完成" }, { "text": "维护中" }, { "text": "已归档" } ] } } },
+    { "name": "项目内容", "config": { "text": "" } },
+    { "name": "涉及设备", "config": { "text": "" } },
+    { "name": "使用命令", "config": { "text": "" } },
+    { "name": "项目标签", "config": { "text": "" } },
+    { "name": "关联技能", "config": { "text": "" } }
+  ]
+}

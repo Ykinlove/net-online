@@ -1,0 +1,93 @@
+.cg { padding-bottom: calc(60 * var(--u)); }
+.cg-preview {
+  position: relative;
+  width: 100%;
+  height: calc(520 * var(--u));
+  border: calc(5 * var(--u)) solid #2c3e50;
+  border-radius: calc(10 * var(--u));
+  overflow: hidden;
+  box-shadow: 0 calc(8 * var(--u)) 0 rgba(44, 62, 80, 0.2);
+  margin-bottom: calc(24 * var(--u));
+  background: #dceaf6;
+}
+.cg-bg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+}
+.cg-char {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(40 * var(--u));
+  width: 100%;
+  height: calc(420 * var(--u));
+}
+.cg-name {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  padding: calc(10 * var(--u)) 0;
+  text-align: center;
+  font-size: calc(24 * var(--u));
+  font-weight: 800;
+  color: #fff;
+  background: rgba(44, 62, 80, 0.72);
+  letter-spacing: calc(2 * var(--u));
+}
+
+.cg-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(12 * var(--u));
+}
+.cg-cell {
+  position: relative;
+  width: calc((100% - calc(48 * var(--u))) / 5);
+  height: calc(128 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f8fd;
+  border: calc(3 * var(--u)) solid #c2d4e3;
+  border-radius: calc(8 * var(--u));
+  overflow: hidden;
+}
+.cg-cell.on {
+  border-color: #2c3e50;
+  background: #fff3d6;
+  box-shadow: inset 0 0 0 calc(3 * var(--u)) #f5a623;
+}
+.cg-cell-img { width: calc(106 * var(--u)); height: calc(114 * var(--u)); }
+
+.cg-bg-row {
+  display: flex;
+  gap: calc(12 * var(--u));
+}
+.cg-bg-cell {
+  position: relative;
+  flex: 1;
+  height: calc(120 * var(--u));
+  border: calc(3 * var(--u)) solid #c2d4e3;
+  border-radius: calc(8 * var(--u));
+  overflow: hidden;
+}
+.cg-bg-cell.on {
+  border-color: #2c3e50;
+  box-shadow: inset 0 0 0 calc(3 * var(--u)) #f5a623;
+}
+.cg-bg-img { width: 100%; height: 100%; }
+
+.cg-submit { margin-top: calc(8 * var(--u)); }
+
+/* 未解锁 */
+.cg-cell.is-lock,
+.cg-bg-cell.is-lock { border-style: dashed; border-color: #b9cfe0; }
+.cg-lock {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(44, 62, 80, 0.50);
+}
+.cg-lock-ico { font-size: calc(30 * var(--u)); line-height: 1; }

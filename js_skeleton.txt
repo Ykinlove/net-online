@@ -1,0 +1,3618 @@
+5566:   <script>
+5567: var searchParams = new URLSearchParams(location.search);
+5568: window.__LANG = searchParams.get('lang') === 'en' ? 'en' : 'zh';
+5569: document.documentElement.lang = window.__LANG === 'en' ? 'en' : 'zh-CN';
+5570: [LONG 1027253]
+5571: [LONG 129732]
+5572: window.__IMGURL = function(rel){ return (window.__IMGMAP && window.__IMGMAP[rel]) || rel; };
+5573: /* 案例离线预览适配层：__SMART_PAGE__.database 的 localStorage 实现。
+5574:    线上真身在资料库（数据表双向同步），此处仅作离线演示容错。 */
+5575: (function () {
+5576:   var PREFIX = 'eou_case_' + (window.__LANG || 'zh') + '_db_';
+5577:   function load(id) {
+5578:     try { return JSON.parse(localStorage.getItem(PREFIX + id)) || []; } catch (e) { return []; }
+5579:   }
+5580:   function save(id, rows) {
+5581:     try { localStorage.setItem(PREFIX + id, JSON.stringify(rows)); } catch (e) {}
+5582:   }
+5583:   function unwrap(props) {
+5584:     var out = {};
+5585:     Object.keys(props || {}).forEach(function (k) {
+5586:       var v = props[k];
+5587:       if (v && typeof v === 'object' && !Array.isArray(v)) {
+5588:         if ('text' in v) out[k] = v.text;
+5589:         else if ('number' in v) out[k] = v.number;
+5590:         else if ('select' in v) out[k] = v.select;
+5591:         else if ('multi_select' in v) out[k] = v.multi_select;
+5592:         else if ('date' in v) out[k] = v.date;
+5593:         else if ('checkbox' in v) out[k] = v.checkbox;
+5594:         else if ('url' in v) out[k] = v.url;
+5595:         else out[k] = v;
+5596:       } else { out[k] = v; }
+5597:     });
+5598:     return out;
+5599:   }
+5600:   window.__SMART_PAGE__ = {
+5601:     database: {
+5602:       query: function (p) {
+5603:         return Promise.resolve({ results: load(p.databaseId), nextCursor: null, hasMore: false });
+5604:       },
+5605:       addRecord: function (p) {
+5606:         var rows = load(p.databaseId);
+5607:         var rec = unwrap(p.properties);
+5608:         rec._id = 'r_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+5609:         rows.push(rec); save(p.databaseId, rows);
+5610:         return Promise.resolve({ id: rec._id });
+5611:       },
+5612:       updateRecord: function (p) {
+5613:         var rows = load(p.databaseId);
+5614:         var rec = unwrap(p.properties);
+5615:         for (var i = 0; i < rows.length; i++) {
+5616:           if (rows[i]._id === p.recordId) { rows[i] = Object.assign({}, rows[i], rec); break; }
+5617:         }
+5618:         save(p.databaseId, rows);
+5619:         return Promise.resolve({ id: p.recordId });
+5620:       },
+5621:       deleteRecord: function (p) {
+5622:         save(p.databaseId, load(p.databaseId).filter(function (r) { return r._id !== p.recordId; }));
+5623:         return Promise.resolve({ ok: true });
+5624:       },
+5625:       getSchema: function () { return Promise.resolve({ properties: [] }); }
+5626:     }
+5627:   };
+5628: })();
+5629: 
+5630: /* i18n 头部：zh 模式短路 + alert/confirm 包装（en 模式翻译后弹出） */
+5631: if (window.__LANG !== 'en') {
+5632:   window.__T = function (s) { return s; };
+5633: } else {
+5634:   window.__T = function (s) { return (window.__trText ? window.__trText(String(s)) : s); };
+5635:   (function () {
+5636:     var _alert = window.alert.bind(window);
+5637:     var _confirm = window.confirm.bind(window);
+5638:     window.alert = function (m) { _alert(window.__T(m)); };
+5639:     window.confirm = function (m) { return _confirm(window.__T(m)); };
+5640:   })();
+5641: }
+5642: 
+5643: [LONG 57345]
+5644: /* i18n 引擎：DICT 精确 → PATTERNS 参数化 → 长词条 split/join；TreeWalker 首扫 + MutationObserver 增量 */
+5645: (function () {
+5646:   if (window.__LANG !== 'en') return;
+5647:   var DICT = window.__I18N_DICT__ || {};
+5648: 
+5649:   var MONTH_EN = { '一': 'January', '二': 'February', '三': 'March', '四': 'April', '五': 'May', '六': 'June', '七': 'July', '八': 'August', '九': 'September', '十': 'October', '十一': 'November', '十二': 'December' };
+5650:   var WD_EN = { '周日': 'Sun', '周一': 'Mon', '周二': 'Tue', '周三': 'Wed', '周四': 'Thu', '周五': 'Fri', '周六': 'Sat' };
+5651: 
+5652:   function trCore(s) { return trText(s); }
+5653: 
+5654:   var PATTERNS = [
+5655:     [/^(十一|十二|[一二三四五六七八九])月\s+(\d{4})$/, function (m) { return (MONTH_EN[m[1]] || m[1]) + ' ' + m[2]; }],
+5656:     [/^(\d{1,2})月(\d{1,2})日\s+(周[日一二三四五六])$/, function (m) { return (WD_EN[m[3]] || m[3]) + ' ' + m[1] + '/' + m[2]; }],
+5657:     [/^(\d{1,2})月(\d{1,2})日$/, function (m) { return m[1] + '/' + m[2]; }],
+5658:     [/^\+(\d+) EXP \((.+)\)$/, function (m) { return '+' + m[1] + ' EXP (' + trCore(m[2]) + ')'; }],
+5659:     [/^\+(\d+) EXP$/, function (m) { return '+' + m[1] + ' EXP'; }],
+5660:     [/^「(.+)」$/, function (m) { return '"' + trCore(m[1]) + '"'; }],
+5661:     [/^(Day|Week)\s*(\d+)｜(.+)$/, function (m) { return m[1] + ' ' + m[2] + ' | ' + trCore(m[3]); }],
+5662:     [/^(Day|Week)\s*(\d+)｜🏆 验证任务$/, function (m) { return m[1] + ' ' + m[2] + ' | 🏆 Verification Task'; }],
+5663:     [/^(\d+)段经历$/, function (m) { return m[1] + (m[1] === '1' ? ' experience' : ' experiences'); }],
+5664:     [/^进度：(\d+)\s*\/\s*(\d+)　(.+)$/, function (m) { return 'Progress: ' + m[1] + ' / ' + m[2] + ' — ' + trCore(m[3]); }],
+5665:     [/^下一步：(.+)$/, function (m) { return 'Next: ' + trCore(m[1]); }],
+5666:     [/^状态：(.+)$/, function (m) { return 'Status: ' + trCore(m[1]); }],
+5667:     [/^(大一|大二|大三|大四|研一|研二|研三)存档$/, function (m) { return trCore(m[1]) + ' Archive'; }],
+5668:     [/^完成「(.+)」验证任务$/, function (m) { return 'Completed the "' + trCore(m[1]) + '" verification task'; }],
+5669:     [/^完成了(.+)的学习验证。$/, function (m) { return 'Completed the learning verification of ' + trCore(m[1]) + '.'; }],
+5670:     [/^🌳 (.+)$/, function (m) { return '🌳 ' + trCore(m[1]); }],
+5671:     [/^🪄 (.+) · 技能树 & 学习计划$/, function (m) { return '🪄 ' + trCore(m[1]) + ' · Skill Tree & Learning Plan'; }],
+5672:     [/^(\d+)\/(\d+) 已完成$/, function (m) { return m[1] + '/' + m[2] + ' done'; }],
+5673:     [/（第(\d+)次）/g, function (m) { return ' (#' + m[1] + ')'; }],
+5674:     [/^Lv\.(\d+)$/, function (m) { return 'Lv.' + m[1]; }]
+5675:   ];
+5676: 
+5677:   // 长词条兜底：全部非 identity 的 DICT key 按长度降序
+5678:   var TERMS = Object.keys(DICT).filter(function (k) { return DICT[k] && DICT[k] !== k && k.length >= 2; })
+5679:     .sort(function (a, b) { return b.length - a.length; });
+5680: 
+5681:   function normalize(s) {
+5682:     return s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+5683:   }
+5684: 
+5685:   function trText(s) {
+5686:     if (typeof s !== 'string' || !/[一-鿿]/.test(s)) return s;
+5687:     var lead = s.match(/^\s*/)[0], tail = s.match(/\s*$/)[0];
+5688:     var core = normalize(s.trim());
+5689:     if (!core) return s;
+5690:     if (DICT[core]) return lead + DICT[core] + tail;
+5691:     for (var i = 0; i < PATTERNS.length; i++) {
+5692:       var p = PATTERNS[i];
+5693:       var flags = p[0].global ? p[0] : null;
+5694:       if (p[0].global) {
+5695:         var rep = core.replace(p[0], function () { var args = Array.prototype.slice.call(arguments); return p[1](args); });
+5696:         if (rep !== core) return lead + rep + tail;
+5697:       } else {
+5698:         var m = core.match(p[0]);
+5699:         if (m) return lead + p[1](m) + tail;
+5700:       }
+5701:     }
+5702:     // 长词条 split/join
+5703:     var out = core;
+5704:     for (var t = 0; t < TERMS.length; t++) {
+5705:       var k = TERMS[t];
+5706:       if (out.indexOf(k) >= 0) { out = out.split(k).join(DICT[k]); }
+5707:     }
+5708:     if (!/[一-鿿]/.test(out)) return lead + out + tail;
+5709:     return lead + out + tail;
+5710:   }
+5711:   window.__trText = trText;
+5712: 
+5713:   var SKIP_TAGS = { SCRIPT: 1, STYLE: 1 };
+5714:   function walkText(root) {
+5715:     var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+5716:       acceptNode: function (n) {
+5717:         if (n.parentNode && SKIP_TAGS[n.parentNode.tagName]) return NodeFilter.FILTER_REJECT;
+5718:         return NodeFilter.FILTER_ACCEPT;
+5719:       }
+5720:     });
+5721:     var nodes = [];
+5722:     while (tw.nextNode()) nodes.push(tw.currentNode);
+5723:     nodes.forEach(function (n) {
+5724:       var t = trText(n.nodeValue);
+5725:       if (t !== n.nodeValue) n.nodeValue = t;
+5726:     });
+5727:   }
+5728:   function walkAttrs(root) {
+5729:     var els = [];
+5730:     if (root.nodeType === 1) els.push(root);
+5731:     if (root.querySelectorAll) {
+5732:       root.querySelectorAll('[placeholder],[title],[alt]').forEach(function (el) { els.push(el); });
+5733:     }
+5734:     els.forEach(function (el) {
+5735:       ['placeholder', 'title', 'alt'].forEach(function (a) {
+5736:         var v = el.getAttribute && el.getAttribute(a);
+5737:         if (v) {
+5738:           // 多行按行翻译
+5739:           var lines = v.split('\n').map(function (l) { return trText(l); });
+5740:           var nv = lines.join('\n');
+5741:           if (nv !== v) el.setAttribute(a, nv);
+5742:         }
+5743:       });
+5744:     });
+5745:   }
+5746:   function walkAll(root) {
+5747:     if (!root) return;
+5748:     if (root.nodeType === 3) {
+5749:       var t = trText(root.nodeValue);
+5750:       if (t !== root.nodeValue) root.nodeValue = t;
+5751:       return;
+5752:     }
+5753:     walkText(root);
+5754:     walkAttrs(root);
+5755:   }
+5756: 
+5757:   function translateStatic() {
+5758:     walkAll(document.body);
+5759:     document.title = trText(document.title);
+5760:     // 烘焙在图片里的主按钮文案：EN 模式换英文版图片
+5761:     if (window.__IMG_EN) {
+5762:       var imgs = document.querySelectorAll('img.hero-btn-bg');
+5763:       if (imgs[0]) imgs[0].src = window.__IMG_EN.record;
+5764:       if (imgs[1]) imgs[1].src = window.__IMG_EN.learn;
+5765:     }
+5766:   }
+5767: 
+5768:   if (document.readyState === 'loading') {
+5769:     document.addEventListener('DOMContentLoaded', translateStatic);
+5770:   } else {
+5771:     translateStatic();
+5772:   }
+5773: 
+5774:   var scheduled = false;
+5775:   var mo = new MutationObserver(function (muts) {
+5776:     if (scheduled) return;
+5777:     scheduled = true;
+5778:     setTimeout(function () {
+5779:       scheduled = false;
+5780:       muts.forEach(function (mu) {
+5781:         if (mu.type === 'characterData' && mu.target) {
+5782:           var t = trText(mu.target.nodeValue);
+5783:           if (t !== mu.target.nodeValue) mu.target.nodeValue = t;
+5784:         }
+5785:         (mu.addedNodes || []).forEach(function (n) { walkAll(n); });
+5786:       });
+5787:     }, 0);
+5788:   });
+5789:   mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+5790: })();
+5791: 
+5792: </script>
+5793: <script>
+5794:     /* ============================================================
+5795:        0) 工具函数
+5796:        ============================================================ */
+5797:     function escapeHtml(s) {
+5798:       return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+5799:     }
+5800:     function parseList(str) {
+5801:       if (!str) return [];
+5802:       return str.split(/[,，、\n]/).map(s => s.trim()).filter(Boolean).slice(0, 8);
+5803:     }
+5804:     function genId(seed) {
+5805:       let h = 0;
+5806:       for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+5807:       return String(h % 1000000).padStart(6, '0');
+5808:     }
+5809:     function today() { return new Date().toISOString().split('T')[0]; }
+5810:     function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
+5811: 
+5812:     /* ============================================================
+5813:        1) 等级系统 (LV.1 ~ LV.30)
+5814:        ============================================================ */
+5815:     const LEVEL_TABLE = (function() {
+5816:       const table = [0];
+5817:       let total = 0;
+5818:       for (let lv = 1; lv <= 30; lv++) {
+5819:         table[lv] = total;
+5820:         const base = Math.round(80 + lv * 20 * Math.pow(1.12, lv));
+5821:         total += base;
+5822:       }
+5823:       table[31] = total;
+5824:       return table;
+5825:     })();
+5826: 
+5827:     function getLevel(exp) {
+5828:       for (let lv = 30; lv >= 1; lv--) {
+5829:         if (exp >= LEVEL_TABLE[lv]) return lv;
+5830:       }
+5831:       return 1;
+5832:     }
+5833: 
+5834:     function getExpProgress(exp) {
+5835:       const lv = getLevel(exp);
+5836:       if (lv >= 30) return { lv, current: exp - LEVEL_TABLE[30], need: 0, pct: 100 };
+5837:       const curBase = LEVEL_TABLE[lv];
+5838:       const nextBase = LEVEL_TABLE[lv + 1];
+5839:       const current = exp - curBase;
+5840:       const need = nextBase - curBase;
+5841:       const pct = need > 0 ? Math.min(100, Math.round(current / need * 100)) : 100;
+5842:       return { lv, current, need, pct };
+5843:     }
+5844: 
+5845:     function addExp(amount, label) {
+5846:       const data = getPlayerData();
+5847:       const oldLv = getLevel(data.exp);
+5848:       data.exp += amount;
+5849:       const newLv = getLevel(data.exp);
+5850:       savePlayerData(data);
+5851:       renderExpBar(data.exp);
+5852:       showExpToast(amount, label || '');
+5853:       if (newLv > oldLv) {
+5854:         setTimeout(() => showLevelUp(newLv), 800);
+5855:       }
+5856:     }
+5857: 
+5858:     function showExpToast(amount, label) {
+5859:       const toast = document.getElementById('expToast');
+5860:       const text = document.getElementById('expToastText');
+5861:       text.textContent = '+' + amount + ' EXP' + (label ? ' (' + label + ')' : '');
+5862:       toast.style.display = 'flex';
+5863:       toast.style.animation = 'none';
+5864:       void toast.offsetHeight; // reflow
+5865:       toast.style.animation = 'expToastIn 0.3s ease, expToastOut 0.3s ease 1.5s forwards';
+5866:       setTimeout(() => { toast.style.display = 'none'; }, 2000);
+5867:     }
+5868: 
+5869:     function showLevelUp(lv) {
+5870:       const toast = document.getElementById('levelUpToast');
+5871:       document.getElementById('levelUpLvl').textContent = 'Lv.' + lv;
+5872:       toast.style.display = 'flex';
+5873:       setTimeout(() => { toast.style.display = 'none'; }, 3000);
+5874:     }
+5875: 
+5876:     function renderExpBar(exp) {
+5877:       const p = getExpProgress(exp);
+5878:       document.getElementById('lvlDisplay').textContent = 'Lv.' + p.lv;
+5879:       document.getElementById('expNum').textContent = p.lv >= 30 ? 'MAX' : (p.current + ' / ' + p.need);
+5880:       document.getElementById('expBarFill').style.width = p.pct + '%';
+5881:     }
+5882: 
+5883:     /* ============================================================
+5884:        2) 数据层 (localStorage)
+5885:        ============================================================ */
+5886:     const LS_PROFILE = 'earth_online_profile' + '_' + (window.__LANG || 'zh');
+5887:     const LS_EXPERIENCES = 'earth_online_experiences' + '_' + (window.__LANG || 'zh');
+5888:     const LS_SKILLS = 'earth_online_skills' + '_' + (window.__LANG || 'zh');
+5889:     const LS_PLAYER = 'earth_online_player' + '_' + (window.__LANG || 'zh');
+5890:     const LS_TREES = 'earth_online_trees' + '_' + (window.__LANG || 'zh');
+5891:     const LS_CHAR_IMAGE = 'earth_online_char_image' + '_' + (window.__LANG || 'zh');
+5892:     const LS_CHAR_PROMPT = 'earth_online_char_pending_prompt' + '_' + (window.__LANG || 'zh');
+5893:     const LS_CHAR_SKIPPED = 'earth_online_char_skipped' + '_' + (window.__LANG || 'zh');
+5894:     const LS_TODOS = 'earth_online_today_todos' + '_' + (window.__LANG || 'zh');
+5895: 
+5896:     /* ============================================================
+5897:        2.5) 资料库数据表双向同步（DBSync）
+5898:        ============================================================ */
+5899:     const DB_IDS = {
+5900:       profile: 'w3WqpOHa9vew86VmAsqUmH',
+5901:       experiences: 'jVVy1BOXO8wnn7gxD6KXjJ',
+5902:       skills: 'hOhf6dXuhODCGuMlkdUA10',
+5903:       tasks: 'nl6Vz5tJ2FKhabWqnnx74w'
+5904:     };
+5905:     const dbSdk = () => (window.__SMART_PAGE__ && window.__SMART_PAGE__.database) || null;
+5906:     const dbOnline = () => !!dbSdk() && DB_IDS.profile.indexOf('__') !== 0;
+5907:     const _dbCache = { profile: null, experiences: [], skills: [], tasks: [] };
+5908:     const STATUS_ZH = { 'lit': '已点亮', 'learning': '学习中', 'want': '想学' };
+5909:     const STATUS_EN = { '已点亮': 'lit', '学习中': 'learning', '想学': 'want' };
+5910: 
+5911:     const DB_SELECT_KEYS = ['年级', '状态', '类型'];
+5912:     const DB_DATE_KEYS = ['日期', '确认日期'];
+5913:     const DB_BOOL_KEYS = ['是否完成'];
+5914:     const DB_NUM_KEYS = ['总经验'];
+5915: 
+5916:     function dbDate(v) {
+5917:       if (!v) return null;
+5918:       const s = String(v);
+5919:       return s.length >= 10 ? s.slice(0, 10) : null;
+5920:     }
+5921:     function dbVal(rec, name) {
+5922:       const v = rec ? rec[name] : undefined;
+5923:       return v === undefined ? null : v;
+5924:     }
+5925:     function dbText(rec, name) {
+5926:       const v = dbVal(rec, name);
+5927:       return v === null ? '' : String(v);
+5928:     }
+5929:     // 自然键取值：日期截到天，布尔转标记
+5930:     function dbKeyVal(v) {
+5931:       if (v === null || v === undefined) return '';
+5932:       if (typeof v === 'boolean') return v ? '1' : '0';
+5933:       return dbDate(v) || String(v);
+5934:     }
+5935:     // 平铺 raw 值 -> SDK PropertyValue map（空值跳过，checkbox 始终写）
+5936:     function dbProps(raw) {
+5937:       const props = {};
+5938:       Object.keys(raw || {}).forEach(k => {
+5939:         const v = raw[k];
+5940:         if (v === null || v === undefined) return;
+5941:         if (DB_BOOL_KEYS.indexOf(k) >= 0) { props[k] = { checkbox: !!v }; return; }
+5942:         if (DB_NUM_KEYS.indexOf(k) >= 0) { props[k] = { number: Number(v) || 0 }; return; }
+5943:         const s = String(v == null ? '' : v);
+5944:         if (DB_SELECT_KEYS.indexOf(k) >= 0) { if (s) props[k] = { select: s }; return; }
+5945:         if (DB_DATE_KEYS.indexOf(k) >= 0) { const d = dbDate(v); if (d) props[k] = { date: d }; return; }
+5946:         if (s) props[k] = { text: s };
+5947:       });
+5948:       return props;
+5949:     }
+5950:     // 分页拉全量（query 返回 { results, nextCursor, hasMore }）
+5951:     async function dbQueryAll(dbId) {
+5952:       const sdk = dbSdk();
+5953:       let out = [], cursor = null;
+5954:       do {
+5955:         const params = { databaseId: dbId };
+5956:         if (cursor) params.startCursor = cursor;
+5957:         const r = await sdk.query(params);
+5958:         out = out.concat((r && r.results) || []);
+5959:         cursor = (r && r.hasMore) ? r.nextCursor : null;
+5960:       } while (cursor);
+5961:       return out;
+5962:     }
+5963: 
+5964:     /* ---------- 拉取：云端 -> localStorage ---------- */
+5965:     async function dbPullAll() {
+5966:       const sdk = dbSdk();
+5967:       if (!sdk || !dbOnline()) return false;
+5968:       try {
+5969:         const [pr, er, sr, tr] = await Promise.all([
+5970:           dbQueryAll(DB_IDS.profile),
+5971:           dbQueryAll(DB_IDS.experiences),
+5972:           dbQueryAll(DB_IDS.skills),
+5973:           dbQueryAll(DB_IDS.tasks)
+5974:         ]);
+5975:         const rows = (r) => Array.isArray(r) ? r : ((r && r.results) || []);
+5976: 
+5977:         // --- 玩家档案（单行） ---
+5978:         const profRows = rows(pr);
+5979:         _dbCache.profile = profRows[0] || null;
+5980:         if (profRows[0]) {
+5981:           const r = profRows[0];
+5982:           const p = getProfile();
+5983:           p.nickname = dbText(r, '昵称') || p.nickname;
+5984:           p.school = dbText(r, '学校');
+5985:           p.major = dbText(r, '专业');
+5986:           p.grade = dbText(r, '年级');
+5987:           p.oneLineDesc = dbText(r, '一句话描述');
+5988:           p.interests = dbText(r, '兴趣关键词');
+5989:           p.futureJobs = dbText(r, '职业关键词');
+5990:           saveProfile(p);
+5991:           const expNum = Number(dbVal(r, '总经验'));
+5992:           if (!isNaN(expNum) && expNum > 0) savePlayerData({ exp: expNum });
+5993:         }
+5994: 
+5995:         // --- 经历库 ---
+5996:         const expRows = rows(er);
+5997:         _dbCache.experiences = expRows;
+5998:         if (expRows.length) {
+5999:           const list = expRows.map((r, i) => {
+6000:             const title = dbText(r, '标题');
+6001:             const rawDesc = dbText(r, '描述');
+6002:             const old = getExperiences().find(e => e.title === title);
+6003:             return {
+6004:               id: (old && old.id) || (Date.now() + i),
+6005:               date: dbDate(dbVal(r, '日期')) || today(),
+6006:               title: title,
+6007:               rawDesc: rawDesc,
+6008:               structured: {
+6009:                 title: title,
+6010:                 happened: dbText(r, '结果') || rawDesc,
+6011:                 whatIDid: rawDesc,
+6012:                 result: dbText(r, '结果') || '完成了',
+6013:                 feeling: dbText(r, '感受') || '很有成就感'
+6014:               },
+6015:               suggestedSkills: [],
+6016:               confirmedSkills: dbText(r, '确认技能') ? dbText(r, '确认技能').split(/[,，、]/).filter(Boolean) : [],
+6017:               skillConfirmed: true
+6018:             };
+6019:           });
+6020:           saveExperiences(list);
+6021:         }
+6022: 
+6023:         // --- 技能 + 任务 ---
+6024:         const skillRows = rows(sr);
+6025:         const taskRows = rows(tr);
+6026:         _dbCache.skills = skillRows;
+6027:         _dbCache.tasks = taskRows;
+6028:         if (skillRows.length) {
+6029:           const learnTasks = taskRows.filter(r => dbText(r, '类型') === '学习任务');
+6030:           const skillList = skillRows.map((r, i) => {
+6031:             const name = dbText(r, '技能名');
+6032:             const status = STATUS_EN[dbText(r, '状态')] || 'lit';
+6033:             const myTasks = learnTasks.filter(t => dbText(t, '所属技能') === name);
+6034:             const old = getSkills().find(s => s.name === name);
+6035:             const s = {
+6036:               id: (old && old.id) || (Date.now() + 100 + i),
+6037:               name: name,
+6038:               status: status,
+6039:               sourceExpIds: (old && old.sourceExpIds) || [],
+6040:               confirmedAt: dbDate(dbVal(r, '确认日期')) || (old && old.confirmedAt) || null,
+6041:               goalText: dbText(r, '目标') || undefined,
+6042:               goalDuration: (old && old.goalDuration) || undefined,
+6043:               treeIds: (old && old.treeIds) || []
+6044:             };
+6045:             if (status === 'learning' && myTasks.length) {
+6046:               s.plan = myTasks.map((t, j) => ({
+6047:                 unitId: 'u' + j,
+6048:                 day: j + 1,
+6049:                 title: dbText(t, '标题'),
+6050:                 do: dbText(t, '内容'),
+6051:                 time: dbText(t, '时长'),
+6052:                 standard: dbText(t, '达标标准'),
+6053:                 done: !!dbVal(t, '是否完成')
+6054:               }));
+6055:               s.breakdown = (old && old.breakdown) || [];
+6056:               s.verifyTask = (old && old.verifyTask) || '';
+6057:             }
+6058:             return s;
+6059:           });
+6060:           saveSkills(skillList);
+6061:         }
+6062: 
+6063:         // --- 今日待办 ---
+6064:         const todoRows = taskRows.filter(r => dbText(r, '类型') === '今日待办');
+6065:         if (todoRows.length) {
+6066:           const todos = todoRows.map((r, i) => ({
+6067:             id: dbText(r, '标题') + '_' + dbDate(dbVal(r, '日期')),
+6068:             title: dbText(r, '标题'),
+6069:             date: dbDate(dbVal(r, '日期')) || today(),
+6070:             done: !!dbVal(r, '是否完成'),
+6071:             doneAt: null,
+6072:             createdAt: new Date().toISOString()
+6073:           }));
+6074:           saveTodayTodos(todos);
+6075:         }
+6076:         return true;
+6077:       } catch(e) {
+6078:         return false;
+6079:       }
+6080:     }
+6081: 
+6082:     /* ---------- 写入：localStorage -> 云端（异步 upsert） ---------- */
+6083:     function dbUpsert(dbId, raw) {
+6084:       const sdk = dbSdk();
+6085:       if (!sdk || !dbOnline()) return Promise.resolve(null);
+6086:       return sdk.addRecord({ databaseId: dbId, properties: dbProps(raw) }).then(r => r || true).catch(() => null);
+6087:     }
+6088:     function dbUpdate(dbId, recordId, raw) {
+6089:       const sdk = dbSdk();
+6090:       if (!sdk || !dbOnline()) return Promise.resolve(null);
+6091:       return sdk.updateRecord({ databaseId: dbId, recordId: recordId, properties: dbProps(raw) }).then(r => (r && r.id) || true).catch(() => null);
+6092:     }
+6093: 
+6094:     // 按自然键 diff 同步集合表
+6095:     async function dbSyncCollection(dbId, zhKeys, localList, mapFn, cacheArr) {
+6096:       const sdk = dbSdk();
+6097:       if (!sdk || !dbOnline()) return;
+6098:       try {
+6099:         const cloudKeys = new Map();
+6100:         cacheArr.forEach(r => {
+6101:           const k = zhKeys.map(zh => dbKeyVal(dbVal(r, zh))).join('|');
+6102:           cloudKeys.set(k, r._id);
+6103:         });
+6104:         for (const item of localList) {
+6105:           const payload = mapFn(item);
+6106:           const k = zhKeys.map(zh => dbKeyVal(payload[zh])).join('|');
+6107:           const rid = cloudKeys.get(k);
+6108:           if (rid) {
+6109:             await dbUpdate(dbId, rid, payload);
+6110:           } else {
+6111:             const added = await dbUpsert(dbId, payload);
+6112:             // 更新缓存
+6113:             if (added) {
+6114:               try {
+6115:                 const fresh = await dbQueryAll(dbId);
+6116:                 cacheArr.length = 0;
+6117:                 cacheArr.push.apply(cacheArr, fresh);
+6118:               } catch(e) {}
+6119:             }
+6120:           }
+6121:         }
+6122:       } catch(e) {}
+6123:     }
+6124: 
+6125:     function dbQueueSync(kind) {
+6126:       const sdk = dbSdk();
+6127:       if (!sdk || !dbOnline()) return;
+6128:       // 串行化：避免并发写乱序
+6129:       _dbSyncChain = _dbSyncChain.then(() => _doSync(kind)).catch(() => {});
+6130:     }
+6131:     let _dbSyncChain = Promise.resolve();
+6132:     async function _doSync(kind) {
+6133:       if (kind === 'profile') {
+6134:         const p = getProfile();
+6135:         const payload = {
+6136:           '昵称': p.nickname || '', '学校': p.school || '', '专业': p.major || '',
+6137:           '年级': p.grade || '', '一句话描述': p.oneLineDesc || '',
+6138:           '兴趣关键词': p.interests || '', '职业关键词': p.futureJobs || '',
+6139:           '总经验': getPlayerData().exp || 0
+6140:         };
+6141:         if (_dbCache.profile && _dbCache.profile._id) {
+6142:           await dbUpdate(DB_IDS.profile, _dbCache.profile._id, payload);
+6143:         } else {
+6144:           await dbUpsert(DB_IDS.profile, payload);
+6145:           try {
+6146:             const fresh = await dbQueryAll(DB_IDS.profile);
+6147:             _dbCache.profile = fresh[0] || null;
+6148:           } catch(e) {}
+6149:         }
+6150:       } else if (kind === 'experiences') {
+6151:         await dbSyncCollection(
+6152:           DB_IDS.experiences, ['标题'],
+6153:           getExperiences(),
+6154:           (e) => ({
+6155:             '日期': e.date || '', '标题': e.title || '', '描述': e.rawDesc || '',
+6156:             '结果': (e.structured && e.structured.result) || '',
+6157:             '感受': (e.structured && e.structured.feeling) || '',
+6158:             '确认技能': (e.confirmedSkills || []).join(',')
+6159:           }),
+6160:           _dbCache.experiences
+6161:         );
+6162:       } else if (kind === 'skills') {
+6163:         // 技能表
+6164:         await dbSyncCollection(
+6165:           DB_IDS.skills, ['技能名'],
+6166:           getSkills(),
+6167:           (s) => ({
+6168:             '技能名': s.name || '',
+6169:             '状态': STATUS_ZH[s.status] || '已点亮',
+6170:             '目标': s.goalText || '',
+6171:             '进度说明': Array.isArray(s.plan)
+6172:               ? (s.plan.filter(p => p.done).length + '/' + s.plan.length + ' 已完成')
+6173:               : '',
+6174:             '确认日期': s.confirmedAt || null
+6175:           }),
+6176:           _dbCache.skills
+6177:         );
+6178:         // 学习任务表（技能 plan 展开）
+6179:         const taskPayloads = [];
+6180:         getSkills().forEach(s => {
+6181:           if (s.status !== 'learning' || !Array.isArray(s.plan)) return;
+6182:           s.plan.forEach(p => {
+6183:             taskPayloads.push({
+6184:               skill: s.name, payload: {
+6185:                 '类型': '学习任务', '所属技能': s.name,
+6186:                 '标题': p.title || ('Day ' + p.day),
+6187:                 '内容': p.do || '', '时长': p.time || '',
+6188:                 '达标标准': p.standard || '', '是否完成': !!p.done
+6189:               }
+6190:             });
+6191:           });
+6192:         });
+6193:         await dbSyncCollection(
+6194:           DB_IDS.tasks, ['所属技能', '标题'],
+6195:           taskPayloads.map(t => ({ key: t.skill + '|' + t.payload['标题'], payload: t.payload })),
+6196:           (t) => t.payload,
+6197:           _dbCache.tasks
+6198:         );
+6199:       } else if (kind === 'todos') {
+6200:         await dbSyncCollection(
+6201:           DB_IDS.tasks, ['所属技能', '标题'],
+6202:           getTodayTodos().map(t => ({ fake: t, payload: {
+6203:             '类型': '今日待办', '所属技能': '',
+6204:             '日期': t.date || '', '标题': t.title || '',
+6205:             '内容': '', '时长': '', '达标标准': '',
+6206:             '是否完成': !!t.done
+6207:           }})),
+6208:           (t) => t.payload,
+6209:           _dbCache.tasks
+6210:         );
+6211:       }
+6212:     }
+6213: 
+6214:     function getProfile() {
+6215:       try { return JSON.parse(localStorage.getItem(LS_PROFILE)) || {}; } catch(e) { return {}; }
+6216:     }
+6217:     function saveProfile(p) {
+6218:       try { localStorage.setItem(LS_PROFILE, JSON.stringify(p)); } catch(e) {}
+6219:       dbQueueSync('profile');
+6220:     }
+6221:     function getExperiences() {
+6222:       try { return JSON.parse(localStorage.getItem(LS_EXPERIENCES)) || []; } catch(e) { return []; }
+6223:     }
+6224:     function saveExperiences(list) {
+6225:       try { localStorage.setItem(LS_EXPERIENCES, JSON.stringify(list)); } catch(e) {}
+6226:       dbQueueSync('experiences');
+6227:     }
+6228:     function getSkills() {
+6229:       try { return JSON.parse(localStorage.getItem(LS_SKILLS)) || []; } catch(e) { return []; }
+6230:     }
+6231:     function saveSkills(list) {
+6232:       try { localStorage.setItem(LS_SKILLS, JSON.stringify(list)); } catch(e) {}
+6233:       dbQueueSync('skills');
+6234:     }
+6235:     function getPlayerData() {
+6236:       try { return JSON.parse(localStorage.getItem(LS_PLAYER)) || { exp: 0 }; } catch(e) { return { exp: 0 }; }
+6237:     }
+6238:     function savePlayerData(d) {
+6239:       try { localStorage.setItem(LS_PLAYER, JSON.stringify(d)); } catch(e) {}
+6240:       dbQueueSync('profile');
+6241:     }
+6242:     function getTrees() {
+6243:       try { return JSON.parse(localStorage.getItem(LS_TREES)) || []; } catch(e) { return []; }
+6244:     }
+6245:     function saveTrees(list) {
+6246:       try { localStorage.setItem(LS_TREES, JSON.stringify(list)); } catch(e) {}
+6247:     }
+6248: 
+6249:     /* 今日自建 todo：[{ id, title, date: 'YYYY-MM-DD', done, doneAt, createdAt }] */
+6250:     function getTodayTodos() {
+6251:       try { return JSON.parse(localStorage.getItem(LS_TODOS)) || []; } catch(e) { return []; }
+6252:     }
+6253:     function saveTodayTodos(list) {
+6254:       try { localStorage.setItem(LS_TODOS, JSON.stringify(list)); } catch(e) {}
+6255:       dbQueueSync('todos');
+6256:     }
+6257: 
+6258:     /* ============================================================
+6259:        3) 角色图（优先使用AI生成图，全局复用同一张）
+6260:        ============================================================ */
+6261:     function getCharImage() {
+6262:       // 优先使用AI生成的角色图片（base64存在localStorage）
+6263:       try {
+6264:         const b64 = localStorage.getItem(LS_CHAR_IMAGE);
+6265:         if (b64) return b64;
+6266:       } catch(e) {}
+6267:       // 兜底：旧版固定PNG
+6268:       const profile = getProfile();
+6269:       let gender = profile.gender || '';
+6270:       if (!gender || gender === 'other') {
+6271:         const text = ((profile.interests || '') + ' ' + (profile.futureJobs || '')).toLowerCase();
+6272:         gender = /(编程|开发|工程|建筑|算法)/.test(text) ? 'male' : 'female';
+6273:       }
+6274:       return gender === 'male'
+6275: [LONG 49099]
+6276: [LONG 46864]
+6277:     }
+6278: 
+6279:     function pickCharImage(profile) {
+6280:       return getCharImage();
+6281:     }
+6282: 
+6283:     function saveCharImage(b64) {
+6284:       try { localStorage.setItem(LS_CHAR_IMAGE, b64); } catch(e) {}
+6285:     }
+6286: 
+6287:     function hasCharImage() {
+6288:       try { return !!localStorage.getItem(LS_CHAR_IMAGE); } catch(e) { return false; }
+6289:     }
+6290: 
+6291:     /* ============================================================
+6292:        3.5) 首页渲染：人物卡 / 日历 / 今日 / 最近 / 学习 / 答案之书
+6293:        ============================================================ */
+6294: 
+6295:     // 根据经历标题自动匹配统一风格小图标
+6296:     const EXP_ICON_RULES = [
+6297:       [/旅行|旅游|出行|徒步|city\s*walk|citywalk|户外/, '✈️'],
+6298:       [/实习|工作|求职|面试|简历|公司/, '💼'],
+6299:       [/演讲|present|分享|上台|汇报|路演|ppt|答辩/, '🎤'],
+6300:       [/音乐节|演唱会|演出|音乐会|看展|展览|艺术/, '🎵'],
+6301:       [/球|跑|运动|健身|瑜伽|跳|舞|滑雪|游泳|骑行/, '⚽'],
+6302:       [/摄影|拍照|拍片|相机/, '📷'],
+6303:       [/比赛|竞赛|编程|算法|黑客松|hackathon|解题|数学/, '🏆'],
+6304:       [/志愿|公益|志愿|服务|支教/, '🤝'],
+6305:       [/社团|学生会|组织|活动|晚会|迎新/, '🎉'],
+6306:       [/课|课程|讲座|网课|mooc|培训|学习/, '📚'],
+6307:       [/读书|阅读|看书|读完|书评/, '📖'],
+6308:       [/写|文章|投稿|稿|博客|日记/, '✍️'],
+6309:       [/视频|剪辑|vlog|短片|拍片|导演/, '🎬'],
+6310:       [/画|插画|素描|手绘|板绘|设计|海报/, '🎨'],
+6311:       [/代码|编程|开发|网站|app|上线|部署|debug/, '💻'],
+6312:       [/做饭|烹饪|菜谱|蛋糕|烘焙|煮/, '🍳'],
+6313:       [/游戏|通关|上分|steam|联机|电竞/, '🎮'],
+6314:       [/追星|演唱会|见面|签售|饭圈/, '⭐'],
+6315:       [/猫|狗|宠物|仓鼠|兔子/, '🐾'],
+6316:       [/搬家|宿舍|入住|整理/, '📦'],
+6317:       [/生日|节日|春节|圣诞|新年/, '🎂'],
+6318:       [/emo|心情|情绪|焦虑|难过|开心/, '💭'],
+6319:       [/考试|四六|四六级|考研|雅思|托福|期末|中考|高考|分数|模考/, '📝'],
+6320:     ];
+6321:     function pickExpIcon(title) {
+6322:       const t = (title || '').toLowerCase();
+6323:       for (const [re, ico] of EXP_ICON_RULES) {
+6324:         if (re.test(t)) return ico;
+6325:       }
+6326:       return '⭐';
+6327:     }
+6328:     function formatShortDate(d) {
+6329:       if (!d) return '';
+6330:       const parts = String(d).split('-');
+6331:       if (parts.length === 3) return parts[1] + '.' + parts[2];
+6332:       return d;
+6333:     }
+6334: 
+6335:     // 填充人物卡 + 全部首页模块
+6336:     function fillHome(profile) {
+6337:       const p = profile || {};
+6338:       // 头像
+6339:       document.getElementById('charImg').src = pickCharImage(p);
+6340:       document.getElementById('charNick').textContent = p.nickname || '匿名冒险者';
+6341:       document.getElementById('charSchool').textContent = p.school || '—';
+6342:       document.getElementById('charMajor').textContent = p.major || '—';
+6343:       document.getElementById('charGrade').textContent = p.grade || '—';
+6344: 
+6345:       // 一句话描述
+6346:       const bubble = p.oneLineDesc
+6347:         ? '"' + escapeHtml(p.oneLineDesc) + '"'
+6348:         : '"正在长成自己的样子。"';
+6349:       document.getElementById('charBubble').textContent = bubble;
+6350: 
+6351:       // 关键词（最多 6 个）
+6352:       const interests = parseList(p.interests);
+6353:       const tags = interests.slice(0, 6);
+6354:       const tagHtml = tags.length
+6355:         ? tags.map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('')
+6356:         : `<span class="tag-chip muted">+ 添加喜好关键词</span>`;
+6357:       document.getElementById('charTags').innerHTML = tagHtml;
+6358: 
+6359:       // 顶部 pill (年级)
+6360:       const stage = document.getElementById('stagePill');
+6361:       if (p.grade) {
+6362:         stage.style.display = 'inline-flex';
+6363:         document.getElementById('stagePillText').textContent = p.grade;
+6364:       }
+6365: 
+6366:       // 等级 + 经验条
+6367:       renderExpBar(getPlayerData().exp);
+6368: 
+6369:       // 渲染各模块
+6370:       renderCalendar();
+6371:       renderTodayTasks();
+6372:       renderRecentExp();
+6373:       renderActiveLearning();
+6374:       renderSkillLevels();
+6375:       drawAnswer(); // 每次进入页面抽一句（基于日期，今天稳定）
+6376:     }
+6377: 
+6378:     /* ----- 日历 ----- */
+6379:     let _calCursor = null; // {year, month: 0-11}
+6380:     function renderCalendar() {
+6381:       const now = _calCursor || new Date();
+6382:       const year = now.getFullYear();
+6383:       const month = now.getMonth();
+6384:       _calCursor = new Date(year, month, 1);
+6385: 
+6386:       const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一','十二月'];
+6387:       document.getElementById('calMonthLabel').textContent = monthNames[month] + ' ' + year;
+6388: 
+6389:       const firstWeekday = new Date(year, month, 1).getDay(); // 0=Sun
+6390:       // 把周日(0)放到末尾，让周一开头
+6391:       const offset = (firstWeekday + 6) % 7;
+6392:       const daysInMonth = new Date(year, month + 1, 0).getDate();
+6393: 
+6394:       // 收集本月标记
+6395:       const exps = getExperiences();
+6396:       const skills = getSkills();
+6397:       const eventMap = {}; // dateStr -> { exp: count, task: count }
+6398:       exps.forEach(e => {
+6399:         if (!e.date) return;
+6400:         const d = String(e.date).slice(0, 10);
+6401:         if (!eventMap[d]) eventMap[d] = { exp: 0, task: 0 };
+6402:         eventMap[d].exp += 1;
+6403:       });
+6404:       skills.forEach(s => {
+6405:         if (s.status !== 'learning' || !Array.isArray(s.plan)) return;
+6406:         s.plan.forEach(p => {
+6407:           if (!p.done) return;
+6408:           // 没记录具体完成日期的，用计划开始日近似
+6409:           const d = (p.completedAt || s.createdAt || '').slice(0, 10);
+6410:           if (!d) return;
+6411:           if (!eventMap[d]) eventMap[d] = { exp: 0, task: 0 };
+6412:           eventMap[d].task += 1;
+6413:         });
+6414:       });
+6415: 
+6416:       const todayStr = today();
+6417:       const grid = document.getElementById('calGrid');
+6418:       let html = '';
+6419:       for (let i = 0; i < offset; i++) {
+6420:         html += `<div class="cal-day placeholder"></div>`;
+6421:       }
+6422:       for (let d = 1; d <= daysInMonth; d++) {
+6423:         const dateStr = year + '-' + String(month + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+6424:         const wd = new Date(year, month, d).getDay();
+6425:         const isWeekend = (wd === 0 || wd === 6);
+6426:         const isToday = (dateStr === todayStr);
+6427:         const ev = eventMap[dateStr];
+6428:         let cls = 'cal-day';
+6429:         if (isWeekend) cls += ' weekend';
+6430:         if (isToday) cls += ' today';
+6431:         if (ev && (ev.exp || ev.task)) {
+6432:           cls += ' has-event';
+6433:           if (ev.task && !ev.exp) cls += ' has-task';
+6434:           else if (ev.exp && !ev.task) cls += ' has-exp';
+6435:         }
+6436:         html += `<div class="${cls}" data-date="${dateStr}">${d}</div>`;
+6437:       }
+6438:       grid.innerHTML = html;
+6439:     }
+6440:     function goToToday() {
+6441:       _calCursor = null;
+6442:       renderCalendar();
+6443:     }
+6444: 
+6445:     /* ----- 今日任务列表 ----- */
+6446:     function renderTodayTasks() {
+6447:       // 顶部日期
+6448:       const t = new Date();
+6449:       const month = t.getMonth() + 1;
+6450:       const day = t.getDate();
+6451:       const weekdayNames = ['周日','周一','周二','周三','周四','周五','周六'];
+6452:       document.getElementById('todayDate').textContent = month + '月' + day + '日 ' + weekdayNames[t.getDay()];
+6453: 
+6454:       const todayStr = today();
+6455:       const list = document.getElementById('todayList');
+6456:       let html = '';
+6457: 
+6458:       // 1) 用户自建 todo（今日且未完成排前，已完成排后）
+6459:       const custom = getTodayTodos().filter(x => x.date === todayStr);
+6460:       const customOpen = custom.filter(x => !x.done);
+6461:       const customDone = custom.filter(x => x.done);
+6462:       customOpen.forEach(it => {
+6463:         html += `<li class="custom" data-cid="${escapeHtml(it.id)}">
+6464:           <input type="checkbox" onclick="toggleCustomTask(this, '${escapeHtml(it.id)}')" />
+6465:           <span class="tl-title">${escapeHtml(it.title)}</span>
+6466:           <span class="tl-skill">自建</span>
+6467:         </li>`;
+6468:       });
+6469: 
+6470:       // 2) 学习计划里的"今日第一个未完成"（每个 learning 技能一条）
+6471:       const skills = getSkills().filter(s => s.status === 'learning' && Array.isArray(s.plan));
+6472:       skills.forEach(s => {
+6473:         const todo = s.plan.find(p => !p.done);
+6474:         if (todo) {
+6475:           html += `<li class="plan" data-skill="${escapeHtml(s.name)}">
+6476:             <input type="checkbox" onclick="toggleTodayTask(this)" />
+6477:             <span class="tl-title">${escapeHtml(todo.do || todo.title)}</span>
+6478:             <span class="tl-skill">${escapeHtml(s.name)}</span>
+6479:           </li>`;
+6480:         }
+6481:       });
+6482: 
+6483:       // 3) 今日已完成的自建 todo
+6484:       customDone.forEach(it => {
+6485:         html += `<li class="custom done" data-cid="${escapeHtml(it.id)}">
+6486:           <input type="checkbox" checked onclick="toggleCustomTask(this, '${escapeHtml(it.id)}')" />
+6487:           <span class="tl-title">${escapeHtml(it.title)}</span>
+6488:           <span class="tl-skill">自建</span>
+6489:         </li>`;
+6490:       });
+6491: 
+6492:       // 4) 今天记录过的经历
+6493:       const todayExps = getExperiences().filter(e => (e.date || '').slice(0,10) === todayStr);
+6494:       todayExps.slice(0, 2).forEach(e => {
+6495:         html += `<li class="done">
+6496:           <span style="font-size:12px;">✓</span>
+6497:           <span class="tl-title">${pickExpIcon(e.title)} ${escapeHtml(e.title)}</span>
+6498:           <span class="tl-skill">经历</span>
+6499:         </li>`;
+6500:       });
+6501: 
+6502:       if (!html) {
+6503:         list.innerHTML = `<li class="today-empty">今天还没有任务和记录 ✨</li>`;
+6504:       } else {
+6505:         list.innerHTML = html;
+6506:       }
+6507:       document.getElementById('todayFooter').textContent = '每一个普通的日子，都是地球Online的主线任务！';
+6508:     }
+6509: 
+6510:     function addTodayTask(ev) {
+6511:       ev.preventDefault();
+6512:       const inp = document.getElementById('todayAddInput');
+6513:       const v = (inp.value || '').trim();
+6514:       if (!v) return false;
+6515:       const list = getTodayTodos();
+6516:       list.push({ id: uid(), title: v, date: today(), done: false, createdAt: new Date().toISOString() });
+6517:       saveTodayTodos(list);
+6518:       inp.value = '';
+6519:       renderTodayTasks();
+6520:       return false;
+6521:     }
+6522: 
+6523:     function toggleCustomTask(cb, id) {
+6524:       const list = getTodayTodos();
+6525:       const item = list.find(x => x.id === id);
+6526:       if (!item) return;
+6527:       // 防误操作：取消勾选不扣经验
+6528:       const wasDone = item.done;
+6529:       item.done = cb.checked;
+6530:       item.doneAt = cb.checked ? new Date().toISOString() : null;
+6531:       saveTodayTodos(list);
+6532:       const li = cb.closest('li');
+6533:       if (cb.checked) {
+6534:         li.classList.add('done');
+6535:         if (!wasDone) addExp(8, '完成一件自建任务');
+6536:         renderExpBar(getPlayerData().exp);
+6537:       } else {
+6538:         li.classList.remove('done');
+6539:       }
+6540:     }
+6541: 
+6542:     function toggleTodayTask(cb) {
+6543:       const li = cb.closest('li');
+6544:       const skillName = li.getAttribute('data-skill');
+6545:       const skills = getSkills();
+6546:       const skill = skills.find(s => s.name === skillName);
+6547:       if (!skill || !Array.isArray(skill.plan)) return;
+6548:       const todo = skill.plan.find(p => !p.done);
+6549:       if (!todo) return;
+6550:       todo.done = cb.checked;
+6551:       todo.completedAt = today();
+6552:       saveSkills(skills);
+6553:       if (cb.checked) {
+6554:         li.classList.add('done');
+6555:         addExp(5, '完成一项学习任务');
+6556:         renderExpBar(getPlayerData().exp);
+6557:         renderActiveLearning();
+6558:         renderTodayTasks(); // 刷新，把刚完成的任务挪走
+6559:       }
+6560:     }
+6561: 
+6562:     /* ----- 最近经历 ----- */
+6563:     function renderRecentExp() {
+6564:       const exps = getExperiences()
+6565:         .filter(e => e.date)
+6566:         .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+6567:         .slice(0, 5);
+6568:       const list = document.getElementById('recentExpList');
+6569:       if (!exps.length) {
+6570:         list.innerHTML = `<li class="duo-empty">还没有记录，点上面按钮开始吧</li>`;
+6571:         return;
+6572:       }
+6573:       list.innerHTML = exps.map(e => `
+6574:         <li>
+6575:           <span class="duo-ico">${pickExpIcon(e.title)}</span>
+6576:           <div class="duo-body">
+6577:             <div class="duo-title">${escapeHtml(e.title)}</div>
+6578:           </div>
+6579:           <span class="duo-date">${formatShortDate(e.date)}</span>
+6580:         </li>`).join('');
+6581:     }
+6582: 
+6583:     /* ----- 正在学习 ----- */
+6584:     function renderActiveLearning() {
+6585:       const skills = getSkills().filter(s => s.status === 'learning' && Array.isArray(s.plan));
+6586:       const list = document.getElementById('activeLearningList');
+6587:       if (!skills.length) {
+6588:         list.innerHTML = `<li class="duo-empty">还没有学习目标</li>`;
+6589:         return;
+6590:       }
+6591:       const top = skills.slice(0, 3);
+6592:       list.innerHTML = top.map(s => {
+6593:         const total = s.plan.length;
+6594:         const done = s.plan.filter(p => p.done).length;
+6595:         const pct = total ? Math.round(done / total * 100) : 0;
+6596:         const next = s.plan.find(p => !p.done);
+6597:         const nextText = next ? (next.do || next.title || '—').slice(0, 18) : '已完成全部任务';
+6598:         return `<li>
+6599:             <span class="duo-ico">📈</span>
+6600:             <div class="duo-body">
+6601:               <div class="duo-title">${escapeHtml(s.name)}</div>
+6602:               <div class="duo-sub">下一步：${escapeHtml(nextText)}</div>
+6603:               <div class="mini-progress" style="margin-top:2px;">
+6604:                 <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%;"></div></div>
+6605:                 <span class="mini-pct">${done}/${total}</span>
+6606:               </div>
+6607:             </div>
+6608:           </li>`;
+6609:       }).join('');
+6610:     }
+6611: 
+6612:     /* ----- 我的技能等级（自动分类） ----- */
+6613:     function renderSkillLevels() {
+6614:       const list = document.getElementById('skillLevelsList');
+6615:       const cats = computeCategoryLevels();
+6616:       if (!cats.length) {
+6617:         list.innerHTML = `<li class="sl-empty">还没有数据 — 多记几段经历就能看到你的技能等级啦 ✨</li>`;
+6618:         return;
+6619:       }
+6620:       const maxLv = cats[0].level;
+6621:       list.innerHTML = cats.slice(0, 6).map(c => {
+6622:         const pct = Math.min(100, Math.round(c.level / Math.max(maxLv, 1) * 100));
+6623:         return `<li>
+6624:             <img class="sl-ico" src="${__IMGURL('assets/img/decor/skill/icons/' + c.icon + '.png')}" alt="" />
+6625:             <span class="sl-name">${escapeHtml(c.name)}</span>
+6626:             <div class="sl-bar"><div class="sl-bar-fill" style="width:${pct}%;"></div></div>
+6627:             <span class="sl-lv">Lv.${c.level}</span>
+6628:           </li>`;
+6629:       }).join('');
+6630:     }
+6631: 
+6632:     /* ----- 每日答案之书 ----- */
+6633:     const ANSWER_BOOK = [
+6634:       '慢慢来，比较比较快。',
+6635:       '不是所有的路都要立刻看见结果。',
+6636:       '今天的一小步，也是真实的一步。',
+6637:       '记录比完美更重要。',
+6638:       '你比自己以为的更有趣。',
+6639:       '把今天当作主线任务，不必急。',
+6640:       '值得做的事，值得慢慢做。',
+6641:       '先完成，再完美。',
+6642:       '想做的事情，不需要所有人都懂。',
+6643:       '下一次再说 ≠ 下一次会做。',
+6644:       '经验从来不会说谎。',
+6645:       '允许自己还没想清楚。',
+6646:       '想不清楚的时候，就去试试。',
+6647:       '成长不是一条直线。',
+6648:       '先把日子过起来。',
+6649:       '你不是没有进步，只是在爬坡。',
+6650:       '每天记一句，也是积累。',
+6651:       '普通人也有路。',
+6652:       '重要的不是开始得多漂亮，是没停下来。',
+6653:       '把"想做的事"记下来，它就更容易发生。',
+6654:       '今天认真吃饭、睡觉，也是主线任务。',
+6655:       '别拿别人的进度表，给自己的生活评分。',
+6656:       '走慢一点没关系，重点是还在走。',
+6657:       '心情不好也值得被记录。',
+6658:       '你不需要很"厉害"才能开始。',
+6659:       '想学什么就写下来，写下来就开始了。',
+6660:       '未来不靠空想，靠真实过过的每一天。',
+6661:       '失败了的事也值得记。',
+6662:       '你比想象中更了解自己。',
+6663:       '慢慢攒，时间看得见。'
+6664:     ];
+6665:     function pickAnswerForToday() {
+6666:       // 用日期做种子，每天稳定一句
+6667:         const d = today();
+6668:         let h = 0;
+6669:         for (let i = 0; i < d.length; i++) h = (h * 31 + d.charCodeAt(i)) >>> 0;
+6670:         return ANSWER_BOOK[h % ANSWER_BOOK.length];
+6671:     }
+6672:     function drawAnswer() {
+6673:       const text = pickAnswerForToday();
+6674:       const el = document.getElementById('answerText');
+6675:       if (!el) return;
+6676:       // 简单切换动画
+6677:       el.style.opacity = '0';
+6678:       setTimeout(() => {
+6679:         el.textContent = '「' + text + '」';
+6680:         el.style.opacity = '1';
+6681:       }, 120);
+6682:     }
+6683: 
+6684:     /* ============================================================
+6685:        4) 首页渲染 (新版: 见上方 3.5 节)
+6686:        ============================================================ */
+6687:     // fillHome / renderCalendar / renderTodayTasks / renderRecentExp /
+6688:     // renderActiveLearning / drawAnswer 已在 3.5 节定义。
+6689: 
+6690:     function renderSkillGrid() {
+6691:       const skills = getSkills().filter(s => s.status === 'lit');
+6692:       const grid = document.getElementById('skillGrid');
+6693:       if (!skills.length) {
+6694:         grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; font-size:12px; color:var(--c-text-soft); padding:10px;">记录经历并确认技能后，这里会逐渐长出来 ✨</div>`;
+6695:         return;
+6696:       }
+6697:       grid.innerHTML = skills.map(s => `
+6698:         <div class="skill-item confirmed" onclick="showSkillDetail('${escapeHtml(s.name)}')" style="cursor:pointer;" title="点击查看来源经历">
+6699:           <span class="dot"></span>
+6700:           <span class="name">${escapeHtml(s.name)}</span>
+6701:           <span class="tag">已确认</span>
+6702:         </div>`).join('');
+6703:     }
+6704: 
+6705:     /* ============================================================
+6706:        5) 技能详情弹窗（溯源）
+6707:        ============================================================ */
+6708:     function showSkillDetail(skillName) {
+6709:       const skill = getSkills().find(s => s.name === skillName);
+6710:       if (!skill) return;
+6711:       const exps = getExperiences();
+6712: 
+6713:       document.getElementById('skillDetailTitle').textContent = '🌳 ' + skillName;
+6714:       let html = '';
+6715: 
+6716:       if (skill.status === 'lit') {
+6717:         html += `<div style="font-size:12px; color:var(--c-text-soft); margin-bottom:12px;">✅ 这个技能已经通过真实经历确认</div>`;
+6718:         if (skill.sourceExpIds && skill.sourceExpIds.length) {
+6719:           skill.sourceExpIds.forEach(eid => {
+6720:             const exp = exps.find(e => e.id === eid);
+6721:             if (exp) {
+6722:               html += `
+6723:               <div class="skill-source-entry">
+6724:                 <div class="skill-source-date">${escapeHtml(exp.date)}</div>
+6725:                 <div class="skill-source-title">${escapeHtml(exp.title)}</div>
+6726:                 <div class="skill-source-desc">${escapeHtml(exp.rawDesc)}</div>
+6727:               </div>`;
+6728:             }
+6729:           });
+6730:         } else {
+6731:           html += `<div style="font-size:12px; color:var(--c-text-soft);">（初始自带）</div>`;
+6732:         }
+6733:       } else {
+6734:         // 学习中的技能
+6735:         html += `<div style="font-size:12px; color:var(--c-warm-deep); margin-bottom:8px; font-weight:700;">状态：${statusLabel(skill.status)}</div>`;
+6736:         if (skill.goalText) {
+6737:           html += `<div class="skill-source-entry"><div class="skill-source-title">🎯 目标</div><div class="skill-source-desc">${escapeHtml(skill.goalText)}</div></div>`;
+6738:         }
+6739:         if (skill.breakdown && skill.breakdown.length) {
+6740:           html += `<div style="font-size:12px; font-weight:700; margin:10px 0 6px;">🧩 能力单元</div>`;
+6741:           skill.breakdown.forEach((unit, i) => {
+6742:             const unitStatus = unit.status || 'want';
+6743:             html += `<div class="skill-unit-item ${unitStatus}">
+6744:               <span class="skill-unit-status-dot ${unitStatus}"></span>
+6745:               <span class="skill-unit-name">${escapeHtml(unit.name)}</span>
+6746:               <span class="skill-unit-status-text">${statusLabel(unitStatus)}</span>
+6747:               ${unitStatus === 'verified' && unit.sourceExpId ? '<span class="skill-unit-badge">✓ 已验证</span>' : ''}
+6748:             </div>`;
+6749:           });
+6750:         }
+6751:         // 学习计划
+6752:         if (skill.plan && skill.plan.length) {
+6753:           html += `<div class="learn-plan-summary">`;
+6754:           html += renderPlanBlock(skill, skillName);
+6755:           html += `</div>`;
+6756:         }
+6757:         // 验证任务
+6758:         if (skill.verifyTask) {
+6759:           const verified = skill.status === 'verified' || skill.status === 'lit';
+6760:           html += `<div style="font-size:12px; font-weight:700; margin:12px 0 6px;">🏆 验证任务</div>`;
+6761:           html += `<div class="skill-source-entry" style="border-color:var(--c-warm-deep);">
+6762:             <div class="skill-source-desc">${escapeHtml(skill.verifyTask)}</div>
+6763:             ${verified ? '<div style="font-size:11px; color:var(--c-green-deep); margin-top:6px; font-weight:700;">✅ 已通过验证</div>' : '<div style="font-size:11px; color:var(--c-text-soft); margin-top:6px;">完成并记录真实经历后，技能将被正式点亮</div>'}
+6764:           </div>`;
+6765:         }
+6766:       }
+6767: 
+6768:       document.getElementById('skillDetailBody').innerHTML = html;
+6769:       document.getElementById('skillDetailModal').style.display = 'flex';
+6770:     }
+6771: 
+6772:     function closeSkillDetail() {
+6773:       document.getElementById('skillDetailModal').style.display = 'none';
+6774:     }
+6775:     document.getElementById('skillDetailModal').addEventListener('click', function(e) {
+6776:       if (e.target === this) closeSkillDetail();
+6777:     });
+6778: 
+6779:     function statusLabel(status) {
+6780:       const map = {
+6781:         'want': '想学习',
+6782:         'learning': '学习中',
+6783:         'practiced': '完成练习',
+6784:         'verified': '真实使用过',
+6785:         'lit': '正式点亮',
+6786:         'done': '已完成',
+6787:         'doing': '进行中'
+6788:       };
+6789:       return map[status] || status;
+6790:     }
+6791: 
+6792:     /* ============================================================
+6793:        6) 经历记录弹窗
+6794:        ============================================================ */
+6795:     let pendingExpId = null;
+6796: 
+6797:     function openExpModal() {
+6798:       document.getElementById('expModal').style.display = 'flex';
+6799:       document.getElementById('expDate').value = today();
+6800:       document.getElementById('expForm').querySelector('input[name=expTitle]').focus();
+6801:     }
+6802: 
+6803:     function closeExpModal() {
+6804:       document.getElementById('expModal').style.display = 'none';
+6805:       document.getElementById('expForm').reset();
+6806:     }
+6807: 
+6808:     document.getElementById('expModal').addEventListener('click', function(e) {
+6809:       if (e.target === this) closeExpModal();
+6810:     });
+6811: 
+6812:     /* ============================================================
+6813:        7) 经历保存 + AI 整理 + 技能提取
+6814:        ============================================================ */
+6815:     function analyzeExperience(rawTitle, rawDesc) {
+6816:       const text = (rawTitle + '。' + rawDesc).toLowerCase();
+6817:       const structured = {
+6818:         title: rawTitle,
+6819:         happened: '未记录',
+6820:         whatIDid: '未记录',
+6821:         result: '未记录',
+6822:         feeling: '未记录'
+6823:       };
+6824:       const sentences = rawDesc.split(/[。！？；\n]/).filter(s => s.trim());
+6825: 
+6826:       if (sentences.length >= 1) {
+6827:         structured.happened = sentences.slice(0, 2).join('。');
+6828:       }
+6829:       const iDid = sentences.filter(s => /我[做负责整理准备写完成参加找想尝试用看学]/.test(s));
+6830:       if (iDid.length) {
+6831:         structured.whatIDid = iDid.join('。');
+6832:       } else if (sentences.length > 2) {
+6833:         structured.whatIDid = sentences.slice(1, 3).join('。');
+6834:       }
+6835:       const resultSent = sentences.filter(s => /[结果最后最终终于拿到获得成功通过完成]/.test(s));
+6836:       if (resultSent.length) {
+6837:         structured.result = resultSent.join('。');
+6838:       }
+6839:       const feelingSent = sentences.filter(s => /[觉得感觉紧张害怕开心兴奋自豪焦虑轻松但虽然其实]/.test(s));
+6840:       if (feelingSent.length) {
+6841:         structured.feeling = feelingSent.join('。');
+6842:       }
+6843:       if (structured.happened === '未记录' && rawDesc) {
+6844:         structured.happened = rawDesc;
+6845:       }
+6846: 
+6847:       const suggestedSkills = [];
+6848:       const skillPatterns = [
+6849:         { pattern: /英文|english|全英/, skill: '英文表达' },
+6850:         { pattern: /presentation|汇报|演讲|发言|宣讲/, skill: '公开表达' },
+6851:         { pattern: /整理资料|收集|调研|文献|查阅/, skill: '信息整理' },
+6852:         { pattern: /写|撰写|写作|论文|报告|文章/, skill: '写作' },
+6853:         { pattern: /编程|代码|开发|python|java|程序/, skill: '编程' },
+6854:         { pattern: /设计|建模|画图|cad|ps|figma/, skill: '设计' },
+6855:         { pattern: /视频|剪辑|拍摄|摄影|pr|剪映/, skill: '视频制作' },
+6856:         { pattern: /团队|合作|协作|分工|小组/, skill: '团队协作' },
+6857:         { pattern: /领导|负责|组织|协调|管理/, skill: '项目推进' },
+6858:         { pattern: /翻译|口译|笔译/, skill: '翻译' },
+6859:         { pattern: /数据|统计|分析|excel|spss/, skill: '数据分析' },
+6860:         { pattern: /教|辅导|培训|讲解/, skill: '教学' },
+6861:         { pattern: /策划|规划|方案|活动/, skill: '策划' },
+6862:         { pattern: /沟通|交流|谈判|协商/, skill: '沟通表达' },
+6863:         { pattern: /独立|一个人|自己/, skill: '独立解决问题' },
+6864:         { pattern: /适应|融入|新环境|搬/, skill: '适应能力' },
+6865:         { pattern: /压力|焦虑|紧张|克服|坚持/, skill: '抗压能力' },
+6866:         { pattern: /面试|申请|投递/, skill: '求职面试' },
+6867:         { pattern: /实习|工作|兼职/, skill: '职业实践' },
+6868:         { pattern: /实验|操作|测量|实验/, skill: '实验操作' },
+6869:         { pattern: /阅读|读书|文献/, skill: '深度阅读' },
+6870:       ];
+6871: 
+6872:       skillPatterns.forEach(sp => {
+6873:         if (sp.pattern.test(text)) {
+6874:           if (!suggestedSkills.includes(sp.skill)) {
+6875:             suggestedSkills.push(sp.skill);
+6876:           }
+6877:         }
+6878:       });
+6879: 
+6880:       return {
+6881:         structured,
+6882:         suggestedSkills: suggestedSkills.slice(0, 5)
+6883:       };
+6884:     }
+6885: 
+6886:     /* ----- 技能分类（30个，自动识别 + 等级累计） ----- */
+6887:     const SKILL_CATS = [
+6888:       { id: 'photography', name: '摄影',     icon: 'camera',       kws: ['摄影','拍照','拍片','相机','photo','camera','shoot','vlog','视频','录像','拍'] },
+6889:       { id: 'writing',    name: '写作',     icon: 'notebook',     kws: ['写','文章','投稿','稿','博客','日记','公众号','文案','创作'] },
+6890:       { id: 'reading',    name: '阅读',     icon: 'book',         kws: ['阅读','读书','看书','书评','读完','读完一本'] },
+6891:       { id: 'design',     name: '设计',     icon: 'palette',      kws: ['设计','海报','排版','UI','插画','ps','ai','figma','sketch','构图'] },
+6892:       { id: 'coding',     name: '编程',     icon: 'code',         kws: ['代码','编程','开发','debug','程序','算法','leetcode','python','java','js','vue','sql'] },
+6893:       { id: 'speaking',   name: '演讲',     icon: 'mic',          kws: ['演讲','present','分享','上台','汇报','答辩','路演','ppt','宣讲'] },
+6894:       { id: 'art',        name: '绘画',     icon: 'paintbrush',   kws: ['画','插画','油画','水彩','素描','手绘','板绘'] },
+6895:       { id: 'data',       name: '数据分析', icon: 'pie-chart',     kws: ['分析','数据','pandas','统计','excel','表格','spss'] },
+6896:       { id: 'study',      name: '学业',     icon: 'diploma',      kws: ['课程','上课','毕业','绩点','gpa','考试','模考','期末'] },
+6897:       { id: 'language',   name: '语言',     icon: 'globe',        kws: ['雅思','托福','口语','背单词','英语','法语','日语','韩语','单词'] },
+6898:       { id: 'travel',     name: '旅行',     icon: 'plane',        kws: ['旅行','出行','旅游','city walk','citywalk','独自旅行','去看看'] },
+6899:       { id: 'sport',      name: '运动',     icon: 'fire',         kws: ['运动','跑步','羽毛球','篮球','足球','瑜伽','健身房','锻炼','打球'] },
+6900:       { id: 'work',       name: '实习工作', icon: 'briefcase',    kws: ['实习','工作','求职','面试','简历','公司','入职'] },
+6901:       { id: 'project',    name: '项目比赛', icon: 'star',         kws: ['项目','比赛','竞赛','参赛','作品集','黑客松','hackathon'] },
+6902:       { id: 'build',      name: '建筑建造', icon: 'school',       kws: ['建筑','建造','模型','立面','剖面','sketchup','rhino','cad','评图'] },
+6903:       { id: 'media',      name: '视频制作', icon: 'laptop',       kws: ['视频','剪辑','短片','剪映','pr','导演','vlog'] },
+6904:       { id: 'idea',       name: '灵感想法', icon: 'lightbulb',    kws: ['灵感','想法','创意','突然想到'] },
+6905:       { id: 'plan',       name: '策划组织', icon: 'ruler',        kws: ['策划','组织','安排','协调','管理','统筹'] },
+6906:       { id: 'doc',        name: '文档材料', icon: 'file',         kws: ['文档','材料','报告','纪要','汇总'] },
+6907:       { id: 'survey',     name: '探索发现', icon: 'map',          kws: ['探索','发现','调研','考察','田野'] },
+6908:       { id: 'mount',      name: '户外登山', icon: 'mountain',     kws: ['登山','徒步','露营','爬山','户外'] },
+6909:       { id: 'find',       name: '方向定位', icon: 'compass',     kws: ['方向','定位','目标','定位','人生方向'] },
+6910:     ];
+6911:     const SKILL_CAT_BY_ID = Object.fromEntries(SKILL_CATS.map(c => [c.id, c]));
+6912: 
+6913:     function autoClassify(text) {
+6914:       const t = (text || '').toLowerCase();
+6915:       const hits = [];
+6916:       SKILL_CATS.forEach(c => {
+6917:         for (const k of c.kws) {
+6918:           if (t.includes(k.toLowerCase())) {
+6919:             hits.push(c.id);
+6920:             break;
+6921:           }
+6922:         }
+6923:       });
+6924:       return hits;
+6925:     }
+6926: 
+6927:     // 计算每个分类的等级
+6928:     function computeCategoryLevels() {
+6929:       const map = {}; // catId -> { count, linked }
+6930:       const bump = (id) => { map[id] = (map[id] || 0) + 1; };
+6931:       // 1. 经历自动分类
+6932:       getExperiences().forEach(e => {
+6933:         const txt = (e.title || '') + ' ' + (e.rawDesc || '');
+6934:         autoClassify(txt).forEach(bump);
+6935:       });
+6936:       // 2. 学习计划任务自动分类（完成的）
+6937:       getSkills().forEach(s => {
+6938:         if (!Array.isArray(s.plan)) return;
+6939:         s.plan.forEach(p => {
+6940:           if (!p.done) return;
+6941:           autoClassify((p.do || '') + ' ' + (p.title || '')).forEach(bump);
+6942:         });
+6943:       });
+6944:       // 转成 [{id, name, icon, level, count}]
+6945:       return SKILL_CATS
+6946:         .map(c => ({ ...c, count: map[c.id] || 0, level: (map[c.id] || 0) + 1 }))
+6947:         .filter(c => c.count > 0)
+6948:         .sort((a, b) => b.count - a.count);
+6949:     }
+6950: 
+6951:     function calcExpForExp(exp) {
+6952:       let base = 30;
+6953:       if (exp.rawDesc && exp.rawDesc.length > 50) base += 10;
+6954:       if (exp.rawDesc && exp.rawDesc.length > 150) base += 10;
+6955:       if (exp.suggestedSkills && exp.suggestedSkills.length >= 3) base += 15;
+6956:       return base;
+6957:     }
+6958: 
+6959:     function calcExpForSkill() {
+6960:       return 20;
+6961:     }
+6962: 
+6963:     document.getElementById('expForm').addEventListener('submit', function(e) {
+6964:       e.preventDefault();
+6965:       const fd = new FormData(this);
+6966:       const rawDate = (fd.get('expDate') || '').trim();
+6967:       const rawTitle = (fd.get('expTitle') || '').trim();
+6968:       const rawDesc = (fd.get('expDesc') || '').trim();
+6969: 
+6970:       if (!rawDate || !rawTitle) { alert('日期和标题不能为空哦～'); return; }
+6971: 
+6972:       const analysis = analyzeExperience(rawTitle, rawDesc);
+6973: 
+6974:       const exp = {
+6975:         id: Date.now(),
+6976:         date: rawDate,
+6977:         title: rawTitle,
+6978:         rawDesc: rawDesc,
+6979:         structured: analysis.structured,
+6980:         suggestedSkills: analysis.suggestedSkills,
+6981:         confirmedSkills: [],
+6982:         skillConfirmed: false
+6983:       };
+6984: 
+6985:       const list = getExperiences();
+6986:       list.unshift(exp);
+6987:       saveExperiences(list);
+6988: 
+6989:       closeExpModal();
+6990: 
+6991:       const expGain = calcExpForExp(exp);
+6992:       addExp(expGain, '记录经历');
+6993: 
+6994:       if (analysis.suggestedSkills.length > 0) {
+6995:         pendingExpId = exp.id;
+6996:         showSkillConfirmModal(analysis.suggestedSkills);
+6997:       } else {
+6998:         goPage('page-explog');
+6999:       }
+7000:     });
+7001: 
+7002:     /* ============================================================
+7003:        8) 技能确认弹窗
+7004:        ============================================================ */
+7005:     function showSkillConfirmModal(suggestedSkills) {
+7006:       const list = document.getElementById('skillConfirmList');
+7007:       const existingSkills = getSkills().map(s => s.name);
+7008: 
+7009:       list.innerHTML = suggestedSkills.map(sk => {
+7010:         const already = existingSkills.includes(sk);
+7011:         return `
+7012:           <label class="skill-confirm-item ${already ? 'already' : ''}">
+7013:             <input type="checkbox" value="${escapeHtml(sk)}" ${already ? 'disabled checked' : ''} />
+7014:             <span class="skill-confirm-name">${escapeHtml(sk)}</span>
+7015:             ${already ? '<span class="skill-confirm-badge">已有</span>' : ''}
+7016:           </label>`;
+7017:       }).join('');
+7018: 
+7019:       document.getElementById('skillCustomInput').value = '';
+7020:       document.getElementById('skillConfirmModal').style.display = 'flex';
+7021:     }
+7022: 
+7023:     function closeSkillConfirm() {
+7024:       document.getElementById('skillConfirmModal').style.display = 'none';
+7025:       pendingExpId = null;
+7026:       goPage('page-explog');
+7027:     }
+7028: 
+7029:     function confirmSkills() {
+7030:       if (!pendingExpId) { closeSkillConfirm(); return; }
+7031: 
+7032:       const checkboxes = document.querySelectorAll('#skillConfirmList input[type=checkbox]:checked:not(:disabled)');
+7033:       const customInput = document.getElementById('skillCustomInput').value.trim();
+7034:       const selected = [];
+7035:       checkboxes.forEach(cb => selected.push(cb.value));
+7036:       if (customInput) selected.push(customInput);
+7037: 
+7038:       const exps = getExperiences();
+7039:       const exp = exps.find(e => e.id === pendingExpId);
+7040:       if (exp) {
+7041:         exp.confirmedSkills = selected;
+7042:         exp.skillConfirmed = true;
+7043:         saveExperiences(exps);
+7044:       }
+7045: 
+7046:       const skills = getSkills();
+7047:       let newCount = 0;
+7048:       selected.forEach(sk => {
+7049:         const existing = skills.find(s => s.name === sk);
+7050:         if (existing) {
+7051:           if (!existing.sourceExpIds.includes(pendingExpId)) {
+7052:             existing.sourceExpIds.push(pendingExpId);
+7053:           }
+7054:           // 如果这个技能原本是学习中的，现在通过真实经历验证了
+7055:           if (existing.status && existing.status !== 'lit') {
+7056:             existing.status = 'lit';
+7057:             existing.verifiedAt = today();
+7058:           }
+7059:         } else {
+7060:           skills.push({
+7061:             name: sk,
+7062:             sourceExpIds: [pendingExpId],
+7063:             confirmedAt: today(),
+7064:             status: 'lit',
+7065:             treeIds: []
+7066:           });
+7067:           newCount++;
+7068:         }
+7069:       });
+7070:       saveSkills(skills);
+7071: 
+7072:       if (selected.length > 0) {
+7073:         addExp(calcExpForSkill() * selected.length, '确认技能');
+7074:       }
+7075: 
+7076:       closeSkillConfirm();
+7077:     }
+7078: 
+7079:     document.getElementById('skillConfirmModal').addEventListener('click', function(e) {
+7080:       if (e.target === this) closeSkillConfirm();
+7081:     });
+7082: 
+7083:     /* ============================================================
+7084:        9) 经历库渲染
+7085:        ============================================================ */
+7086:     function renderExpLog() {
+7087:       const list = getExperiences();
+7088:       const container = document.getElementById('explogList');
+7089:       const empty = document.getElementById('explogEmpty');
+7090: 
+7091:       if (!list.length) {
+7092:         container.innerHTML = '';
+7093:         empty.style.display = 'block';
+7094:         return;
+7095:       }
+7096: 
+7097:       empty.style.display = 'none';
+7098: 
+7099:       list.sort((a, b) => {
+7100:         if (b.date !== a.date) return b.date.localeCompare(a.date);
+7101:         return b.id - a.id;
+7102:       });
+7103: 
+7104:       container.innerHTML = list.map(exp => {
+7105:         const s = exp.structured || {};
+7106:         const needsConfirm = exp.suggestedSkills && exp.suggestedSkills.length > 0 && !exp.skillConfirmed;
+7107: 
+7108:         return `
+7109:           <div class="exp-entry pixel-card">
+7110:             <div class="exp-entry-header">
+7111:               <span class="exp-date">${escapeHtml(exp.date)}</span>
+7112:               <span class="exp-title">${escapeHtml(exp.title)}</span>
+7113:               <button class="exp-del" onclick="deleteExp(${exp.id})" title="删除">✕</button>
+7114:             </div>
+7115: 
+7116:             <div class="exp-structured">
+7117:               <div class="exp-field"><span class="exp-field-label">发生了什么</span><span class="exp-field-val">${escapeHtml(s.happened || '未记录')}</span></div>
+7118:               <div class="exp-field"><span class="exp-field-label">我做了什么</span><span class="exp-field-val">${escapeHtml(s.whatIDid || '未记录')}</span></div>
+7119:               <div class="exp-field"><span class="exp-field-label">结果</span><span class="exp-field-val">${escapeHtml(s.result || '未记录')}</span></div>
+7120:               <div class="exp-field"><span class="exp-field-label">我的感受</span><span class="exp-field-val">${escapeHtml(s.feeling || '未记录')}</span></div>
+7121:             </div>
+7122: 
+7123:             <div class="exp-raw-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'; this.textContent=this.nextElementSibling.style.display==='none'?'▶ 查看原始输入':'▼ 收起原始输入'">
+7124:               ▶ 查看原始输入
+7125:             </div>
+7126:             <div class="exp-raw-text" style="display:none;">${escapeHtml(exp.rawDesc)}</div>
+7127: 
+7128:             ${exp.suggestedSkills && exp.suggestedSkills.length ? `
+7129:               <div class="exp-skills-section">
+7130:                 <div class="exp-skills-label">🧐 可能涉及的技能：</div>
+7131:                 <div class="exp-skills-tags">
+7132:                   ${exp.suggestedSkills.map(sk => {
+7133:                     const confirmed = exp.confirmedSkills && exp.confirmedSkills.includes(sk);
+7134:                     return `<span class="exp-skill-tag ${confirmed ? 'confirmed' : 'suggested'}">${escapeHtml(sk)}${confirmed ? ' ✓' : ''}</span>`;
+7135:                   }).join('')}
+7136:                 </div>
+7137:                 ${needsConfirm ? `<button class="btn-pixel primary" style="margin-top:8px; font-size:12px; padding:6px 12px;" onclick="reopenSkillConfirm(${exp.id})">确认我的技能</button>` : ''}
+7138:               </div>
+7139:             ` : ''}
+7140:           </div>`;
+7141:       }).join('');
+7142:     }
+7143: 
+7144:     function reopenSkillConfirm(expId) {
+7145:       const exp = getExperiences().find(e => e.id === expId);
+7146:       if (!exp || !exp.suggestedSkills) return;
+7147:       pendingExpId = expId;
+7148:       showSkillConfirmModal(exp.suggestedSkills);
+7149:     }
+7150: 
+7151:     function deleteExp(id) {
+7152:       if (!confirm('确定要删除这段经历吗？')) return;
+7153:       let list = getExperiences().filter(e => e.id !== id);
+7154:       saveExperiences(list);
+7155: 
+7156:       const skills = getSkills();
+7157:       skills.forEach(s => {
+7158:         if (s.sourceExpIds) s.sourceExpIds = s.sourceExpIds.filter(eid => eid !== id);
+7159:       });
+7160:       const remaining = skills.filter(s => s.sourceExpIds.length > 0 || s.status !== 'lit');
+7161:       saveSkills(remaining);
+7162: 
+7163:       renderExpLog();
+7164:       renderSkillGrid();
+7165:     }
+7166: 
+7167:     /* ============================================================
+7168:        10) 技能树页面
+7169:        ============================================================ */
+7170:     let currentTreeFilter = 'all';
+7171: 
+7172:     function switchTreeTab(treeId) {
+7173:       currentTreeFilter = treeId;
+7174:       document.querySelectorAll('.tree-tab').forEach(t => t.classList.remove('active'));
+7175:       document.querySelector(`.tree-tab[data-tree="${treeId}"]`).classList.add('active');
+7176:       renderSkillTree();
+7177:     }
+7178: 
+7179:     function renderTreeTabs() {
+7180:       const trees = getTrees();
+7181:       const tabsEl = document.getElementById('treeTabs');
+7182:       let html = `<div class="tree-tab ${currentTreeFilter === 'all' ? 'active' : ''}" data-tree="all" onclick="switchTreeTab('all')">全部</div>`;
+7183:       trees.forEach(tree => {
+7184:         html += `<div class="tree-tab ${currentTreeFilter === tree.id ? 'active' : ''}" data-tree="${escapeHtml(tree.id)}" onclick="switchTreeTab('${escapeHtml(tree.id)}')">${escapeHtml(tree.name)}</div>`;
+7185:       });
+7186:       tabsEl.innerHTML = html;
+7187:     }
+7188: 
+7189:     function renderSkillTree() {
+7190:       const skills = getSkills();
+7191:       const exps = getExperiences();
+7192:       const trees = getTrees();
+7193: 
+7194:       // 根据当前筛选条件过滤技能
+7195:       let filteredSkills = skills;
+7196:       if (currentTreeFilter !== 'all') {
+7197:         filteredSkills = skills.filter(s => {
+7198:           if (s.treeIds && s.treeIds.includes(currentTreeFilter)) return true;
+7199:           if (s.goalTreeId === currentTreeFilter) return true;
+7200:           return false;
+7201:         });
+7202:       }
+7203: 
+7204:       // 分类
+7205:       const owned = filteredSkills.filter(s => s.status === 'lit');
+7206:       const learning = filteredSkills.filter(s => s.status && s.status !== 'lit');
+7207: 
+7208:       // 渲染左边：已拥有
+7209:       const ownedEl = document.getElementById('ownedSkillList');
+7210:       if (!owned.length) {
+7211:         ownedEl.innerHTML = `<div class="st-empty">记录真实经历并确认技能后，这里会逐渐长出来 ✨</div>`;
+7212:       } else {
+7213:         ownedEl.innerHTML = owned.map(s => {
+7214:           const sourceCount = (s.sourceExpIds || []).length;
+7215:           const treeNames = (s.treeIds || []).map(tid => trees.find(t => t.id === tid)).filter(Boolean).map(t => t.name);
+7216:           return `<div class="st-skill-node lit" onclick="showSkillDetail('${escapeHtml(s.name)}')">
+7217:             <span class="st-node-dot lit"></span>
+7218:             <span class="st-node-name">${escapeHtml(s.name)}</span>
+7219:             ${sourceCount ? `<span class="st-node-meta">${sourceCount}段经历</span>` : ''}
+7220:             ${treeNames.length ? `<span class="st-node-tree">${treeNames.map(n => escapeHtml(n)).join(' · ')}</span>` : ''}
+7221:           </div>`;
+7222:         }).join('');
+7223:       }
+7224: 
+7225:       // 渲染右边：学习中
+7226:       const learnEl = document.getElementById('learningSkillList');
+7227:       if (!learning.length) {
+7228:         learnEl.innerHTML = `<div class="st-empty">点击下方按钮，告诉AI你想学什么 🌱</div>`;
+7229:       } else {
+7230:         learnEl.innerHTML = learning.map(s => {
+7231:           const statusClass = s.status || 'want';
+7232:           const treeName = s.goalTreeId ? (trees.find(t => t.id === s.goalTreeId) || {}).name : '';
+7233:           // 计算学习进度
+7234:           let progress = '';
+7235:           if (s.plan && s.plan.length) {
+7236:             const done = s.plan.filter(t => t.done).length;
+7237:             progress = `${done}/${s.plan.length}`;
+7238:           }
+7239:           return `<div class="st-skill-node ${statusClass}" onclick="showSkillDetail('${escapeHtml(s.name)}')">
+7240:             <span class="st-node-dot ${statusClass}"></span>
+7241:             <span class="st-node-name">${escapeHtml(s.name)}</span>
+7242:             <span class="st-node-status">${statusLabel(s.status)}</span>
+7243:             ${progress ? `<span class="st-node-meta">${progress}</span>` : ''}
+7244:             ${treeName ? `<span class="st-node-tree">${escapeHtml(treeName)}</span>` : ''}
+7245:           </div>`;
+7246:         }).join('');
+7247:       }
+7248:     }
+7249: 
+7250:     /* ============================================================
+7251:        11) 新建成长方向
+7252:        ============================================================ */
+7253:     function openNewTreeModal() {
+7254:       document.getElementById('newTreeName').value = '';
+7255:       document.getElementById('newTreeDesc').value = '';
+7256:       // 显示已有技能供勾选
+7257:       const skills = getSkills().filter(s => s.status === 'lit');
+7258:       const listEl = document.getElementById('newTreeSkillList');
+7259:       if (!skills.length) {
+7260:         listEl.innerHTML = `<div style="font-size:11px; color:var(--c-text-soft);">还没有已确认的技能</div>`;
+7261:       } else {
+7262:         listEl.innerHTML = skills.map(s => `
+7263:           <label class="skill-confirm-item" style="margin-bottom:4px;">
+7264:             <input type="checkbox" value="${escapeHtml(s.name)}" />
+7265:             <span class="skill-confirm-name">${escapeHtml(s.name)}</span>
+7266:           </label>`).join('');
+7267:       }
+7268:       document.getElementById('newTreeModal').style.display = 'flex';
+7269:     }
+7270: 
+7271:     function closeNewTreeModal() {
+7272:       document.getElementById('newTreeModal').style.display = 'none';
+7273:     }
+7274: 
+7275:     document.getElementById('newTreeModal').addEventListener('click', function(e) {
+7276:       if (e.target === this) closeNewTreeModal();
+7277:     });
+7278: 
+7279:     function saveNewTree() {
+7280:       const name = document.getElementById('newTreeName').value.trim();
+7281:       if (!name) { alert('给方向起个名字吧～'); return; }
+7282:       const desc = document.getElementById('newTreeDesc').value.trim();
+7283: 
+7284:       // 获取勾选的技能
+7285:       const checked = document.querySelectorAll('#newTreeSkillList input[type=checkbox]:checked');
+7286:       const skillNames = [];
+7287:       checked.forEach(cb => skillNames.push(cb.value));
+7288: 
+7289:       const tree = {
+7290:         id: uid(),
+7291:         name: name,
+7292:         desc: desc,
+7293:         createdAt: today()
+7294:       };
+7295: 
+7296:       const trees = getTrees();
+7297:       trees.push(tree);
+7298:       saveTrees(trees);
+7299: 
+7300:       // 把技能关联到这个方向
+7301:       if (skillNames.length) {
+7302:         const skills = getSkills();
+7303:         skillNames.forEach(sn => {
+7304:           const s = skills.find(sk => sk.name === sn);
+7305:           if (s) {
+7306:             if (!s.treeIds) s.treeIds = [];
+7307:             if (!s.treeIds.includes(tree.id)) s.treeIds.push(tree.id);
+7308:           }
+7309:         });
+7310:         saveSkills(skills);
+7311:       }
+7312: 
+7313:       closeNewTreeModal();
+7314:       renderTreeTabs();
+7315:       renderSkillTree();
+7316:     }
+7317: 
+7318:     /* ============================================================
+7319:        12) 我想学新技能
+7320:        ============================================================ */
+7321:     function openLearnGoalModal() {
+7322:       document.getElementById('learnWhat').value = '';
+7323:       document.getElementById('learnDuration').value = '';
+7324:       document.getElementById('learnTimePerDay').value = '';
+7325: 
+7326:       // 填充成长方向下拉
+7327:       const trees = getTrees();
+7328:       const sel = document.getElementById('learnTreeId');
+7329:       sel.innerHTML = `<option value="">不放入任何方向</option>`;
+7330:       trees.forEach(t => {
+7331:         sel.innerHTML += `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`;
+7332:       });
+7333: 
+7334:       document.getElementById('learnGoalModal').style.display = 'flex';
+7335:     }
+7336: 
+7337:     function closeLearnGoalModal() {
+7338:       document.getElementById('learnGoalModal').style.display = 'none';
+7339:     }
+7340: 
+7341:     document.getElementById('learnGoalModal').addEventListener('click', function(e) {
+7342:       if (e.target === this) closeLearnGoalModal();
+7343:     });
+7344: 
+7345:     function submitLearnGoal() {
+7346:       const what = document.getElementById('learnWhat').value.trim();
+7347:       if (!what) { alert('说说你想学什么吧～'); return; }
+7348: 
+7349:       const duration = document.getElementById('learnDuration').value.trim();
+7350:       const timePerDay = document.getElementById('learnTimePerDay').value.trim();
+7351:       const treeId = document.getElementById('learnTreeId').value;
+7352: 
+7353:       const fullText = what + ' ' + duration + ' ' + timePerDay;
+7354:       const assumptions = [];
+7355: 
+7356:       // ---- 提取时长（缺省做保守假设并标注） ----
+7357:       let days = 0;
+7358:       const dayMatch = fullText.match(/(\d+)\s*[天日]/);
+7359:       const monthMatch = fullText.match(/(\d+)\s*个?月/);
+7360:       const weekMatch = fullText.match(/(\d+)\s*个?星期|(\d+)\s*周/);
+7361:       if (dayMatch) days = parseInt(dayMatch[1]);
+7362:       else if (monthMatch) days = parseInt(monthMatch[1]) * 30;
+7363:       else if (weekMatch) days = parseInt(weekMatch[1] || weekMatch[2]) * 7;
+7364:       if (!days && duration) {
+7365:         const numMatch = duration.match(/(\d+)/);
+7366:         if (numMatch) days = parseInt(numMatch[1]);
+7367:       }
+7368:       if (!days) {
+7369:         days = 30;
+7370:         assumptions.push('时长没写，先按 30 天排——想改的话，在目标里写上"3个月 / 两周"重新生成就好');
+7371:       }
+7372: 
+7373:       // ---- 提取每天时间 ----
+7374:       let minutesPerDay = 0;
+7375:       const hourMatch = fullText.match(/(\d+(?:\.\d+)?)\s*个?小时/);
+7376:       const minMatch = fullText.match(/(\d+)\s*分钟/);
+7377:       if (hourMatch) minutesPerDay = Math.round(parseFloat(hourMatch[1]) * 60);
+7378:       else if (minMatch) minutesPerDay = parseInt(minMatch[1]);
+7379:       if (!minutesPerDay) {
+7380:         minutesPerDay = 60;
+7381:         assumptions.push('每天投入时间先按 1 小时排');
+7382:       }
+7383: 
+7384:       // ---- 提取基础 ----
+7385:       let isZero = /零基础|完全不会|没接触过|没用过|小白|从零/.test(fullText);
+7386:       const hasExperience = !isZero && /有一点|有一些|用过|学过一点|会一点|有点基础|学过/.test(fullText);
+7387:       const wantsAdvanced = /精通|专业级|高级|深入|系统/.test(fullText);
+7388:       if (!isZero && !hasExperience) {
+7389:         // 与"保守假设"标注保持一致：默认按零基础起步
+7390:         isZero = true;
+7391:         assumptions.push('基础先按零基础起步排（有基础的话进度会更快）');
+7392:       }
+7393: 
+7394:       // ---- 匹配领域，直接生成 ----
+7395:       const domain = matchDomain(fullText);
+7396:       const skillName = domain ? domain.name : extractSkillName(what);
+7397:       const unitDefs = buildUnitDefs(domain, { isZero, hasExperience, wantsAdvanced, what });
+7398:       const verifyTask = domain ? domain.verifyTask : genericVerifyTask(what);
+7399:       const plan = aiGeneratePlan(unitDefs, days, minutesPerDay, verifyTask);
+7400: 
+7401:       // ---- 保存技能 ----
+7402:       const skills = getSkills();
+7403:       let finalName = skillName;
+7404:       if (skills.find(s => s.name === finalName)) finalName = skillName + '（' + today() + '）';
+7405: 
+7406:       skills.push({
+7407:         name: finalName,
+7408:         status: 'learning',
+7409:         sourceExpIds: [],
+7410:         confirmedAt: null,
+7411:         goalText: what,
+7412:         goalDuration: duration || (days + '天'),
+7413:         goalTreeId: treeId || null,
+7414:         assumptions: assumptions,
+7415:         breakdown: unitDefs.map((u, i) => ({
+7416:           id: 'u' + i,
+7417:           name: u.name,
+7418:           phase: u.phase,
+7419:           status: 'want',
+7420:           sourceExpId: null
+7421:         })),
+7422:         plan: plan,
+7423:         verifyTask: verifyTask,
+7424:         treeIds: treeId ? [treeId] : []
+7425:       });
+7426:       saveSkills(skills);
+7427: 
+7428:       closeLearnGoalModal();
+7429:       renderTreeTabs();
+7430:       renderSkillTree();
+7431:       showLearnPlanModal(finalName);
+7432:       addExp(15, '设定学习目标');
+7433:     }
+7434: 
+7435:     /* ============================================================
+7436:        13) 领域知识库 + 技能拆解
+7437:        质量底线：每个任务必须"具体、能做、有结果"——
+7438:        用户看完就知道今天做什么、做到什么程度算完成。
+7439:        ============================================================ */
+7440:     const PHASE_NAMES = {
+7441:       1: '🌱 第一阶段 · 打基础',
+7442:       2: '🎯 第二阶段 · 核心练习',
+7443:       3: '🚀 第三阶段 · 整合实战'
+7444:     };
+7445: 
+7446:     const DOMAIN_LIB = [
+7447:       /* ---------- 雅思 ---------- */
+7448:       {
+7449:         key: 'ielts', name: '雅思',
+7450:         patterns: [/雅思|ielts/],
+7451:         verifyTask: '完整模拟一次雅思考试：听力+阅读+写作+口语同一天完成（口语录音、写作手写），按官方标准给自己估一个总分，并把这次经历记录下来。',
+7452:         units: [
+7453:           { name: '听力 · 精听与定位', tasks: [
+7454:             { do: '做一篇剑桥雅思听力 Section 1：第一遍正常做题；第二遍逐句暂停，把没听出来的词全部写下来，按"不认识 / 认识但没反应过来 / 连读吞音"分类', time: '40分钟', standard: '一页分类清单，至少 10 个词' },
+7455:             { do: '练定位法：读题时先圈出关键词（数字/专有名词/转折词），听的时候只盯关键词前后，不追求听懂每个词', time: '30分钟', standard: '能说出每道题自己是靠哪个词定位到的' },
+7456:             { do: '精听一段 Section 3 学术对话：逐句听写，一句最多重播 3 遍，然后对照原文用红笔标出听错的地方', time: '40分钟', standard: '听写准确率 70% 以上' },
+7457:             { do: '限时完成一个完整 Section 并对答案，把错题原因分成"走神 / 词汇不认识 / 连读没听出 / 语速跟不上"四类，找出今天最主要的一种', time: '35分钟', standard: '失分主因明确，写在笔记里', repeat: true },
+7458:           ]},
+7459:           { name: '阅读 · 定位与同义替换', tasks: [
+7460:             { do: '限时 20 分钟完成一篇雅思阅读真题，做完把错题分成"没定位到 / 没认出同义替换 / 句子没读懂 / 时间不够"，找出今天最主要的失分原因', time: '40分钟', standard: '错题全部归因，主因明确', repeat: true },
+7461:             { do: '把今天做过的阅读里"题目↔原文"的同义替换抄成词对卡片（例如 rely on → depend on）', time: '25分钟', standard: '至少 8 组替换词对' },
+7462:             { do: '挑一篇剑桥阅读，把其中的长难句逐句翻译成中文写下来，再对照官方译文检查偏差', time: '40分钟', standard: '独立翻出 10 个长难句' },
+7463:             { do: '专攻一种你最错的题型（判断题/段落匹配/填空），连做 4 组同题型，总结出自己的三步解题流程', time: '45分钟', standard: '写出自己的解题步骤（3 步以上）' },
+7464:           ]},
+7465:           { name: '写作 · 大小作文', tasks: [
+7466:             { do: '搭 Task 1 框架：开头一句改写题目 + 两个主体段（各写一个最明显的趋势或对比）+ 结尾一句总括；用一套剑桥真题的数据亲手写一遍', time: '30分钟', standard: '能不看范例默写框架' },
+7467:             { do: '限时 25 分钟写一篇 Task 1，写完找一篇 7 分范文逐句对照，圈出范文有而你没有的数据表达', time: '50分钟', standard: '一篇完整小作文 + 一张差距清单' },
+7468:             { do: '给 5 个 Task 2 高频话题（教育/科技/环境/工作/社会）各列一份提纲：观点 + 2 个支持理由 + 1 个反例，不写全文', time: '35分钟', standard: '5 份提纲，每份 3 分钟内能口头展开' },
+7469:             { do: '限时 40 分钟写一篇 Task 2 大作文，写完用三问自查：观点有没有回应题目？每段有没有例子？连接词是不是只会用 however？', time: '50分钟', standard: '一篇完整大作文 + 自查结果', repeat: true },
+7470:           ]},
+7471:           { name: '口语 · Part 1/2/3', tasks: [
+7472:             { do: '把当季口语题库 Part 1 的 20 个话题各回答一遍并录音，回听标出所有卡壳超过 3 秒的地方', time: '40分钟', standard: '20 段录音 + 卡壳清单' },
+7473:             { do: '做 Part 2 素材卡：准备 5 张"人物 / 地点 / 经历 / 物品 / 想法"素材卡，尝试用同一张卡覆盖 2 个不同话题', time: '40分钟', standard: '5 张素材卡，每张能讲满 2 分钟' },
+7474:             { do: '随机抽一个 Part 2 话题，限时 1 分钟准备，录音说满 2 分钟；回听数一下"emm / 就是说"出现的次数并记下来', time: '20分钟', standard: '一段 2 分钟录音 + 口头禅统计', repeat: true },
+7475:             { do: '练 Part 3 思路：抽 5 道抽象题，用"直接回答 → 两个角度 → 举一个例子"的结构口头回答并录音', time: '30分钟', standard: '5 段结构完整的录音' },
+7476:           ]},
+7477:           { name: '整套真题实战', tasks: [
+7478:             { do: '按考试时间完整做一套剑桥真题：听力 40 分钟 + 阅读 60 分钟连做、中间不休息；对答案算分，写三行复盘——哪里掉分最多 / 为什么 / 明天补哪块', time: '约 3 小时（可拆两个半天）', standard: '一套完整成绩 + 三行复盘', repeat: true },
+7479:           ]},
+7480:         ]
+7481:       },
+7482:       /* ---------- 托福 / 四六级 / 考研英语 ---------- */
+7483:       {
+7484:         key: 'eng-exam', name: '英语考试',
+7485:         patterns: [/托福|toefl|四六级|四级|六级|cet|考研英语|专四|专八/],
+7486:         verifyTask: '按考试时间完整做一套真题并算分，写三行复盘：哪里掉分最多、为什么、接下来补哪块，并记录为一段真实经历。',
+7487:         units: [
+7488:           { name: '听力 · 精听', tasks: [
+7489:             { do: '精听一篇真题听力：第一遍做题，第二遍逐句暂停跟读，把没听出来的词按"不认识 / 没反应过来 / 连读吞音"分类记录', time: '40分钟', standard: '一页分类清单，至少 10 个词' },
+7490:             { do: '限时做一套听力真题，对答案后把错题原因分成"走神 / 词汇 / 语速 / 题没读完"四类，找出主要失分原因', time: '35分钟', standard: '失分主因明确', repeat: true },
+7491:           ]},
+7492:           { name: '阅读 · 定位与替换', tasks: [
+7493:             { do: '限时做一篇阅读真题，把错题分成"没定位到 / 没认出同义替换 / 句子没读懂 / 时间不够"，找出今天最主要的失分原因', time: '35分钟', standard: '错题全部归因', repeat: true },
+7494:             { do: '把这篇阅读里题目和原文的同义替换抄成词对卡片', time: '25分钟', standard: '至少 8 组替换词对' },
+7495:           ]},
+7496:           { name: '写作与词汇', tasks: [
+7497:             { do: '限时写一篇考试作文，写完对照一篇高分范文逐句圈出差距（哪里没例子 / 哪里连接生硬 / 哪个表达中式）', time: '50分钟', standard: '一篇作文 + 一张差距清单' },
+7498:             { do: '背一篇高分范文后合上默写，对照原文标出漏掉的连接词和好表达，抄进自己的本子', time: '30分钟', standard: '默写还原 80% 以上' },
+7499:             { do: '记一组真题高频词（50 个）：先全部过一遍，只挑出"完全不认识"的重点背，背完让同学抽 20 个', time: '40分钟', standard: '抽查 20 个对 18 个' },
+7500:           ]},
+7501:           { name: '整套真题实战', tasks: [
+7502:             { do: '按考试时间完整做一套真题（含作文），对答案算分，写三行复盘：哪里掉分最多 / 为什么 / 明天补哪块', time: '约 2.5 小时（可拆两个半天）', standard: '一套完整成绩 + 三行复盘', repeat: true },
+7503:           ]},
+7504:         ]
+7505:       },
+7506:       /* ---------- 英语口语（非考试） ---------- */
+7507:       {
+7508:         key: 'eng-speaking', name: '英语口语',
+7509:         patterns: [/英语口语|口语|spoken|英音|美音|英文对话|和外国人/],
+7510:         verifyTask: '和真人进行一次 15 分钟以上的全英文对话（语伴/外教/同学均可），结束后写下 3 句当时想说但没说出来的话。',
+7511:         units: [
+7512:           { name: '发音与语调', tasks: [
+7513:             { do: '选一段 1 分钟的英文视频做 shadowing：听一句跟一句，模仿到语调几乎一样，录下来和原音对比', time: '30分钟', standard: '录音和原音听不出明显语调差异' },
+7514:           ]},
+7515:           { name: '日常表达', tasks: [
+7516:             { do: '用英语自言自语描述今天做了什么并录音 3 分钟；回听记下 3 处卡壳，查好说法后再录一遍', time: '20分钟', standard: '两版录音，第二版卡壳明显减少' },
+7517:             { do: '随机抽一个话题，用"观点 + 两个理由 + 一个例子"的结构口头说满 2 分钟并录音', time: '20分钟', standard: '一段结构完整的 2 分钟录音', repeat: true },
+7518:           ]},
+7519:           { name: '真实对话', tasks: [
+7520:             { do: '和真人用英语对话 15 分钟（语伴/外教/同学），结束后写下 3 句当时没说出来的句子', time: '15分钟', standard: '对话真的发生了 + 3 句补充', repeat: true },
+7521:           ]},
+7522:         ]
+7523:       },
+7524:       /* ---------- 摄影 ---------- */
+7525:       {
+7526:         key: 'photography', name: '摄影',
+7527:         patterns: [/摄影|相机|拍人像|手动模式|单反|微单|拍照/],
+7528:         verifyTask: '使用手动模式（M档），独立完成一组 8 张以上的人像作品并做基础后期，发给被拍的人确认满意。',
+7529:         units: [
+7530:           { name: '曝光三要素', tasks: [
+7531:             { do: '用同一个场景拍 9 张照片：3 张只改光圈、3 张只改快门、3 张只改 ISO，每组记下参数；最后不看教程，自己说出三个参数分别控制什么、互相怎么影响', time: '45分钟', standard: '9 张照片 + 能独立讲清三要素' },
+7532:             { do: '用 M 档在室内拍一张曝光正常的照片，只允许看直方图判断曝光，不许靠屏幕效果猜', time: '20分钟', standard: '直方图不贴左右两侧', repeat: true },
+7533:           ]},
+7534:           { name: '对焦与景深', tasks: [
+7535:             { do: '拍一组对比照片：同一朵花用最近对焦距离和最远对焦距离各拍一张，再用最大光圈和最小光圈各拍一张，观察背景虚化的变化', time: '30分钟', standard: '4 张对比照，能说清光圈和对焦距离分别怎么影响虚化' },
+7536:             { do: '练手动选对焦点：给会动的对象（人/宠物）拍 10 张，要求每张眼睛都清晰', time: '30分钟', standard: '10 张里至少 8 张眼睛清晰', repeat: true },
+7537:           ]},
+7538:           { name: '构图', tasks: [
+7539:             { do: '带着"三分法、对称、引导线、框架"四种构图出门拍一小时，每种至少拍 3 张，回家各标出最好的一张', time: '60分钟', standard: '12 张照片 + 4 张精选' },
+7540:             { do: '选一张你最喜欢的照片，分析它的构图、光线和拍摄时机，写 100 字', time: '20分钟', standard: '一段 100 字的照片分析' },
+7541:           ]},
+7542:           { name: '光线', tasks: [
+7543:             { do: '同一个人分别在大中午直射光下、树荫下、傍晚黄金时刻各拍一张半身像，对比皮肤质感和阴影差别', time: '40分钟', standard: '3 张对比照 + 能说出哪种光最适合人像' },
+7544:           ]},
+7545:           { name: '人像实战', tasks: [
+7546:             { do: '给一位朋友拍一组 10 张的人像：拍之前先聊 5 分钟让对方放松，想好 3 个姿势和 2 个机位；拍完挑 3 张做基础后期发给对方', time: '90分钟', standard: '交付一组人像作品', repeat: true },
+7547:           ]},
+7548:         ]
+7549:       },
+7550:       /* ---------- 视频剪辑 ---------- */
+7551:       {
+7552:         key: 'video', name: '视频剪辑',
+7553:         patterns: [/premiere|剪映|剪辑|剪视频|final cut|达芬奇|vlog|视频制作/],
+7554:         verifyTask: '使用至少 10 段原始素材，独立剪出一条 60 秒以上、带字幕和配乐的完整视频，发布出去或交付给需要的人。',
+7555:         units: [
+7556:           { name: '素材管理与粗剪', tasks: [
+7557:             { do: '新建项目导入 10 段素材，按"废镜头 / 可用 / 精选"分三堆，把精选素材在时间线上粗排一遍，剪出一条 60 秒的无声粗剪', time: '60分钟', standard: '一条 60 秒粗剪时间线' },
+7558:             { do: '只用快捷键（剪切 C / 选择 V）完成一条 30 秒视频的全部剪切，全程不碰鼠标', time: '40分钟', standard: '全程快捷键完成' },
+7559:           ]},
+7560:           { name: '节奏', tasks: [
+7561:             { do: '把同一段素材剪两版：一版平均每 3 秒一个镜头、一版平均每 6 秒一个镜头，配同一首音乐播放对比，写下哪版更合适以及为什么', time: '50分钟', standard: '两版对比 + 一段判断理由' },
+7562:           ]},
+7563:           { name: '音频与字幕', tasks: [
+7564:             { do: '给一条视频做声音处理：BGM 音量压到人声以下、人声降噪、在转场处加一个音效；导出后戴耳机检查人声和音乐不打架', time: '40分钟', standard: '戴耳机听，人声清晰、音乐不抢' },
+7565:             { do: '给一条 2 分钟的视频上完所有字幕：统一字体字号、在安全区内、每句不超过 15 字，看完只需要改 3 处以内', time: '50分钟', standard: '一条完整字幕视频' },
+7566:           ]},
+7567:           { name: '调色与导出', tasks: [
+7568:             { do: '用调色工具给同一条视频调三种风格（明亮日系 / 电影感冷暖对比 / 黑金），导出三个版本对比', time: '50分钟', standard: '3 个导出版本' },
+7569:             { do: '按平台正确规格导出一条 1080p 视频（H.264、码率合理），检查清晰度和文件大小', time: '25分钟', standard: '导出文件规格正确、清晰度无损' },
+7570:           ]},
+7571:           { name: '完整作品', tasks: [
+7572:             { do: '从拍/找素材到剪完发布，独立完成一条 60 秒以上、有明确主题的完整视频（含字幕和配乐）', time: '约 3 小时（可分几天）', standard: '一条发布出去的成片', repeat: true },
+7573:           ]},
+7574:         ]
+7575:       },
+7576:       /* ---------- 做饭 ---------- */
+7577:       {
+7578:         key: 'cooking', name: '做饭',
+7579:         patterns: [/做饭|烹饪|烧菜|炒菜|厨艺|家常菜|下厨/],
+7580:         verifyTask: '连续 3 天独立完成一荤一素一汤的晚餐，其中至少 2 道菜是第一次做的，家人或室友吃完给出评价。',
+7581:         units: [
+7582:           { name: '刀工与备菜', tasks: [
+7583:             { do: '练切一盘土豆丝：先切片再切丝，切完把第一根和最后一根摆在一起拍照对比', time: '40分钟', standard: '最后 5 根明显比前 5 根均匀' },
+7584:             { do: '给一顿两人餐做完整备菜：3 个菜的全部食材洗切配好、调料按菜分小碗装好，然后才开火', time: '40分钟', standard: '开火前所有食材就位' },
+7585:           ]},
+7586:           { name: '火候与基础炒', tasks: [
+7587:             { do: '独立完成一道西红柿炒蛋，重点练习判断下锅顺序和火候；做完记录一次"哪里没做好、下次准备改什么"', time: '30分钟', standard: '一道菜 + 一条复盘', repeat: true },
+7588:             { do: '做一道青椒肉丝，练习"热锅凉油"防粘和肉丝滑炒，目标是肉丝不粘锅底、不发柴', time: '40分钟', standard: '锅底干净、肉丝嫩' },
+7589:           ]},
+7590:           { name: '调味', tasks: [
+7591:             { do: '煮三碗同样的清汤面，分别只放盐、盐+糖、盐+糖+一点酱油，尝出层次差别并写下感受', time: '30分钟', standard: '能说出糖和酱油分别起什么作用' },
+7592:             { do: '做一次蛋炒饭，盐分三次放（炒蛋前 / 中途 / 出锅前），体会分次调味和均匀咸味', time: '30分钟', standard: '蛋炒饭咸味均匀' },
+7593:           ]},
+7594:           { name: '家常菜单', tasks: [
+7595:             { do: '独立完成一荤一素一汤的三菜晚餐（如可乐鸡翅 + 清炒时蔬 + 紫菜蛋花汤），全程不看视频，卡住了只看文字菜谱', time: '90分钟', standard: '三菜同时上桌、温度都在', repeat: true },
+7596:             { do: '自选一道从没做过的家常菜独立完成，餐后写两行复盘：火候或调味哪里翻车了、下次改什么', time: '60分钟', standard: '一道新菜 + 两行复盘', repeat: true },
+7597:           ]},
+7598:         ]
+7599:       },
+7600:       /* ---------- Presentation / 演讲 ---------- */
+7601:       {
+7602:         key: 'presentation', name: 'Presentation',
+7603:         patterns: [/presentation|汇报|演讲|脱稿|上台|发言|\bpre\b/],
+7604:         verifyTask: '独立准备并脱稿完成一次 5 分钟以上的完整 pre，全程不念稿，并留有录音。',
+7605:         units: [
+7606:           { name: '内容结构', tasks: [
+7607:             { do: '把你想讲的主题用"结论先行"写成一页纸：一句话核心观点 + 3 个支撑理由 + 每个理由 1 个例子', time: '30分钟', standard: '一页纸讲稿骨架' },
+7608:             { do: '给你的 pre 写开头 30 秒的逐字稿并计时读 5 遍，删到 30 秒以内', time: '25分钟', standard: '开头能在 30 秒内讲完' },
+7609:           ]},
+7610:           { name: '幻灯片', tasks: [
+7611:             { do: '把一页字最多的旧 PPT 改成"一页一个观点 + 一张图 + 不超过 20 字"，改完给同学看，10 秒内能说出这页讲什么', time: '40分钟', standard: '通过 10 秒测试' },
+7612:           ]},
+7613:           { name: '表达与脱稿', tasks: [
+7614:             { do: '对着手机录一遍 3 分钟的 pre，回看并统计三个数据："嗯啊"次数、眼神离开镜头次数、每分钟语速', time: '25分钟', standard: '三个数据都记下来' },
+7615:             { do: '用关键词卡片法脱稿讲同一内容：每张卡片只写 3 个词，讲 3 遍，最后一遍录音', time: '30分钟', standard: '能不念稿讲满 3 分钟' },
+7616:           ]},
+7617:           { name: '实战与问答', tasks: [
+7618:             { do: '找一位朋友当面讲一遍，请对方随时在你逻辑跳跃的地方喊停，记下所有被喊停的点', time: '30分钟', standard: '一张"逻辑断点"清单' },
+7619:             { do: '请朋友针对你的 pre 提 3 个刁钻问题，练习"停顿 1 秒 → 复述问题 → 分点回答"的应答结构', time: '25分钟', standard: '3 个问题都能结构化回答' },
+7620:           ]},
+7621:         ]
+7622:       },
+7623:       /* ---------- 编程 ---------- */
+7624:       {
+7625:         key: 'programming', name: '编程',
+7626:         patterns: [/python|编程|代码|写程序|爬虫|学开发|java|前端/],
+7627:         verifyTask: '独立编写一个能实际运行、解决你自己真实问题的小工具（脚本/网页均可），并连续使用一周。',
+7628:         units: [
+7629:           { name: '环境与第一个程序', tasks: [
+7630:             { do: '装好 Python 和编辑器，写第一个程序：让用户输入生日，输出"你活了多少天"', time: '40分钟', standard: '程序跑通、结果正确', beginnerOnly: true },
+7631:             { do: '写一个猜数字游戏（1-100，提示大了/小了），写完自己玩一遍验证逻辑', time: '40分钟', standard: '游戏能正常玩' },
+7632:           ]},
+7633:           { name: '语法与逻辑', tasks: [
+7634:             { do: '用循环+条件分别打印：九九乘法表、菱形星号图案、FizzBuzz', time: '50分钟', standard: '三个输出都正确' },
+7635:             { do: '写一个脚本读取一个 txt 文件，统计每个词出现的次数，输出前 10 名', time: '60分钟', standard: '前 10 名输出正确' },
+7636:           ]},
+7637:           { name: '数据与文件', tasks: [
+7638:             { do: '用列表+字典做一个你的书单/影单管理器：能添加、删除、按评分排序，数据存成 JSON 文件', time: '90分钟', standard: '重启程序后数据还在' },
+7639:           ]},
+7640:           { name: '小项目实战', tasks: [
+7641:             { do: '写一个爬虫抓取一个公开网页的标题列表，存成 CSV', time: '90分钟', standard: 'CSV 里至少 20 行数据' },
+7642:             { do: '做一个你自己真的会用到的小工具（自动整理下载文件夹 / 周报模板生成器 / 生日提醒都行），写到能用为止', time: '2 小时（可分几天）', standard: '真的在用它', repeat: true },
+7643:           ]},
+7644:         ]
+7645:       },
+7646:       /* ---------- 设计 ---------- */
+7647:       {
+7648:         key: 'design', name: '设计',
+7649:         patterns: [/photoshop|figma|海报|平面|学设计|做设计|\bps\b|\bui\b/],
+7650:         verifyTask: '为一件真实的事（社团招新 / 活动宣传 / 自己的生日会）设计一张完整海报并交付使用。',
+7651:         units: [
+7652:           { name: '工具基础', tasks: [
+7653:             { do: '做一个"公众号封面"尺寸的练习：新建画布、置入图片、打标题、导出，全流程走一遍', time: '40分钟', standard: '导出一张封面图', beginnerOnly: true },
+7654:             { do: '临摹一张你觉得好的海报：同样的版式自己重新做一遍（字体和图片可以不同）', time: '90分钟', standard: '两张对比图放一起看' },
+7655:           ]},
+7656:           { name: '排版', tasks: [
+7657:             { do: '做 4 个版本的同一张文字海报：分别只改对齐方式 / 字号对比 / 留白 / 信息层级，感受哪个最清楚', time: '60分钟', standard: '4 个版本 + 能说出最好的那个为什么好' },
+7658:           ]},
+7659:           { name: '配色', tasks: [
+7660:             { do: '从 3 张优秀作品里吸色，各做一套 5 色配色板（主色/辅色/强调色/深/浅），马上用到自己的海报里', time: '40分钟', standard: '3 套配色板 + 一张用上的海报' },
+7661:           ]},
+7662:           { name: '完整产出', tasks: [
+7663:             { do: '为一件真实的事设计一张海报并交付，收集使用者的一条反馈', time: '2 小时（可分几天）', standard: '有人真的用了你的海报', repeat: true },
+7664:           ]},
+7665:         ]
+7666:       },
+7667:       /* ---------- 画画 ---------- */
+7668:       {
+7669:         key: 'drawing', name: '画画',
+7670:         patterns: [/画画|素描|插画|手绘|板绘|学画/],
+7671:         verifyTask: '完成一张不少于 1 小时的完整作品（临摹或原创均可），和第一天的练习页放在一起对比。',
+7672:         units: [
+7673:           { name: '线条', tasks: [
+7674:             { do: '画满一页：直线、曲线、圆各 20 个，要求手不抖、线条收得住；隔天再来一页，两页放一起对比', time: '30分钟', standard: '第二页明显更稳', repeat: true },
+7675:           ]},
+7676:           { name: '比例', tasks: [
+7677:             { do: '用铅笔测量法临摹 3 张照片：先定大比例，再抠细节；画完和原图叠在一起找比例错的地方', time: '60分钟', standard: '3 张临摹 + 错位标注' },
+7678:           ]},
+7679:           { name: '明暗', tasks: [
+7680:             { do: '画一个球体的明暗：高光、亮面、明暗交界线、反光、投影五个调子都画出来，只用一支铅笔', time: '40分钟', standard: '五个调子都能分辨出来' },
+7681:           ]},
+7682:           { name: '完整作品', tasks: [
+7683:             { do: '完成一张完整的临摹或写生作品（不少于 1 小时），中途不看手机', time: '60分钟以上', standard: '一张成品', repeat: true },
+7684:           ]},
+7685:         ]
+7686:       },
+7687:       /* ---------- 写作 ---------- */
+7688:       {
+7689:         key: 'writing', name: '写作',
+7690:         patterns: [/写作|写文章|写公众号|文案|写小说|写故事/],
+7691:         verifyTask: '独立写一篇结构完整的文章（800 字以上）并公开发布（公众号/知乎/小红书均可）。',
+7692:         units: [
+7693:           { name: '素材库', tasks: [
+7694:             { do: '建一个素材库（备忘录/笔记本都行），本周每天收集 3 条好素材（金句/故事/数据），周末分类整理', time: '每天 10 分钟', standard: '21 条素材，至少分 3 类' },
+7695:           ]},
+7696:           { name: '结构', tasks: [
+7697:             { do: '拆解 2 篇你喜欢的文章：给每一段标注功能（观点/例子/过渡/金句），然后套这个结构写一篇 500 字短文', time: '90分钟', standard: '一篇有结构的短文' },
+7698:           ]},
+7699:           { name: '开头与修改', tasks: [
+7700:             { do: '给同一个主题写 5 个不同的开头（提问 / 场景 / 金句 / 数据 / 直接冲突），发给朋友选最想读下去的一个', time: '40分钟', standard: '5 个开头 + 一个投票结果' },
+7701:             { do: '把一篇旧文章删掉 30% 的字数且不损失信息，再朗读一遍改掉所有拗口的句子', time: '40分钟', standard: '更短的版本读起来更顺' },
+7702:           ]},
+7703:           { name: '完整产出', tasks: [
+7704:             { do: '写一篇完整的短文并公开发布，24 小时后回来看数据和评论', time: '2 小时（可分几天）', standard: '公开发布一篇', repeat: true },
+7705:           ]},
+7706:         ]
+7707:       },
+7708:       /* ---------- 吉他 / 乐器 ---------- */
+7709:       {
+7710:         key: 'guitar', name: '吉他弹唱',
+7711:         patterns: [/吉他|尤克里里|ukulele|弹唱/],
+7712:         verifyTask: '不看谱边弹边唱完成一首完整的歌，录下来发给朋友听。',
+7713:         units: [
+7714:           { name: '基础和弦', tasks: [
+7715:             { do: '学会 C、G、Am、Em 四个和弦：每个按住后从上到下逐根弦弹，保证每根弦都发声清晰', time: '40分钟', standard: '四个和弦都清晰发声' },
+7716:           ]},
+7717:           { name: '和弦转换', tasks: [
+7718:             { do: '练转换：C→G→Am→Em 循环，开节拍器 60bpm，每小节换一次，连续 3 分钟不断', time: '30分钟', standard: '3 分钟不断', repeat: true },
+7719:           ]},
+7720:           { name: '节奏与弹唱', tasks: [
+7721:             { do: '练 4 种扫弦节奏型，跟着一首慢歌从头扫到尾', time: '40分钟', standard: '完整扫完一首歌' },
+7722:             { do: '选一首只用这 4 个和弦的歌：先只唱不弹 → 再只弹不唱 → 最后合起来，录一遍', time: '60分钟', standard: '能边弹边唱完整首' },
+7723:           ]},
+7724:         ]
+7725:       },
+7726:       /* ---------- 健身 / 跑步 ---------- */
+7727:       {
+7728:         key: 'fitness', name: '健身',
+7729:         patterns: [/健身|跑步|减脂|增肌|锻炼|运动|引体|马甲线/],
+7730:         verifyTask: '按自己定的每周训练表连续执行 2 周，并记录每次的训练内容和一个能对比的数值（配速/个数/重量）。',
+7731:         units: [
+7732:           { name: '基础动作模式', tasks: [
+7733:             { do: '学三个基础动作（深蹲 / 俯卧撑 / 平板支撑），每个 3 组；用手机侧面录像，对照标准动作找出自己的 2 个问题', time: '40分钟', standard: '3 段录像 + 问题清单' },
+7734:             { do: '隔天重复：深蹲 3×12、俯卧撑 3×8（跪姿也行）、平板支撑 3×30 秒，和上次的录像对比', time: '30分钟', standard: '动作比上次标准', repeat: true },
+7735:           ]},
+7736:           { name: '有氧耐力', tasks: [
+7737:             { do: '慢跑或快走 30 分钟，记下配速和结束时的心率；每周 2-3 次，目标是比第一次更轻松', time: '30分钟', standard: '配速/心率有记录', repeat: true },
+7738:           ]},
+7739:           { name: '计划与记录', tasks: [
+7740:             { do: '定一张每周训练表（每周几天、每次练什么），贴在显眼的地方，本周按表完成并打勾', time: '20分钟', standard: '一张表 + 本周打卡' },
+7741:             { do: '记录三天全部饮食，估算热量，找出最大的一个问题（奶茶/夜宵/不吃早餐），只改这一项', time: '20分钟', standard: '三天记录 + 一个改进' },
+7742:           ]},
+7743:         ]
+7744:       },
+7745:     ];
+7746: 
+7747:     // 匹配领域
+7748:     function matchDomain(text) {
+7749:       const t = text.toLowerCase();
+7750:       for (const d of DOMAIN_LIB) {
+7751:         if (d.patterns.some(p => p.test(t))) return d;
+7752:       }
+7753:       return null;
+7754:     }
+7755: 
+7756:     // 根据领域 + 用户情况生成能力单元定义（含任务池）
+7757:     function buildUnitDefs(domain, opts) {
+7758:       let defs;
+7759:       if (domain) {
+7760:         defs = domain.units.filter(u =>
+7761:           (!u.adv || opts.wantsAdvanced) &&
+7762:           (!u.beginnerOnly || opts.isZero)
+7763:         ).map(u => ({ name: u.name, tasks: u.tasks }));
+7764:       } else {
+7765:         defs = genericUnits(opts.what);
+7766:       }
+7767:       // 分阶段：前 40% 打基础，中间核心练习，最后整合实战
+7768:       const n = defs.length;
+7769:       defs.forEach((u, i) => {
+7770:         u.phase = i < n * 0.4 ? 1 : (i < n * 0.85 ? 2 : 3);
+7771:       });
+7772:       return defs;
+7773:     }
+7774: 
+7775:     // 未匹配领域时的通用拆解（仍然要求具体、能做、有结果）
+7776:     function genericUnits(what) {
+7777:       const name = extractSkillName(what);
+7778:       return [
+7779:         { name: name + ' · 入门准备', tasks: [
+7780:           { do: '找出学「' + name + '」最常用的 3 个工具 / APP / 资源，各花 15 分钟试用，选一个当主力，写一句"为什么选它"', time: '45分钟', standard: '定了主力工具 + 一句理由' },
+7781:           { do: '读 2 篇"如何入门' + name + '"的高赞经验帖，各读完后用自己的话写出 3 条共同建议', time: '40分钟', standard: '6 条建议，合并重复后至少 3 条' },
+7782:         ]},
+7783:         { name: name + ' · 基础操作', tasks: [
+7784:           { do: '跟一个入门教程完整做一遍（边看边做、不跳步骤），做的过程记下卡壳的 3 个地方', time: '60分钟', standard: '做出教程的成品 + 卡壳清单' },
+7785:           { do: '隔天不看教程，把昨天的成品独立重做一遍，卡住才允许回看', time: '60分钟', standard: '能独立重做 80%' },
+7786:         ]},
+7787:         { name: name + ' · 核心练习', tasks: [
+7788:           { do: '找一件你生活里真实需要用「' + name + '」解决的小事，直接用它解决一次', time: '45分钟', standard: '事情真的被解决了', repeat: true },
+7789:           { do: '给「' + name + '」定一个 30 分钟内能做完的小练习，做完立刻检验产出', time: '30分钟', standard: '有一个看得见的产出', repeat: true },
+7790:         ]},
+7791:         { name: name + ' · 实战产出', tasks: [
+7792:           { do: '独立完成一个属于你自己的「' + name + '」小作品，做完拿给一个朋友看，请对方说一句最直观的感受', time: '90分钟', standard: '一个作品 + 一条他人反馈' },
+7793:         ]},
+7794:       ];
+7795:     }
+7796: 
+7797:     function genericVerifyTask(what) {
+7798:       const name = extractSkillName(what);
+7799:       return '独立完成一个「' + name + '」的完整成品（不看教程、不找人代做），并把它记录为一段真实经历。';
+7800:     }
+7801: 
+7802:     /* ============================================================
+7803:        15) 技能名称提取
+7804:        ============================================================ */
+7805:     function extractSkillName(what) {
+7806:       // 从自然语言中提取技能名称（仅用于未匹配到领域库时）
+7807:       const text = what.toLowerCase();
+7808: 
+7809:       if (/雅思|ielts/.test(text)) return '雅思';
+7810:       if (/托福|toefl|四六级|四级|六级|考研英语/.test(text)) return '英语考试';
+7811:       if (/premiere|剪映|剪辑|剪视频/.test(text)) return '视频剪辑';
+7812:       if (/摄影|相机/.test(text)) return '摄影';
+7813:       if (/做饭|烹饪|炒菜|家常菜/.test(text)) return '做饭';
+7814:       if (/presentation|汇报|演讲/.test(text)) return 'Presentation';
+7815:       if (/python/.test(text)) return 'Python编程';
+7816:       if (/编程|代码|开发/.test(text)) return '编程';
+7817:       if (/英语口语|口语/.test(text)) return '英语口语';
+7818:       if (/英语|英文/.test(text)) return '英语';
+7819:       if (/健身|跑步|减脂|增肌/.test(text)) return '健身';
+7820:       if (/吉他|尤克里里/.test(text)) return '吉他弹唱';
+7821:       if (/画画|素描|手绘|板绘/.test(text)) return '画画';
+7822:       if (/写作|写文章|文案/.test(text)) return '写作';
+7823:       if (/设计|figma|ui/.test(text)) return '设计';
+7824:       if (/数据分析/.test(text)) return '数据分析';
+7825: 
+7826:       // 冒号后面往往就是技能名："……：手冲咖啡"
+7827:       const colonMatch = what.match(/[：:]([^，。,!?！？\s]{1,12})/);
+7828:       if (colonMatch) return colonMatch[1].trim();
+7829: 
+7830:       // 尝试提取"学会XX / 学个XX / 学一下XX"中的XX
+7831:       const match = what.match(/学[会习]?(?:个|一下)?([^，。,!?！？\s]{1,12}?)(?:，|。|,|。|\s|$)/);
+7832:       if (match && match[1].trim()) return match[1].trim();
+7833: 
+7834:       // 去掉"我想/我想用30天"之类的前缀后截取
+7835:       const stripped = what.replace(/^我[想要]+/, '').replace(/用?\d+\s*[天日周月]*/, '').replace(/^[里内的]+/, '');
+7836:       return (stripped || what).slice(0, 12).replace(/[，。！？,.!?：:]/, '').trim();
+7837:     }
+7838: 
+7839:     /* ============================================================
+7840:        16) 学习计划生成：先分阶段，再排天/周任务
+7841:        ≤45 天 → 按天（Day N）；>45 天 → 按周（Week N，每周 5 个任务）
+7842:        任务全部来自领域知识库，保证"具体、能做、有结果"
+7843:        ============================================================ */
+7844:     function aiGeneratePlan(unitDefs, totalDays, minutesPerDay, verifyTask) {
+7845:       const plan = [];
+7846:       const defTime = minutesPerDay + '分钟';
+7847:       const dailyMode = totalDays <= 45;
+7848:       const totalWeight = unitDefs.reduce((s, u) => s + u.tasks.length, 0) || 1;
+7849:       const verifyTime = Math.max(minutesPerDay * 2, 120) + '分钟';
+7850: 
+7851:       if (dailyMode) {
+7852:         const learningDays = Math.max(unitDefs.length, totalDays - 1);
+7853:         // 按任务量分配天数，但每个单元最多"独立任务数 + 2"天，
+7854:         // 避免同一个练习机械重复太多次；多出/不足的部分按比例再平衡
+7855:         const alloc = [];
+7856:         let allocated = 0;
+7857:         unitDefs.forEach((u, idx) => {
+7858:           const unique = u.tasks.filter(t => !t.repeat).length || u.tasks.length;
+7859:           const raw = Math.max(1, Math.round(learningDays * u.tasks.length / totalWeight));
+7860:           alloc[idx] = Math.min(raw, unique + 2);
+7861:           allocated += alloc[idx];
+7862:         });
+7863:         if (allocated !== learningDays) {
+7864:           if (allocated > learningDays) {
+7865:             // 超了：按比例缩
+7866:             const scale = learningDays / allocated;
+7867:             let sum = 0;
+7868:             unitDefs.forEach((u, idx) => { alloc[idx] = Math.max(1, Math.round(alloc[idx] * scale)); sum += alloc[idx]; });
+7869:             allocated = sum;
+7870:           }
+7871:           // 补齐或继续削减
+7872:           let rest = learningDays - allocated, i = 0, guard = 0;
+7873:           while (rest !== 0 && guard < 2000) {
+7874:             const k = i % unitDefs.length;
+7875:             if (rest > 0) { alloc[k]++; rest--; }
+7876:             else if (alloc[k] > 1) { alloc[k]--; rest++; }
+7877:             i++; guard++;
+7878:           }
+7879:         }
+7880:         let day = 1;
+7881:         unitDefs.forEach((u, idx) => {
+7882:           const unitId = 'u' + idx;
+7883:           const counts = {};
+7884:           expandTasks(u.tasks, alloc[idx], defTime, 0, counts).forEach(t => {
+7885:             plan.push({ unitId, day, title: 'Day ' + day + '｜' + u.name, do: t.do, time: t.time, standard: t.standard, done: false });
+7886:             day++;
+7887:           });
+7888:         });
+7889:         plan.push({
+7890:           unitId: 'verify', day: day, title: 'Day ' + day + '｜🏆 验证任务',
+7891:           do: verifyTask, time: verifyTime,
+7892:           standard: '完成并记录为一段真实经历（记录后技能正式点亮）', done: false
+7893:         });
+7894:       } else {
+7895:         // 周模式：先分阶段，每周 5 个任务
+7896:         const weeks = Math.max(unitDefs.length + 1, Math.round(totalDays / 7));
+7897:         let week = 1;
+7898:         unitDefs.forEach((u, idx) => {
+7899:           const unitId = 'u' + idx;
+7900:           let unitWeeks = Math.max(1, Math.round((weeks - 1) * u.tasks.length / totalWeight));
+7901:           if (idx === unitDefs.length - 1) unitWeeks = Math.max(1, (weeks - 1) - (week - 1));
+7902:           let offset = 0;
+7903:           const counts = {}; // 跨周累计使用次数
+7904:           for (let w = 0; w < unitWeeks; w++) {
+7905:             expandTasks(u.tasks, 5, defTime, offset, counts).forEach(t => {
+7906:               plan.push({ unitId, day: week, title: 'Week ' + week + '｜' + u.name, do: t.do, time: t.time, standard: t.standard, done: false });
+7907:             });
+7908:             offset += 5;
+7909:             week++;
+7910:           }
+7911:         });
+7912:         plan.push({
+7913:           unitId: 'verify', day: week, title: 'Week ' + week + '｜🏆 验证任务',
+7914:           do: verifyTask, time: verifyTime,
+7915:           standard: '完成并记录为一段真实经历（记录后技能正式点亮）', done: false
+7916:         });
+7917:       }
+7918: 
+7919:       return plan;
+7920:     }
+7921: 
+7922:     // 从任务池展开 N 个任务：先消耗一遍全部任务，
+7923:     // 耗尽后循环整个池子（可重复练习的任务权重 ×2），并标注"第N次"
+7924:     function expandTasks(pool, count, defTime, offset, counts) {
+7925:       const out = [];
+7926:       if (!pool.length) return out;
+7927:       const firstLen = pool.length;
+7928:       const cyc = [];
+7929:       pool.forEach((t, i) => { cyc.push(i); if (t.repeat) cyc.push(i); });
+7930:       const c = counts || {};
+7931:       for (let j = 0; j < count; j++) {
+7932:         const slot = (offset || 0) + j;
+7933:         const idx = slot < firstLen ? slot : cyc[(slot - firstLen) % cyc.length];
+7934:         c[idx] = (c[idx] || 0) + 1;
+7935:         const t = pool[idx];
+7936:         const suffix = c[idx] > 1 ? '（第' + c[idx] + '次）' : '';
+7937:         out.push({ do: t.do + suffix, time: t.time || defTime, standard: t.standard });
+7938:       }
+7939:       return out;
+7940:     }
+7941: 
+7942:     /* ============================================================
+7943:        17) 学习计划弹窗：第一部分技能树 + 第二部分学习计划
+7944:        ============================================================ */
+7945:     function showLearnPlanModal(skillName) {
+7946:       const skill = getSkills().find(s => s.name === skillName);
+7947:       if (!skill || !skill.plan) return;
+7948: 
+7949:       document.getElementById('learnPlanTitle').textContent = '🪄 ' + skillName + ' · 技能树 & 学习计划';
+7950:       let html = '';
+7951: 
+7952:       if (skill.goalText) {
+7953:         html += `<div class="plan-goal">🎯 ${escapeHtml(skill.goalText)}</div>`;
+7954:       }
+7955: 
+7956:       // 保守假设标注
+7957:       if (skill.assumptions && skill.assumptions.length) {
+7958:         html += `<div class="plan-assumptions">
+7959:           <div class="pa-title">🧐 我先做了这些假设（都可以推翻）</div>
+7960:           ${skill.assumptions.map(a => `<div class="pa-item">· ${escapeHtml(a)}</div>`).join('')}
+7961:         </div>`;
+7962:       }
+7963: 
+7964:       // 第一部分：技能树
+7965:       const units = skill.breakdown || [];
+7966:       if (units.length) {
+7967:         html += `<div class="plan-section-title">🌱 第一部分 · 技能树</div>`;
+7968:         html += `<div class="plan-section-desc">我把这个目标拆成了这些核心能力——掌握它们就够了，不多学。完成学习任务后，对应能力会亮起来。</div>`;
+7969:         let curPhase = 0;
+7970:         units.forEach(u => {
+7971:           if (u.phase !== curPhase) {
+7972:             curPhase = u.phase;
+7973:             html += `<div class="plan-phase-header">${PHASE_NAMES[u.phase] || ''}</div>`;
+7974:           }
+7975:           html += `<div class="plan-tree-chip"><span class="ptc-dot ${u.status || 'want'}"></span>${escapeHtml(u.name)}</div>`;
+7976:         });
+7977:       }
+7978: 
+7979:       // 第二部分：学习计划
+7980:       html += `<div class="plan-section-title">📋 第二部分 · 学习计划</div>`;
+7981:       html += renderPlanBlock(skill, skillName);
+7982: 
+7983:       document.getElementById('learnPlanBody').innerHTML = html;
+7984:       document.getElementById('learnPlanModal').style.display = 'flex';
+7985:     }
+7986: 
+7987:     // 计划渲染（弹窗和技能详情共用）：阶段头 → 单元头 → 任务
+7988:     function renderPlanBlock(skill, skillName) {
+7989:       const units = skill.breakdown || [];
+7990:       const done = skill.plan.filter(t => t.done).length;
+7991:       let html = `<div class="plan-progress">进度：${done} / ${skill.plan.length}　做完一个勾一个</div>`;
+7992: 
+7993:       let curPhase = 0, curUnit = null;
+7994:       skill.plan.forEach((task, i) => {
+7995:         if (task.unitId === 'verify') {
+7996:           if (curUnit !== 'verify') {
+7997:             curUnit = 'verify';
+7998:             html += `<div class="plan-unit-header verify">🏆 验证任务（做完并记录经历，技能正式点亮）</div>`;
+7999:           }
+8000:         } else {
+8001:           const u = units.find(x => x.id === task.unitId);
+8002:           if (u && u.phase !== curPhase) {
+8003:             curPhase = u.phase;
+8004:             html += `<div class="plan-phase-header">${PHASE_NAMES[u.phase] || ''}</div>`;
+8005:           }
+8006:           if (task.unitId !== curUnit) {
+8007:             curUnit = task.unitId;
+8008:             html += `<div class="plan-unit-header">${u ? escapeHtml(u.name) : ''}</div>`;
+8009:           }
+8010:         }
+8011:         html += `<div class="plan-task-item ${task.done ? 'done' : ''}">
+8012:           <label class="plan-task-check">
+8013:             <input type="checkbox" ${task.done ? 'checked' : ''} onchange="togglePlanTask('${escapeHtml(skillName)}',${i},this.checked)" />
+8014:             <span class="plan-task-title">${escapeHtml(task.title)}</span>
+8015:           </label>
+8016:           <div class="plan-task-detail">
+8017:             <div class="plan-task-do">${escapeHtml(task.do)}</div>
+8018:             <div class="plan-task-meta">⏱ ${escapeHtml(task.time)} · ✅ 完成：${escapeHtml(task.standard)}</div>
+8019:           </div>
+8020:         </div>`;
+8021:       });
+8022:       return html;
+8023:     }
+8024: 
+8025:     function closeLearnPlanModal() {
+8026:       document.getElementById('learnPlanModal').style.display = 'none';
+8027:     }
+8028: 
+8029:     document.getElementById('learnPlanModal').addEventListener('click', function(e) {
+8030:       if (e.target === this) closeLearnPlanModal();
+8031:     });
+8032: 
+8033:     /* ============================================================
+8034:        18) 学习计划勾选 + 技能状态联动
+8035:        ============================================================ */
+8036:     function togglePlanTask(skillName, taskIdx, checked) {
+8037:       const skills = getSkills();
+8038:       const skill = skills.find(s => s.name === skillName);
+8039:       if (!skill || !skill.plan) return;
+8040: 
+8041:       skill.plan[taskIdx].done = checked;
+8042: 
+8043:       // 计算每个单元的完成情况
+8044:       if (skill.breakdown) {
+8045:         skill.breakdown.forEach(unit => {
+8046:           const unitTasks = skill.plan.filter(t => t.unitId === unit.id);
+8047:           const unitDone = unitTasks.filter(t => t.done).length;
+8048:           if (unitTasks.length > 0 && unitDone === unitTasks.length) {
+8049:             unit.status = 'practiced';
+8050:           } else if (unitDone > 0) {
+8051:             unit.status = 'learning';
+8052:           } else {
+8053:             unit.status = 'want';
+8054:           }
+8055:         });
+8056:       }
+8057: 
+8058:       // 整体技能状态
+8059:       const allDone = skill.plan.filter(t => t.unitId !== 'verify').every(t => t.done);
+8060:       const verifyDone = skill.plan.some(t => t.unitId === 'verify' && t.done);
+8061: 
+8062:       if (allDone && verifyDone) {
+8063:         skill.status = 'verified';
+8064:       } else if (allDone) {
+8065:         skill.status = 'practiced';
+8066:       } else {
+8067:         const anyDone = skill.plan.some(t => t.done);
+8068:         skill.status = anyDone ? 'learning' : 'learning';
+8069:       }
+8070: 
+8071:       saveSkills(skills);
+8072:       renderSkillTree();
+8073: 
+8074:       // 如果验证任务完成，提示用户记录经历
+8075:       if (checked && skill.plan[taskIdx].unitId === 'verify') {
+8076:         setTimeout(() => {
+8077:           if (confirm('🎉 验证任务完成！要记录这段真实经历吗？\n\n记录后技能将被正式点亮。')) {
+8078:             // 自动打开经历记录弹窗
+8079:             openExpModal();
+8080:             document.getElementById('expForm').querySelector('input[name=expTitle]').value = '完成「' + skillName + '」验证任务';
+8081:             document.getElementById('expForm').querySelector('textarea[name=expDesc]').value = skill.verifyTask || '完成了' + skillName + '的学习验证。';
+8082:           }
+8083:         }, 300);
+8084:       }
+8085: 
+8086:       // 加经验
+8087:       if (checked) {
+8088:         addExp(5, '完成学习任务');
+8089:       }
+8090:     }
+8091: 
+8092:     /* ============================================================
+8093:        19) 页面流转
+8094:        ============================================================ */
+8095:     const ALL_PAGES = ['page-splash','page-onboard','page-chargen','page-home','page-explog','page-skilltree'];
+8096: 
+8097:     function goPage(id) {
+8098:       ALL_PAGES.forEach(p => { document.getElementById(p).style.display = 'none'; });
+8099:       document.getElementById(id).style.display = 'block';
+8100:       window.scrollTo({ top: 0, behavior: 'smooth' });
+8101:       // 离开 chargen 时停止轮询
+8102:       if (id !== 'page-chargen' && _chargenPoller) {
+8103:         clearInterval(_chargenPoller);
+8104:         _chargenPoller = null;
+8105:       }
+8106:       // 底部导航激活态
+8107:       document.querySelectorAll('.bn-tab').forEach(b => {
+8108:         b.classList.toggle('active', b.getAttribute('data-page') === id);
+8109:       });
+8110:       if (id === 'page-home') {
+8111:         fillHome(getProfile());
+8112:         document.getElementById('resetBtn').style.display = 'inline-flex';
+8113:       } else {
+8114:         document.getElementById('resetBtn').style.display = 'none';
+8115:       }
+8116:       if (id === 'page-explog') renderExpLog();
+8117:       if (id === 'page-skilltree') {
+8118:         renderTreeTabs();
+8119:         renderSkillTree();
+8120:       }
+8121:     }
+8122: 
+8123:     function resetProfile() {
+8124:       if (confirm('确定要重新填写个人信息吗？')) {
+8125:         localStorage.removeItem(LS_PROFILE);
+8126:         localStorage.removeItem(LS_EXPERIENCES);
+8127:         localStorage.removeItem(LS_SKILLS);
+8128:         localStorage.removeItem(LS_PLAYER);
+8129:         localStorage.removeItem(LS_TREES);
+8130:         localStorage.removeItem(LS_CHAR_IMAGE);
+8131:         localStorage.removeItem(LS_CHAR_PROMPT);
+8132:         localStorage.removeItem(LS_CHAR_SKIPPED);
+8133:         goPage('page-onboard');
+8134:       }
+8135:     }
+8136: 
+8137:     /* ============================================================
+8138:        19.5) 地球Online 存档：读取全部真实数据 → 人物存档页
+8139:        数据关系：基本信息 + 经历库 + 已确认技能 + 进行中目标 → 存档
+8140:        所有内容来自真实数据，缺的显示"还没有"，绝不虚构
+8141:        ============================================================ */
+8142:     const LS_ARCHIVES = 'earth_online_archives' + '_' + (window.__LANG || 'zh');
+8143: 
+8144:     function getArchives() {
+8145:       try { return JSON.parse(localStorage.getItem(LS_ARCHIVES)) || []; } catch(e) { return []; }
+8146:     }
+8147:     function saveArchives(list) {
+8148:       try { localStorage.setItem(LS_ARCHIVES, JSON.stringify(list)); } catch(e) {}
+8149:     }
+8150: 
+8151:     function showArchive() {
+8152:       document.getElementById('archiveBody').innerHTML = archiveHtml();
+8153:       document.getElementById('archiveBody').scrollTop = 0;
+8154:       document.getElementById('archiveName').value = suggestArchiveName();
+8155:       const btn = document.getElementById('archiveSaveBtn');
+8156:       btn.textContent = '💾 保存这版存档';
+8157:       btn.onclick = function() { saveArchive(); };
+8158:       renderArchiveList();
+8159:       const modal = document.getElementById('archiveModal');
+8160:       modal.style.display = 'flex';
+8161:       // 让 hint 在滚动后自动隐藏
+8162:       const body = document.getElementById('archiveBody');
+8163:       body.onscroll = function() {
+8164:         const hint = document.getElementById('arcxScrollHint');
+8165:         if (hint) hint.style.display = body.scrollTop > 20 ? 'none' : 'block';
+8166:       };
+8167:     }
+8168: 
+8169:     function closeArchive() {
+8170:       document.getElementById('archiveModal').style.display = 'none';
+8171:     }
+8172: 
+8173:     /* ----- 年级切换 ----- */
+8174:     const GRADE_OPTIONS = ['大一', '大二', '大三', '大四', '研一', '研二', '研三'];
+8175:     function openGradePicker() {
+8176:       const cur = getProfile().grade || '';
+8177:       const grid = document.getElementById('gradeGrid');
+8178:       grid.innerHTML = GRADE_OPTIONS.map(g =>
+8179:         `<button type="button" class="grade-opt ${g === cur ? 'current' : ''}" onclick="setGrade('${g}')">${g}</button>`
+8180:       ).join('');
+8181:       document.getElementById('gradeModal').style.display = 'flex';
+8182:     }
+8183:     function closeGradePicker() {
+8184:       document.getElementById('gradeModal').style.display = 'none';
+8185:     }
+8186:     function setGrade(g) {
+8187:       const p = getProfile();
+8188:       p.grade = g;
+8189:       saveProfile(p);
+8190:       closeGradePicker();
+8191:       fillHome(p);
+8192:       showExpToast(5, '更新年级');
+8193:     }
+8194: 
+8195:     // 生成存档长图 → 存到相册（Web Share API），不支持时下载 PNG
+8196:     async function saveArchiveToAlbum() {
+8197:       const btn = document.getElementById('saveToAlbumBtn');
+8198:       const src = document.getElementById('archiveBody');
+8199:       if (!src.innerHTML.trim()) { alert('还没有存档内容～'); return; }
+8200: 
+8201:       btn.disabled = true;
+8202:       btn.textContent = '⏳ 正在生成存档图…';
+8203: 
+8204:       // 离屏容器：固定 750px 宽度，渲染更稳定
+8205:       const wrap = document.createElement('div');
+8206:       wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:750px;background:#f0f6fb;z-index:-1;';
+8207:       wrap.innerHTML = src.innerHTML;
+8208:       // 弹窗滚动区里可能带内联 overflow/height 限制，克隆后放开
+8209:       wrap.querySelectorAll('[style]').forEach(el => {
+8210:         el.style.maxHeight = '';
+8211:         el.style.overflow = 'visible';
+8212:       });
+8213:       document.body.appendChild(wrap);
+8214: 
+8215:       try {
+8216:         const canvas = await html2canvas(wrap, {
+8217:           scale: 2,
+8218:           backgroundColor: '#f0f6fb',
+8219:           useCORS: true,
+8220:           logging: false,
+8221:           // html2canvas 会在部分浏览器上误解析存档卡的 CSS 渐变百分比，
+8222:           // 仅对截图副本关闭背景渐变，不影响在线存档卡本身的视觉。
+8223:           onclone: function(doc) {
+8224:             const style = doc.createElement('style');
+8225:             style.textContent = 'body > div[style*="left"] *, body > div[style*="left"] *::before, body > div[style*="left"] *::after { background-image: none !important; }';
+8226:             doc.head.appendChild(style);
+8227:           }
+8228:         });
+8229:         wrap.remove();
+8230: 
+8231:         const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+8232:         const fname = '地球Online存档_' + today() + '.png';
+8233:         const file = new File([blob], fname, { type: 'image/png' });
+8234: 
+8235:         if (navigator.canShare && navigator.canShare({ files: [file] })) {
+8236:           // 手机：唤起系统分享面板，可选「存入照片/保存图片」
+8237:           try {
+8238:             await navigator.share({ files: [file], title: '地球Online 人物存档' });
+8239:           } catch(e) { /* 用户取消 */ }
+8240:         } else {
+8241:           // 桌面/不支持分享文件：直接下载 PNG
+8242:           const a = document.createElement('a');
+8243:           const url = URL.createObjectURL(blob);
+8244:           a.href = url;
+8245:           a.download = fname;
+8246:           document.body.appendChild(a);
+8247:           a.click();
+8248:           a.remove();
+8249:           setTimeout(() => URL.revokeObjectURL(url), 3000);
+8250:         }
+8251:       } catch(e) {
+8252:         wrap.remove();
+8253:         alert('生成存档图失败：' + (e.message || e));
+8254:       } finally {
+8255:         btn.disabled = false;
+8256:         btn.textContent = '📷 保存到相册（生成存档图）';
+8257:       }
+8258:     }
+8259:     document.getElementById('archiveModal').addEventListener('click', function(e) {
+8260:       if (e.target === this) closeArchive();
+8261:     });
+8262: 
+8263:     function suggestArchiveName() {
+8264:       const p = getProfile();
+8265:       return p.grade ? p.grade + '存档' : '';
+8266:     }
+8267: 
+8268:     // ---- 存档主体：横向三栏人物资料卡（参考游戏存档卡） ----
+8269:     function archiveHtml() {
+8270:       const profile = getProfile();
+8271:       const skills = getSkills();
+8272:       const exps = getExperiences();
+8273:       const trees = getTrees();
+8274:       const sortedExps = [...exps].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+8275: 
+8276:       const confirmed = skills.filter(s => s.status === 'lit');
+8277:       const learning = skills.filter(s => s.status !== 'lit' && s.plan && s.plan.length);
+8278:       const exploring = skills.filter(s => s.status === 'want' || (!s.plan && s.status !== 'lit'));
+8279: 
+8280:       const nick = profile.nickname || '匿名冒险者';
+8281:       const date = today();
+8282:       const uid = genId(nick + (profile.school || ''));
+8283: 
+8284:       const profileKw = [
+8285:         ...parseList(profile.interests).slice(0, 3),
+8286:         ...parseList(profile.skills).slice(0, 2),
+8287:       ];
+8288:       const skillKw = confirmed.map(s => s.name).slice(0, 2);
+8289:       const allKw = [...new Set([...profileKw, ...skillKw])].slice(0, 6);
+8290: 
+8291:       const descKw = parseList(profile.interests)[0]
+8292:         || confirmed[0]?.name
+8293:         || parseList(profile.futureJobs)[0]
+8294:         || '';
+8295:       const desc = descKw
+8296:         ? '正在长成一个会「' + descKw + '」的人。'
+8297:         : '正在写下自己的人物档案。';
+8298: 
+8299:       const playerData = getPlayerData();
+8300:       const totalExp = playerData.exp || 0;
+8301:       const curLv = getLevel(totalExp);
+8302:       const nextLvExp = LEVEL_TABLE[curLv + 1] || LEVEL_TABLE[LEVEL_TABLE.length - 1];
+8303:       const lvBaseExp = LEVEL_TABLE[curLv] || 0;
+8304:       const lvProgress = nextLvExp > lvBaseExp ? Math.min(100, Math.round((totalExp - lvBaseExp) / (nextLvExp - lvBaseExp) * 100)) : 0;
+8305:       const expToNext = Math.max(0, nextLvExp - totalExp);
+8306:       const stageTitle = ['新手冒险者', '冒险学徒', '经验冒险者', '资深冒险者', '传奇冒险者'][Math.min(4, Math.floor(curLv / 6))] || '传奇冒险者';
+8307: 
+8308:       function skillLevel(s) {
+8309:         if (s.status === 'lit') {
+8310:           const expN = (s.sourceExpIds || []).length;
+8311:           return expN + 1;
+8312:         }
+8313:         if (Array.isArray(s.plan)) {
+8314:           const done = s.plan.filter(p => p.done).length;
+8315:           return Math.floor(done / 2) + 1;
+8316:         }
+8317:         return 1;
+8318:       }
+8319: 
+8320:       const skillByTree = [];
+8321:       const usedIds = new Set();
+8322:       trees.forEach(t => {
+8323:         const grp = confirmed.filter(s => (s.treeIds || []).includes(t.id));
+8324:         if (grp.length) {
+8325:           grp.forEach(s => usedIds.add(s.id));
+8326:           skillByTree.push({ name: t.name, icon: t.icon || '🌳', skills: grp });
+8327:         }
+8328:       });
+8329:       const orphan = confirmed.filter(s => !usedIds.has(s.id));
+8330:       if (orphan.length) {
+8331:         skillByTree.push({ name: '已点亮', icon: '✨', skills: orphan });
+8332:       }
+8333: 
+8334:       const catLevels = computeCategoryLevels().slice(0, 8);
+8335:       const timelineNodes = pickTimelineNodes([...sortedExps].reverse(), 6);
+8336: 
+8337:       const newSkills = confirmed
+8338:         .filter(s => s.confirmedAt)
+8339:         .sort((a, b) => (b.confirmedAt || '').localeCompare(a.confirmedAt || ''))
+8340:         .slice(0, 4);
+8341:       const newExps = sortedExps.slice(0, 4);
+8342:       const newGoals = learning.slice(0, 3);
+8343: 
+8344:       const futureKws = parseList(profile.futureJobs).slice(0, 4);
+8345:       const futureItems = [
+8346:         ...futureKws.slice(0, 3).map(t => ({ icon: '🎯', text: '更好地完成 ' + t + ' 方向' })),
+8347:         ...exploring.slice(0, 2).map(s => ({ icon: '🌱', text: '探索 ' + s.name })),
+8348:       ];
+8349: 
+8350:       let html = '';
+8351:       const skillIcons = '';window.__skillIconUrl=function(k){return __IMGURL('assets/img/decor/skill/icons/'+k+'.png');};
+8352:       const charImg = pickCharImage(profile);
+8353: 
+8354:       // 1. Hero（纯 CSS）
+8355:       html += '<div class="arcx-v3-hero">';
+8356:       html += '  <div class="arcx-hero-logo">';
+8357:       html += '    <span class="arcx-logo-text">地球<span class="arcx-logo-accent">Online</span></span>';
+8358:       html += '    <span class="arcx-logo-tag">我的大学人物存档</span>';
+8359:       html += '  </div>';
+8360:       html += '  <div class="arcx-hero-tags"><span>真实经历</span><span>·</span><span>自己确认</span><span>·</span><span>长成你自己</span></div>';
+8361:       html += '  <div class="arcx-hero-actions">';
+8362:       html += '    <span class="arcx-hero-btn">🪐 登录地球</span>';
+8363:       html += '    <span class="arcx-hero-btn">🧭 探索世界</span>';
+8364:       html += '    <span class="arcx-hero-btn">⚔️ 升级自己</span>';
+8365:       html += '  </div>';
+8366:       html += '  <div class="arcx-hero-save"><div class="arcx-save-ver">v1.0</div><div class="arcx-save-date">SAVE ' + escapeHtml(date) + '</div></div>';
+8367:       html += '</div>';
+8368: 
+8369:       // 2. PLAYER（保留 card-bg 美术）
+8370:       html += '<div class="arcx-player">';
+8371: [LONG 44246]
+8372:       html += '  <div class="arcx-player-tag">PLAYER · 当前存档</div>';
+8373:       html += '  <div class="arcx-player-portrait"><img src="' + escapeHtml(charImg) + '" alt="角色" /></div>';
+8374:       html += '  <div class="arcx-player-info">';
+8375:       html += '    <div class="apinfo-row"><span class="apinfo-k">玩家名称</span><span class="apinfo-v">' + escapeHtml(nick) + '</span></div>';
+8376:       html += '    <div class="apinfo-row"><span class="apinfo-k">当前学校</span><span class="apinfo-v">' + escapeHtml(profile.school || '—') + '</span></div>';
+8377:       html += '    <div class="apinfo-row"><span class="apinfo-k">专 业</span><span class="apinfo-v">' + escapeHtml(profile.major || '—') + '</span></div>';
+8378:       html += '    <div class="apinfo-row"><span class="apinfo-k">年 级</span><span class="apinfo-v">' + escapeHtml(profile.grade || '—') + '</span></div>';
+8379:       html += '    <div class="apinfo-row"><span class="apinfo-k">存档日</span><span class="apinfo-v">' + escapeHtml(date) + '</span></div>';
+8380:       html += '    <div class="apinfo-row"><span class="apinfo-k">UID</span><span class="apinfo-v">' + escapeHtml(uid) + '</span></div>';
+8381:       html += '  </div>';
+8382:       html += '</div>';
+8383: 
+8384:       // 3. 我的关卡（纯 CSS）
+8385:       html += '<div class="arcx-stage-card">';
+8386:       html += '  <div class="arcx-stage-card-title">⭐ 我的关卡</div>';
+8387:       html += '  <div class="arcx-stage-card-body">';
+8388:       html += '    <div class="arcx-stage-lv-box">';
+8389:       html += '      <div class="arcx-stage-lv-num">' + curLv + '</div>';
+8390:       html += '      <div class="arcx-stage-lv-tag">Lv</div>';
+8391:       html += '    </div>';
+8392:       html += '    <div class="arcx-stage-info">';
+8393:       html += '      <div class="arcx-stage-title">' + escapeHtml(stageTitle) + '</div>';
+8394:       html += '      <div class="arcx-stage-bar"><div class="arcx-stage-fill" style="width:' + lvProgress + '%;"></div></div>';
+8395:       html += '      <div class="arcx-stage-stats">';
+8396:       html += '        <span>EXP ' + totalExp + '</span>';
+8397:       html += '        <span>距离 Lv.' + (curLv + 1) + ' 还差 ' + expToNext + '</span>';
+8398:       html += '      </div>';
+8399:       html += '    </div>';
+8400:       html += '  </div>';
+8401:       html += '</div>';
+8402: 
+8403:       // 4. 关键词 + 一句话（纯 CSS）
+8404:       html += '<div class="arcx-tags-block">';
+8405:       html += '  <div class="arcx-card-title-row">🏷️ 人物关键词</div>';
+8406:       html += '  <div class="arcx-tag-chips">';
+8407:       if (allKw.length) {
+8408:         allKw.forEach(k => { html += '<span class="arcx-chip">' + escapeHtml(k) + '</span>'; });
+8409:       } else {
+8410:         html += '<span class="arcx-empty">— 还没有关键词 —</span>';
+8411:       }
+8412:       html += '  </div>';
+8413:       html += '</div>';
+8414:       html += '<div class="arcx-quote-block">';
+8415:       html += '  <div class="arcx-quote-text">「' + escapeHtml(desc) + '」</div>';
+8416:       html += '</div>';
+8417: 
+8418:       // 5. 当前能力（简洁卡片 + 技能图标 + Lv + 进度条）
+8419:       html += '<div class="arcx-sec arcx-sec-abilities">';
+8420:       html += '  <div class="arcx-sec-title"><span class="arcx-tit-icon">⚔️</span><span>当前能力 · 每个技能的等级</span><span class="arcx-tit-count">' + confirmed.length + '</span></div>';
+8421:       html += '  <div class="arcx-sec-body">';
+8422:       if (skillByTree.length) {
+8423:         skillByTree.forEach(grp => {
+8424:           html += '<div class="arcx-branch">';
+8425:           html += '  <div class="arcx-branch-head">';
+8426:           html += '    <span class="arcx-branch-ico">' + escapeHtml(grp.icon || '🌳') + '</span>';
+8427:           html += '    <span class="arcx-branch-name">' + escapeHtml(grp.name) + '</span>';
+8428:           html += '    <span class="arcx-branch-count">' + grp.skills.length + '</span>';
+8429:           html += '  </div>';
+8430:           html += '  <div class="arcx-branch-skills">';
+8431:           grp.skills.forEach(s => {
+8432:             const lv = skillLevel(s);
+8433:             const lvColor = lv >= 5 ? '#ff7a45' : lv >= 3 ? '#5fb4f2' : '#7cd992';
+8434:             const iconKey = (s.name || '').indexOf('摄影') >= 0 ? 'camera'
+8435:                           : (s.name || '').indexOf('模型') >= 0 || (s.name || '').indexOf('SketchUp') >= 0 || (s.name || '').indexOf('SU') >= 0 ? 'ruler'
+8436:                           : (s.name || '').indexOf('手绘') >= 0 ? 'paintbrush'
+8437:                           : (s.name || '').indexOf('原型') >= 0 || (s.name || '').indexOf('设计') >= 0 ? 'palette'
+8438:                           : (s.name || '').indexOf('代码') >= 0 || (s.name || '').indexOf('编程') >= 0 ? 'code'
+8439:                           : 'achievement-star';
+8440:             html += '<div class="arcx-ab-row">';
+8441:             html += '  <img class="arcx-ab-ico" src="' + __skillIconUrl(iconKey) + '" alt="" />';
+8442:             html += '  <span class="arcx-ab-name">' + escapeHtml(s.name) + '</span>';
+8443:             html += '  <span class="arcx-ab-bar"><span class="arcx-ab-fill" style="width:' + Math.min(100, lv * 25) + '%; background:' + lvColor + ';"></span></span>';
+8444:             html += '  <span class="arcx-ab-lv" style="border-color:' + lvColor + '; color:' + lvColor + ';">Lv.' + lv + '</span>';
+8445:             html += '</div>';
+8446:           });
+8447:           html += '  </div>';
+8448:           html += '</div>';
+8449:         });
+8450:       } else {
+8451:         html += '<div class="arcx-empty">⌛ 还没有确认的技能 — 记一段经历 → 提炼技能 → 自己确认后亮起</div>';
+8452:       }
+8453:       html += '  </div>';
+8454:       html += '</div>';
+8455: 
+8456:       // 6. 学习进度（简洁卡片 + 进度条）
+8457:       html += '<div class="arcx-sec arcx-sec-learning">';
+8458:       html += '  <div class="arcx-sec-title"><span class="arcx-tit-icon">🔍</span><span>学习技能进度</span><span class="arcx-tit-sub">' + learning.length + ' 项进行中</span></div>';
+8459:       html += '  <div class="arcx-sec-body">';
+8460:       if (learning.length) {
+8461:         learning.slice(0, 3).forEach((s, idx) => {
+8462:           const done = s.plan.filter(p => p.done).length;
+8463:           const total = s.plan.length;
+8464:           const pct = total ? Math.round(done / total * 100) : 0;
+8465:           const iconKey = (s.name || '').indexOf('摄影') >= 0 ? 'camera'
+8466:                          : (s.name || '').indexOf('SU') >= 0 || (s.name || '').indexOf('模型') >= 0 ? 'ruler'
+8467:                          : 'book';
+8468:           html += '<div class="arcx-stage-row">';
+8469:           html += '  <span class="arcx-stage-tag">STAGE ' + (idx + 1) + '</span>';
+8470:           html += '  <img class="arcx-stage-ico" src="' + __skillIconUrl(iconKey) + '" alt="" />';
+8471:           html += '  <span class="arcx-stage-name">' + escapeHtml(s.name) + '</span>';
+8472:           html += '  <span class="arcx-stage-bar"><span class="arcx-stage-fill" style="width:' + pct + '%;"></span></span>';
+8473:           html += '  <span class="arcx-stage-pct">' + done + '/' + total + '</span>';
+8474:           html += '</div>';
+8475:         });
+8476:       } else {
+8477:         html += '<div class="arcx-empty">🪄 还没有学习目标 — 在技能树里开一条「想学」就有了</div>';
+8478:       }
+8479:       html += '  </div>';
+8480:       html += '</div>';
+8481: 
+8482:       // 7. 分类技能等级榜（简洁网格）
+8483:       if (catLevels.length) {
+8484:         html += '<div class="arcx-sec arcx-sec-cat">';
+8485:         html += '  <div class="arcx-sec-title"><span class="arcx-tit-icon">🎯</span><span>分类技能等级 · 自动识别</span><span class="arcx-tit-sub">从所有经历和任务累积</span></div>';
+8486:         html += '  <div class="arcx-sec-body">';
+8487:         html += '    <div class="arcx-cat-grid">';
+8488:         catLevels.forEach(c => {
+8489:           html += '<div class="arcx-cat-cell">';
+8490:           html += '  <img class="arcx-cat-ico" src="' + __skillIconUrl(c.icon) + '" alt="" />';
+8491:           html += '  <span class="arcx-cat-name">' + escapeHtml(c.name) + '</span>';
+8492:           html += '  <span class="arcx-cat-lv">Lv.' + c.level + '</span>';
+8493:           html += '</div>';
+8494:         });
+8495:         html += '    </div>';
+8496:         html += '  </div>';
+8497:         html += '</div>';
+8498:       }
+8499: 
+8500:       // 8. 重要经历时间线（纯 CSS：圆点 + 连接线）
+8501:       html += '<div class="arcx-sec arcx-sec-timeline">';
+8502:       html += '  <div class="arcx-sec-title"><span class="arcx-tit-icon">🎓</span><span>重要经历时间线</span><span class="arcx-tit-sub">真实记录 · 关键时刻</span></div>';
+8503:       html += '  <div class="arcx-sec-body">';
+8504:       if (timelineNodes.length) {
+8505:         html += '<div class="arcx-tl-list">';
+8506:         timelineNodes.forEach((n, i) => {
+8507:           html += '<div class="arcx-tl-item' + (i === timelineNodes.length - 1 ? ' latest' : '') + '">';
+8508:           html += '  <div class="arcx-tl-rail"><span class="arcx-tl-dot"></span></div>';
+8509:           html += '  <div class="arcx-tl-content">';
+8510:           html += '    <div class="arcx-tl-date">' + escapeHtml(formatDateShort(n.date)) + '</div>';
+8511:           html += '    <div class="arcx-tl-title">' + escapeHtml(n.title) + '</div>';
+8512:           html += '  </div>';
+8513:           html += '</div>';
+8514:         });
+8515:         html += '</div>';
+8516:       } else {
+8517:         html += '<div class="arcx-empty">还没有记录过经历 — 你做的第一件事会出现在这里</div>';
+8518:       }
+8519:       html += '  </div>';
+8520:       html += '</div>';
+8521: 
+8522:       // 9. 本版本新增（三栏简洁卡）
+8523:       html += '<div class="arcx-sec arcx-sec-whatsnew">';
+8524:       html += '  <div class="arcx-sec-title"><span class="arcx-tit-icon">🆕</span><span>本版本新增</span><span class="arcx-tit-sub">这一版和上一版相比</span></div>';
+8525:       html += '  <div class="arcx-sec-body">';
+8526:       html += '  <div class="arcx-wn-grid">';
+8527:       // 新增技能
+8528:       html += '<div class="arcx-wn-col">';
+8529:       html += '  <div class="arcx-wn-col-title">⭐ 新增技能</div>';
+8530:       html += '  <div class="arcx-wn-items">';
+8531:       if (newSkills.length) {
+8532:         newSkills.forEach(s => { html += '<div class="arcx-wn-item skill">⭐ ' + escapeHtml(s.name) + '</div>'; });
+8533:       } else {
+8534:         html += '<div class="arcx-wn-empty">— 暂无 —</div>';
+8535:       }
+8536:       html += '  </div>';
+8537:       html += '</div>';
+8538:       // 新增经历
+8539:       html += '<div class="arcx-wn-col">';
+8540:       html += '  <div class="arcx-wn-col-title">📖 新增经历</div>';
+8541:       html += '  <div class="arcx-wn-items">';
+8542:       if (newExps.length) {
+8543:         newExps.forEach(e => { html += '<div class="arcx-wn-item exp">📖 ' + escapeHtml(e.title) + '</div>'; });
+8544:       } else {
+8545:         html += '<div class="arcx-wn-empty">— 暂无 —</div>';
+8546:       }
+8547:       html += '  </div>';
+8548:       html += '</div>';
+8549:       // 新方向
+8550:       html += '<div class="arcx-wn-col">';
+8551:       html += '  <div class="arcx-wn-col-title">🧭 新方向</div>';
+8552:       html += '  <div class="arcx-wn-items">';
+8553:       if (newGoals.length) {
+8554:         newGoals.forEach(s => { html += '<div class="arcx-wn-item goal">🧭 ' + escapeHtml(s.name) + '</div>'; });
+8555:       } else {
+8556:         html += '<div class="arcx-wn-empty">— 暂无 —</div>';
+8557:       }
+8558:       html += '  </div>';
+8559:       html += '</div>';
+8560:       html += '  </div>';
+8561:       html += '  </div>';
+8562:       html += '</div>';
+8563: 
+8564:       // 10. 未来方向
+8565:       html += '<div class="arcx-sec arcx-sec-future">';
+8566:       html += '  <div class="arcx-sec-title"><span class="arcx-tit-icon">🌱</span><span>未来方向 · 我想做什么</span></div>';
+8567:       html += '  <div class="arcx-sec-body">';
+8568:       if (futureItems.length) {
+8569:         futureItems.forEach(f => {
+8570:           html += '<div class="arcx-future-item"><span class="arcx-future-ico">' + f.icon + '</span><span>' + escapeHtml(f.text) + '</span></div>';
+8571:         });
+8572:       } else {
+8573:         html += '<div class="arcx-empty">填一下「想做的方向」就会出现在这里</div>';
+8574:       }
+8575:       html += '  </div>';
+8576:       html += '</div>';
+8577: 
+8578:       // 11. NEXT LEVEL（简洁）
+8579:       html += '<div class="arcx-sec arcx-sec-nextlevel">';
+8580:       html += '  <div class="arcx-sec-title"><span class="arcx-tit-icon">🏔️</span><span>NEXT LEVEL</span></div>';
+8581:       html += '  <div class="arcx-sec-body arcx-nl-body">';
+8582:       html += '    <div class="arcx-nl-line">「仍在探索中… 但我相信, 一切都会有意思」</div>';
+8583:       html += '    <div class="arcx-nl-sub">' + (learning.length ? '下一次升级：' + escapeHtml(learning[0].name) : '解锁更多技能之后，开启下一段旅程') + '</div>';
+8584:       html += '  </div>';
+8585:       html += '</div>';
+8586: 
+8587:       // 12. Footer（纯 CSS）
+8588:       html += '<div class="arcx-footer">';
+8589:       html += '  <div class="arcx-footer-brand">🌍 地球Online · 大学版</div>';
+8590:       html += '  <div class="arcx-footer-tagline">探索世界, 也探索自己</div>';
+8591:       html += '  <div class="arcx-footer-meta">存档号 ' + escapeHtml(uid) + ' · ' + escapeHtml(date) + '</div>';
+8592:       html += '</div>';
+8593: 
+8594:       return html;
+8595:     }
+8596: 
+8597:     // ---- 时间线挑选：均匀分布到 N 个节点 ----
+8598:     function pickTimelineNodes(sortedExps, maxN) {
+8599:       if (!sortedExps.length) return [];
+8600:       if (sortedExps.length <= maxN) return sortedExps;
+8601:       const step = (sortedExps.length - 1) / (maxN - 1);
+8602:       const picked = [];
+8603:       for (let i = 0; i < maxN; i++) {
+8604:         const idx = Math.round(i * step);
+8605:         if (!picked.includes(sortedExps[idx])) picked.push(sortedExps[idx]);
+8606:       }
+8607:       return picked;
+8608:     }
+8609: 
+8610:     function formatDateShort(d) {
+8611:       if (!d) return '—';
+8612:       // 把 2024-11-20 变成 2024.11
+8613:       const parts = d.split('-');
+8614:       if (parts.length >= 2) return parts[0] + '.' + parts[1];
+8615:       return d;
+8616:     }
+8617: 
+8618:     // ---- 保存 / 查看 / 删除存档 ----
+8619:     async function saveArchive() {
+8620:       const name = document.getElementById('archiveName').value.trim() || (today() + ' 存档');
+8621: 
+8622:       // 先缓存当前角色图片为 base64（用于存档冻结）
+8623:       const charB64 = await cacheCharImageB64();
+8624: 
+8625:       // 生成存档 HTML
+8626:       let html = archiveHtml();
+8627: 
+8628:       // 冻结角色图片：将所有 char-*.png 引用替换为当时的 base64
+8629:       if (charB64 && charB64.startsWith('data:')) {
+8630:         html = html.replace(/<img\s+src="\.\/assets\/img\/char-[^"]+\.png[^"]*"/g,
+8631:           '<img src="' + charB64 + '"');
+8632:       }
+8633: 
+8634:       const list = getArchives();
+8635:       list.unshift({
+8636:         id: Date.now(),
+8637:         name: name,
+8638:         createdAt: today(),
+8639:         html: html
+8640:       });
+8641:       saveArchives(list);
+8642:       renderArchiveList();
+8643:       document.getElementById('archiveName').value = '';
+8644:       addExp(20, '保存了一版存档');
+8645:     }
+8646: 
+8647:     function viewArchive(id) {
+8648:       const a = getArchives().find(x => x.id === id);
+8649:       if (!a) return;
+8650:       document.getElementById('archiveBody').innerHTML =
+8651:         `<div class="arc-history-banner">📦 ${escapeHtml(a.name)} · 保存于 ${a.createdAt} —— 这是你当时的样子</div>` + a.html;
+8652:       const btn = document.getElementById('archiveSaveBtn');
+8653:       btn.textContent = '↩ 回到当前存档';
+8654:       btn.onclick = function() { showArchive(); };
+8655:       document.getElementById('archiveModal').style.display = 'flex';
+8656:     }
+8657: 
+8658:     function deleteArchive(id) {
+8659:       if (!confirm('确定删除这版存档吗？删除后无法恢复。')) return;
+8660:       saveArchives(getArchives().filter(a => a.id !== id));
+8661:       renderArchiveList();
+8662:     }
+8663: 
+8664:     function renderArchiveList() {
+8665:       const list = getArchives();
+8666:       const el = document.getElementById('archiveList');
+8667:       if (!list.length) {
+8668:         el.innerHTML = `<div style="font-size:11px; color:var(--c-text-soft);">还没有保存过存档。学期结束时存一版，以后回看会很有意思。</div>`;
+8669:         return;
+8670:       }
+8671:       el.innerHTML = list.map(a => `
+8672:         <div class="arc-list-item">
+8673:           <span class="arc-list-name">📦 ${escapeHtml(a.name)}</span>
+8674:           <span class="arc-list-date">${escapeHtml(a.createdAt)}</span>
+8675:           <button type="button" class="arc-list-btn" onclick="viewArchive(${a.id})">查看</button>
+8676:           <button type="button" class="arc-list-btn del" onclick="deleteArchive(${a.id})">删除</button>
+8677:         </div>`).join('');
+8678:     }
+8679: 
+8680:     /* ============================================================
+8681:        20) AI角色图片生成：提示词构建 + 生成流程
+8682:        ============================================================ */
+8683: 
+8684:     // 构建 AI 图片提示词：只把适合视觉表达的内容转成人物元素
+8685:     function buildCharPrompt(profile) {
+8686: [LONG 356]
+8687: 
+8688:       const parts = [baseStyle];
+8689: 
+8690:       // 1) 一句话描述自己 → 直接作为角色个性描述（最强差异化因子）
+8691:       if (profile.oneLineDesc) {
+8692:         // 将中文描述简要翻译为英文视觉描述
+8693:         const desc = profile.oneLineDesc;
+8694:         parts.push('character personality: ' + desc);
+8695:       }
+8696: 
+8697:       // 2) 兴趣关键词 → 精确匹配已知道具 + 未匹配的直接传递
+8698:       const interests = parseList(profile.interests);
+8699:       const interestProps = [
+8700:         [/摄影|相机|拍照|拍人像/, 'holding a camera'],
+8701:         [/音乐|听歌/, 'wearing headphones around neck'],
+8702:         [/吉他|尤克里里/, 'holding a guitar'],
+8703:         [/画画|素描|插画|手绘|板绘|绘画/, 'holding a sketchbook and pencil'],
+8704:         [/编程|代码|开发/, 'holding a laptop'],
+8705:         [/读书|阅读|看书/, 'holding a book'],
+8706:         [/做饭|烹饪|烧菜|下厨/, 'holding a cooking spatula'],
+8707:         [/健身|运动|锻炼/, 'wearing sportswear with a towel around neck'],
+8708:         [/跑步|慢跑/, 'wearing running shoes and sportswear'],
+8709:         [/设计|ps|figma/, 'holding a drawing tablet'],
+8710:         [/写作|写文章|写故事|文案/, 'holding a pen and notebook'],
+8711:         [/视频|剪辑|剪映|vlog/, 'holding a video camera'],
+8712:         [/旅行|旅游|city\s*walk/, 'wearing a small backpack'],
+8713:         [/打球|篮球/, 'holding a basketball'],
+8714:         [/羽毛球/, 'holding a badminton racket'],
+8715:         [/游泳/, 'with swim goggles on head'],
+8716:         [/滑板/, 'standing on a skateboard'],
+8717:         [/唱歌|歌唱/, 'holding a microphone'],
+8718:         [/跳舞|舞蹈/, 'in a dynamic dance pose'],
+8719:         [/电影|看电影/, 'holding a popcorn bucket'],
+8720:         [/游戏|打游戏|电竞/, 'holding a game controller'],
+8721:         [/咖啡|手冲/, 'holding a coffee cup'],
+8722:         [/骑行|骑车/, 'wearing a bicycle helmet'],
+8723:       ];
+8724: 
+8725:       const visualProps = [];
+8726:       const unmatchedInterests = [];
+8727:       interests.forEach(interest => {
+8728:         const lower = interest.toLowerCase();
+8729:         let matched = false;
+8730:         for (const [pattern, prop] of interestProps) {
+8731:           if (pattern.test(lower)) {
+8732:             if (!visualProps.includes(prop)) visualProps.push(prop);
+8733:             matched = true;
+8734:             break;
+8735:           }
+8736:         }
+8737:         if (!matched) unmatchedInterests.push(interest);
+8738:       });
+8739: 
+8740:       // 最多2个视觉道具，保持画面干净
+8741:       if (visualProps.length > 0) {
+8742:         parts.push(visualProps.slice(0, 2).join(', '));
+8743:       }
+8744:       // 未匹配的兴趣也传给模型，让它自行解读
+8745:       if (unmatchedInterests.length > 0) {
+8746:         parts.push('likes ' + unmatchedInterests.join(', '));
+8747:       }
+8748: 
+8749:       // 3) 职业关键词 → 同理
+8750:       const careers = parseList(profile.futureJobs);
+8751:       const careerProps = [
+8752:         [/产品经理|产品/, 'holding a tablet with UI mockup'],
+8753:         [/设计师/, 'holding a stylus'],
+8754:         [/老师|教师|教育/, 'holding a book and pointer'],
+8755:         [/医生|护士/, 'wearing a stethoscope'],
+8756:         [/工程师|程序员|开发/, 'holding a laptop'],
+8757:         [/律师|法务/, 'holding a briefcase'],
+8758:         [/记者|编辑/, 'holding a microphone and notepad'],
+8759:         [/摄影师/, 'holding a professional camera'],
+8760:         [/创作者|博主|自媒体/, 'holding a phone for vlogging'],
+8761:       ];
+8762: 
+8763:       const unmatchedCareers = [];
+8764:       careers.forEach(career => {
+8765:         const lower = career.toLowerCase();
+8766:         let matched = false;
+8767:         for (const [pattern, prop] of careerProps) {
+8768:           if (pattern.test(lower)) {
+8769:             if (!visualProps.includes(prop) && visualProps.length < 2) {
+8770:               visualProps.push(prop);
+8771:               parts.push(prop);
+8772:             }
+8773:             matched = true;
+8774:             break;
+8775:           }
+8776:         }
+8777:         if (!matched) unmatchedCareers.push(career);
+8778:       });
+8779:       if (unmatchedCareers.length > 0) {
+8780:         parts.push('aspiring ' + unmatchedCareers.join(', '));
+8781:       }
+8782: 
+8783:       return parts.join(', ');
+8784:     }
+8785: 
+8786:     // 当前等待生成的提示词
+8787:     let _pendingCharPrompt = '';
+8788:     // 角色图片轮询检测定时器
+8789:     let _chargenPoller = null;
+8790: 
+8791:     // 预设形象列表（运行时通过 XHR 探测，更稳；失败时回落到硬编码清单）
+8792:     const PRESET_BGS   = ['background_01','background_02','background_03','background_04','background_05'];
+8793:     const PRESET_CHARS = ['character_01','character_02','character_03','character_04','character_05','character_08','character_09','character_10','character_12','character_14','character_17','character_18','character_19','character_22'];
+8794: 
+8795:     let _pickBg = null;   // 'background_03'
+8796:     let _pickChar = null; // 'character_08'
+8797: 
+8798:     // 显示角色选择页（预设背景 + 预设角色）
+8799:     function showCharGenPage() {
+8800:       _pickBg = null;
+8801:       _pickChar = null;
+8802:       renderBgGrid();
+8803:       renderCharGrid();
+8804:       updatePreview();
+8805:       goPage('page-chargen');
+8806:     }
+8807: 
+8808:     function renderBgGrid() {
+8809:       const grid = document.getElementById('bgGrid');
+8810:       grid.innerHTML = PRESET_BGS.map(name => `
+8811:         <button type="button" class="pick-tile ${_pickBg === name ? 'selected' : ''}" data-name="${name}" onclick="selectBg('${name}')">
+8812:           <img src="${__IMGURL('assets/img/preset/bg/' + name + '.png')}" alt="${name}" loading="lazy" />
+8813:         </button>`).join('');
+8814:     }
+8815:     function renderCharGrid() {
+8816:       const grid = document.getElementById('charGrid');
+8817:       grid.innerHTML = PRESET_CHARS.map(name => `
+8818:         <button type="button" class="pick-tile ${_pickChar === name ? 'selected' : ''}" data-name="${name}" onclick="selectChar('${name}')">
+8819:           <img src="${__IMGURL('assets/img/preset/char/' + name + '.png')}" alt="${name}" loading="lazy" />
+8820:         </button>`).join('');
+8821:     }
+8822:     function selectBg(name) {
+8823:       _pickBg = name;
+8824:       renderBgGrid();
+8825:       updatePreview();
+8826:     }
+8827:     function selectChar(name) {
+8828:       _pickChar = name;
+8829:       renderCharGrid();
+8830:       updatePreview();
+8831:     }
+8832:     function updatePreview() {
+8833:       const bg = document.getElementById('bgPreview');
+8834:       const ch = document.getElementById('charPreview');
+8835:       const empty = document.getElementById('previewEmpty');
+8836:       if (_pickBg) { bg.src = __IMGURL('assets/img/preset/bg/' + _pickBg + '.png'); bg.style.display = 'block'; }
+8837:       else { bg.removeAttribute('src'); bg.style.display = 'none'; }
+8838:       if (_pickChar) { ch.src = __IMGURL('assets/img/preset/char/' + _pickChar + '.png'); ch.style.display = 'block'; }
+8839:       else { ch.removeAttribute('src'); ch.style.display = 'none'; }
+8840:       empty.style.display = (_pickBg && _pickChar) ? 'none' : 'flex';
+8841:     }
+8842: 
+8843:     // 确认：canvas 合成背景+角色 → base64 → localStorage
+8844:     function confirmPresetChar() {
+8845:       if (!_pickBg || !_pickChar) {
+8846:         alert('请先选一个背景和一个角色～');
+8847:         return;
+8848:       }
+8849:       const bgImg = new Image();
+8850:       const chImg = new Image();
+8851:       let loaded = 0;
+8852:       const tryComposite = () => {
+8853:         loaded++;
+8854:         if (loaded < 2) return;
+8855:         const W = 480, H = 480;
+8856:         const canvas = document.createElement('canvas');
+8857:         canvas.width = W; canvas.height = H;
+8858:         const ctx = canvas.getContext('2d');
+8859:         // 背景：object-fit: cover 效果
+8860:         const br = bgImg.naturalWidth / bgImg.naturalHeight;
+8861:         const cr = chImg.naturalWidth / chImg.naturalHeight;
+8862:         // 背景按 cover 缩放
+8863:         const bgRatio = W / H;
+8864:         let bw, bh, bx, by;
+8865:         if (br > bgRatio) {
+8866:           bh = H; bw = br * bh; bx = (W - bw) / 2; by = 0;
+8867:         } else {
+8868:           bw = W; bh = bw / br; bx = 0; by = (H - bh) / 2;
+8869:         }
+8870:         ctx.drawImage(bgImg, bx, by, bw, bh);
+8871:         // 角色：底部居中，高度占 60%
+8872:         const chH = H * 0.6;
+8873:         const chW = chH * cr;
+8874:         const chX = (W - chW) / 2;
+8875:         const chY = H - chH;
+8876:         ctx.drawImage(chImg, chX, chY, chW, chH);
+8877:         try {
+8878:           const b64 = canvas.toDataURL('image/png');
+8879:           saveCharImage(b64);
+8880:           try { localStorage.setItem(LS_CHAR_SKIPPED, '0'); } catch(e) {}
+8881:           fillHome(getProfile());
+8882:           goPage('page-home');
+8883:           addExp(30, '创建角色');
+8884:         } catch(e) {
+8885:           alert('图片合成失败，请重试。');
+8886:         }
+8887:       };
+8888:       bgImg.onload = tryComposite;
+8889:       chImg.onload = tryComposite;
+8890:       bgImg.onerror = chImg.onerror = () => alert('资源加载失败，请刷新后重试');
+8891:       bgImg.src = __IMGURL('assets/img/preset/bg/' + _pickBg + '.png');
+8892:       chImg.src = __IMGURL('assets/img/preset/char/' + _pickChar + '.png');
+8893:     }
+8894: 
+8895:     // 修改描述 → 回到表单，预填数据
+8896:     function modifyCharDesc() {
+8897:       const profile = getProfile();
+8898:       const form = document.getElementById('onboardForm');
+8899:       form.querySelector('input[name=nickname]').value = profile.nickname || '';
+8900:       form.querySelector('input[name=school]').value = profile.school || '';
+8901:       form.querySelector('input[name=major]').value = profile.major || '';
+8902:       form.querySelector('select[name=grade]').value = profile.grade || '';
+8903:       form.querySelector('input[name=oneLineDesc]').value = profile.oneLineDesc || '';
+8904:       form.querySelector('textarea[name=interestsKw]').value = profile.interests || '';
+8905:       form.querySelector('textarea[name=careerKw]').value = profile.futureJobs || '';
+8906:       goPage('page-onboard');
+8907:     }
+8908: 
+8909:     // 将当前角色图片转为 base64（用于存档冻结）
+8910:     async function cacheCharImageB64() {
+8911:       try {
+8912:         const b64 = localStorage.getItem(LS_CHAR_IMAGE);
+8913:         if (b64) return b64;
+8914:       } catch(e) {}
+8915: 
+8916:       // 尝试从文件加载
+8917:       const imgSrc = getCharImage();
+8918:       if (imgSrc.startsWith('data:')) return imgSrc;
+8919: 
+8920:       return new Promise(resolve => {
+8921:         const img = new Image();
+8922:         img.crossOrigin = 'anonymous';
+8923:         img.onload = function() {
+8924:           const canvas = document.createElement('canvas');
+8925:           canvas.width = img.naturalWidth;
+8926:           canvas.height = img.naturalHeight;
+8927:           const ctx = canvas.getContext('2d');
+8928:           ctx.drawImage(img, 0, 0);
+8929:           try {
+8930:             const b64 = canvas.toDataURL('image/png');
+8931:             saveCharImage(b64);
+8932:             resolve(b64);
+8933:           } catch(e) { resolve(imgSrc); }
+8934:         };
+8935:         img.onerror = function() { resolve(imgSrc); };
+8936:         img.src = imgSrc;
+8937:       });
+8938:     }
+8939: 
+8940:     /* ============================================================
+8941:        20.5) 演示数据（跳过路径）
+8942:        ============================================================ */
+8943:     function loadDemoData() {
+8944:       // 清空旧数据
+8945:       [LS_PROFILE, LS_EXPERIENCES, LS_SKILLS, LS_PLAYER, LS_TREES, LS_CHAR_IMAGE, LS_CHAR_PROMPT, LS_CHAR_SKIPPED, LS_TODOS].forEach(k => {
+8946:         try { localStorage.removeItem(k); } catch(e) {}
+8947:       });
+8948: 
+8949:       const t = new Date();
+8950:       const d = (offsetDays) => {
+8951:         const dd = new Date(t);
+8952:         dd.setDate(dd.getDate() - offsetDays);
+8953:         return dd.toISOString().split('T')[0];
+8954:       };
+8955:       const todayStr = d(0);
+8956: 
+8957:       // ---- 资料 ----
+8958:       const profile = {
+8959:         nickname: '小叉',
+8960:         school: '上海某大学',
+8961:         major: '建筑学',
+8962:         grade: '大二',
+8963:         oneLineDesc: '一个想成为建筑师、喜欢逛馆子看房子的建筑系大二学生',
+8964:         interests: '建筑,逛展,city walk,手绘,电影',
+8965:         futureJobs: '建筑师',
+8966:         gender: '', skills: '', experiences: '', futureSkills: ''
+8967:       };
+8968:       saveProfile(profile);
+8969: 
+8970:       // ---- 经历（含今天，让日历/今日有展示）----
+8971:       const exps = [
+8972:         { date: todayStr, title: '完成了一组建筑速写', rawDesc: '在思南公馆画了3栋老洋房的立面速写，铅笔线和马克笔上色，2小时。' },
+8973:         { date: d(2),  title: '去看了一下武康路的老房子', rawDesc: '一个人骑车扫了整条武康路，给三栋最喜欢的老房子拍了照，回去查了建造年份。' },
+8974:         { date: d(5),  title: '评图课被老师夸了方案', rawDesc: '小型社区图书馆的立面方案讲完，老师说\"有想法\"。开心了一整天。' },
+8975:         { date: d(11), title: '第一次独立完成一个完整模型', rawDesc: '做了一个1:50的小住宅剖面模型，从草图到卡纸切割全部自己来。' },
+8976:         { date: d(18), title: '去当代艺术馆看了安藤忠雄展', rawDesc: '光影和清水混凝土的质感真的没法在屏幕上看完，现场震撼得多。' },
+8977:         { date: d(26), title: '开始系统学SketchUp建模', rawDesc: '跟着B站教程学了基本推拉工具，做了一个小书吧的体量模型。' },
+8978:         { date: d(40), title: '参加系里联合工作坊', rawDesc: '和外校同学合作做了一个24小时的快题设计，虽然很累但很过瘾。' },
+8979:         { date: d(60), title: '加入学校建筑学会', rawDesc: '通过面试进了学会的策展组，负责一场小型展览的布展。' },
+8980:       ].map((e, i) => ({
+8981:         id: 900000 + i,
+8982:         date: e.date,
+8983:         title: e.title,
+8984:         rawDesc: e.rawDesc,
+8985:         structured: { title: e.title, happened: e.date, whatIDid: e.rawDesc, result: '完成了', feeling: '很有成就感' },
+8986:         suggestedSkills: [],
+8987:         confirmedSkills: [],
+8988:         skillConfirmed: true
+8989:       }));
+8990:       saveExperiences(exps);
+8991: 
+8992:       // ---- 技能：2个已确认 + 3个学习中 ----
+8993:       const skills = [
+8994:         { name: '建筑手绘', sourceExpIds: [900002], confirmedAt: d(11), status: 'lit', treeIds: [] },
+8995:         { name: '模型制作', sourceExpIds: [900003], confirmedAt: d(11), status: 'lit', treeIds: [] },
+8996:       ];
+8997: 
+8998:       // 学习中 1：SketchUp 建模
+8999:       const sketchupPlan = [
+9000:         { unitId: 'u0', day: 1, title: 'Day 1｜界面与基础工具', do: '熟悉工具栏 / 视图导航 / 推拉命令', time: '90分钟', standard: '能画一个简单立方体', done: true },
+9001:         { unitId: 'u0', day: 2, title: 'Day 2｜绘制与编辑', do: '学矩形/推拉/偏移/跟随，做一个简单住宅体量', time: '90分钟', standard: '四面墙 + 屋顶成型', done: true },
+9002:         { unitId: 'u0', day: 3, title: 'Day 3｜群组与组件', do: '用群组组织门窗，做一个完整小住宅', time: '90分钟', standard: '门窗不穿模', done: true },
+9003:         { unitId: 'u1', day: 4, title: 'Day 4｜材质与风格', do: '给模型贴砖墙/玻璃/草地材质，加阴影', time: '60分钟', standard: '出图能看', done: false },
+9004:         { unitId: 'u1', day: 5, title: 'Day 5｜剖面与场景', do: '切剖面，布置室内场景，导出主图', time: '90分钟', standard: '完成1张渲染图', done: false },
+9005:         { unitId: 'u2', day: 6, title: 'Day 6｜完整作品集', do: '把之前的方案全部用SU重画一遍', time: '120分钟', standard: '至少完成3个方案', done: false },
+9006:         { unitId: 'verify', day: 7, title: 'Day 7｜🏆 验证任务', do: '完成一个完整方案并用它做评图', time: '180分钟', standard: '完成并记录为一段真实经历', done: false }
+9007:       ];
+9008:       skills.push({
+9009:         name: 'SketchUp建模', status: 'learning', sourceExpIds: [], confirmedAt: null,
+9010:         goalText: '一个月内能用SketchUp独立完成一个完整建筑方案', goalDuration: '1个月', goalTreeId: null,
+9011:         assumptions: [], breakdown: [
+9012:           { id: 'u0', name: '基础操作', phase: 1, status: 'done', sourceExpId: null },
+9013:           { id: 'u1', name: '材质与表达', phase: 2, status: 'doing', sourceExpId: null },
+9014:           { id: 'u2', name: '完整方案', phase: 3, status: 'want', sourceExpId: null }
+9015:         ],
+9016:         plan: sketchupPlan,
+9017:         verifyTask: '完成一个完整方案并用它做评图', treeIds: []
+9018:       });
+9019: 
+9020:       // 学习中 2：建筑摄影
+9021:       const archPhotoPlan = [
+9022:         { unitId: 'u0', day: 1, title: 'Day 1｜拍摄器材与构图', do: '了解焦段选择与建筑构图要点', time: '60分钟', standard: '能区分广角与中焦', done: true },
+9023:         { unitId: 'u0', day: 2, title: 'Day 2｜光与时间', do: '学黄金时段和蓝调时段，选3个时机', time: '60分钟', standard: '出一组清晨+黄昏', done: true },
+9024:         { unitId: 'u0', day: 3, title: 'Day 3｜室内建筑', do: '学如何在室内拍出空间感', time: '60分钟', standard: '出3张能看的', done: true },
+9025:         { unitId: 'u1', day: 4, title: 'Day 4｜细节与材质', do: '拍一组砖墙、木头、金属的特写', time: '90分钟', standard: '每种材质至少2张', done: false },
+9026:         { unitId: 'u1', day: 5, title: 'Day 5｜扫街建筑', do: 'city walk 拍一组完整街道立面', time: '120分钟', standard: '出5张完整立面', done: false },
+9027:         { unitId: 'u2', day: 6, title: 'Day 6｜后期与排版', do: '调色 + 排版出图册', time: '90分钟', standard: '出一本9张的图册', done: false },
+9028:         { unitId: 'verify', day: 7, title: 'Day 7｜🏆 验证任务', do: '出一本完整的建筑摄影集', time: '180分钟', standard: '完成并记录为一段真实经历', done: false }
+9029:       ];
+9030:       skills.push({
+9031:         name: '建筑摄影', status: 'learning', sourceExpIds: [], confirmedAt: null,
+9032:         goalText: '两个月内能拍出能放进作品集的建筑摄影', goalDuration: '2个月', goalTreeId: null,
+9033:         assumptions: [], breakdown: [
+9034:           { id: 'u0', name: '基础与构图', phase: 1, status: 'done', sourceExpId: null },
+9035:           { id: 'u1', name: '实拍练习', phase: 2, status: 'doing', sourceExpId: null },
+9036:           { id: 'u2', name: '成册', phase: 3, status: 'want', sourceExpId: null }
+9037:         ],
+9038:         plan: archPhotoPlan,
+9039:         verifyTask: '出一本完整的建筑摄影集', treeIds: []
+9040:       });
+9041: 
+9042:       // 学习中 3：建筑历史与理论
+9043:       const theoryPlan = [
+9044:         { unitId: 'u0', day: 1, title: 'Week 1｜古典与文艺复兴', do: '读《建筑空间论》前4章 + 整理时间线', time: '5小时', standard: '能讲清希腊到文艺复兴主线', done: true },
+9045:         { unitId: 'u0', day: 2, title: 'Week 2｜现代主义萌芽', do: '学工艺美术运动 / 芝加哥学派 / 包豪斯', time: '5小时', standard: '整理3位代表人物', done: true },
+9046:         { unitId: 'u1', day: 3, title: 'Week 3｜现代主义成熟', do: '学柯布西耶 / 赖特 / 密斯', time: '5小时', standard: '能说出3个代表作品', done: true },
+9047:         { unitId: 'u1', day: 4, title: 'Week 4｜后现代与解构', do: '学文丘里 / 盖里 / 扎哈', time: '5小时', standard: '整理时间线图', done: false },
+9048:         { unitId: 'u2', day: 5, title: 'Week 5｜当代与本土', do: '学王澍 / 刘家琨 / 安藤忠雄', time: '5小时', standard: '能复述3个作品的设计理念', done: false },
+9049:         { unitId: 'verify', day: 6, title: 'Week 6｜🏆 验证任务', do: '完成一篇2000字的设计评论文章', time: '10小时', standard: '完成并记录为一段真实经历', done: false }
+9050:       ];
+9051:       skills.push({
+9052:         name: '建筑历史与理论', status: 'learning', sourceExpIds: [], confirmedAt: null,
+9053:         goalText: '六周内梳理清楚建筑史主线并能讲出代表人物', goalDuration: '6周', goalTreeId: null,
+9054:         assumptions: [], breakdown: [
+9055:           { id: 'u0', name: '古典到现代', phase: 1, status: 'done', sourceExpId: null },
+9056:           { id: 'u1', name: '现代到当代', phase: 2, status: 'doing', sourceExpId: null },
+9057:           { id: 'u2', name: '当代与本土', phase: 3, status: 'want', sourceExpId: null }
+9058:         ],
+9059:         plan: theoryPlan,
+9060:         verifyTask: '完成一篇2000字的设计评论文章', treeIds: []
+9061:       });
+9062:       saveSkills(skills);
+9063: 
+9064:       // ---- 等级：Lv.12 ----
+9065:       const exp = LEVEL_TABLE[12] + 80;
+9066:       savePlayerData({ exp: exp });
+9067: 
+9068:       // ---- 今日自建 todo ----
+9069:       saveTodayTodos([
+9070:         { id: 'demo1', title: '整理SU建模的快捷键清单', date: todayStr, done: false, createdAt: new Date().toISOString() },
+9071:         { id: 'demo2', title: '给昨天拍的武康路老房子调色', date: todayStr, done: true, doneAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+9072:         { id: 'demo3', title: '看《安藤忠雄·建造的诗》第3章', date: todayStr, done: false, createdAt: new Date().toISOString() }
+9073:       ]);
+9074: 
+9075:       // 兜底：即使图片合成失败，刷新后也直接进首页（走预设PNG兜底）
+9076:       try { localStorage.setItem(LS_CHAR_SKIPPED, '1'); } catch(e) {}
+9077: 
+9078:       // ---- 示例角色形象：直接使用预设的 demo-char.jpg ----
+9079:       const demoImg = new Image();
+9080:       const goDemoHome = () => {
+9081:         fillHome(getProfile());
+9082:         goPage('page-home');
+9083:       };
+9084:       demoImg.onload = () => {
+9085:         try {
+9086:           // 直接转 base64 存进 localStorage，复用同一张图
+9087:           const W = Math.min(demoImg.naturalWidth, 720);
+9088:           const H = Math.round(W * demoImg.naturalHeight / demoImg.naturalWidth);
+9089:           const canvas = document.createElement('canvas');
+9090:           canvas.width = W; canvas.height = H;
+9091:           const ctx = canvas.getContext('2d');
+9092:           ctx.drawImage(demoImg, 0, 0, W, H);
+9093:           try {
+9094:             saveCharImage(canvas.toDataURL('image/png'));
+9095:           } catch(e) {
+9096:             // canvas tainted 时退化为直接使用文件路径
+9097: [LONG 98309]
+9098:           }
+9099:         } catch(e) {
+9100: [LONG 98327]
+9101:         }
+9102:         goDemoHome();
+9103:       };
+9104:       demoImg.onerror = goDemoHome;
+9105: [LONG 98302]
+9106:     }
+9107: 
+9108:     /* ============================================================
+9109:        21) 启动表单
+9110:        ============================================================ */
+9111:     document.getElementById('onboardForm').addEventListener('submit', function(e) {
+9112:       e.preventDefault();
+9113:       const fd = new FormData(this);
+9114:       const profile = {
+9115:         nickname:   (fd.get('nickname')   || '').trim(),
+9116:         school:     (fd.get('school')     || '').trim(),
+9117:         major:      (fd.get('major')      || '').trim(),
+9118:         grade:      (fd.get('grade')      || '').trim(),
+9119:         oneLineDesc:(fd.get('oneLineDesc')|| '').trim(),
+9120:         interests:  (fd.get('interestsKw')|| '').trim(),
+9121:         futureJobs: (fd.get('careerKw')   || '').trim(),
+9122:         // 保留旧字段兼容（不再从表单填充）
+9123:         gender: '', skills: '', experiences: '', futureSkills: ''
+9124:       };
+9125:       if (!profile.nickname) { alert('给自己起个昵称再开始吧～'); return; }
+9126:       saveProfile(profile);
+9127: 
+9128:       // 清除旧的角色图片和提示词，确保重新生成
+9129:       try {
+9130:         localStorage.removeItem(LS_CHAR_IMAGE);
+9131:         localStorage.removeItem(LS_CHAR_PROMPT);
+9132:         localStorage.removeItem(LS_CHAR_SKIPPED);
+9133:       } catch(e) {}
+9134: 
+9135:       // 进入角色生成页
+9136:       showCharGenPage();
+9137:     });
+9138: 
+9139:     document.getElementById('resetBtn').onclick = resetProfile;
+9140: 
+9141:     /* ============================================================
+9142:        21) 初始化
+9143:        ============================================================ */
+9144:     (async function init() {
+9145:       // 资料库环境：先拉云端数据（表格改动 -> 页面生效）
+9146:       await dbPullAll();
+9147:       // 兼容旧数据：给旧技能添加 status 和 treeIds
+9148:       const skills = getSkills();
+9149:       let updated = false;
+9150:       skills.forEach(s => {
+9151:         if (!s.status) { s.status = 'lit'; updated = true; }
+9152:         if (!s.treeIds) { s.treeIds = []; updated = true; }
+9153:       });
+9154:       if (updated) saveSkills(skills);
+9155: 
+9156:       const saved = getProfile();
+9157:       if (saved.nickname) {
+9158:         let skipped = false;
+9159:         try { skipped = localStorage.getItem(LS_CHAR_SKIPPED) === '1'; } catch(e) {}
+9160:         if (hasCharImage() || skipped) {
+9161:           // 已有角色图片 / 已选择预设形象 → 直接进入首页
+9162:           fillHome(saved);
+9163:           goPage('page-home');
+9164:         } else {
+9165:           // 有资料但没有角色图片 → 进入角色生成页
+9166:           fillHome(saved);
+9167:           goPage('page-chargen');
+9168:           // 自动显示等待状态
+9169:           showCharGenPage();
+9170:         }
+9171:       } else {
+9172:         // 没有资料 → 先看启动页
+9173:         goPage('page-splash');
+9174:       }
+9175:     })();
+9176: 
+9177:     function enterApp() {
+9178:       // 从启动页进入：到建立档案页
+9179:       goPage('page-onboard');
+9180:     }
+9181: 
+9182: </script>
+9183: </body>

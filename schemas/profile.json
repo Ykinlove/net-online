@@ -1,0 +1,13 @@
+{
+  "title": "eo_玩家档案",
+  "properties": [
+    { "name": "昵称", "config": { "text": "" } },
+    { "name": "单位/学校", "config": { "text": "" } },
+    { "name": "专业/方向", "config": { "text": "" } },
+    { "name": "年级/阶段", "config": { "select": { "options": [ { "text": "大一" }, { "text": "大二" }, { "text": "大三" }, { "text": "大四" }, { "text": "实习" }, { "text": "入职1年" }, { "text": "入职3年" } ] } } },
+    { "name": "一句话描述", "config": { "text": "" } },
+    { "name": "兴趣关键词", "config": { "text": "" } },
+    { "name": "职业关键词", "config": { "text": "" } },
+    { "name": "总经验", "config": { "number": { "decimalPlaces": 0, "useSeparate": false } } }
+  ]
+}

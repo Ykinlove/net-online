@@ -1,0 +1,143 @@
+<view class="search-page">
+
+  <!-- 搜索框 -->
+  <view class="sb-wrap">
+    <view class="sb">
+      <text class="sb-ico">🔍</text>
+      <input
+        class="sb-input"
+        value="{{kw}}"
+        placeholder="搜功能，比如「划分端口」"
+        placeholder-style="color:#9fb0c0;font-size:calc(26 * var(--u));"
+        confirm-type="search"
+        bindinput="onInput"
+        bindconfirm="onConfirm"
+      />
+      <text wx:if="{{kw}}" class="sb-clear" bindtap="clearKw">✕</text>
+    </view>
+  </view>
+
+  <!-- 左：设备筛选  右：结果 -->
+  <view class="body">
+
+    <scroll-view class="side" scroll-y>
+      <view
+        wx:for="{{sideList}}"
+        wx:key="v"
+        class="side-item {{dev === item.v ? 'on' : ''}}"
+        bindtap="pickDev"
+        data-v="{{item.v}}"
+      >{{item.t}}</view>
+    </scroll-view>
+
+    <scroll-view class="main" scroll-y bindscrolltolower="loadMore">
+
+      <!-- 命令百科 -->
+      <block wx:if="{{bookHits.length}}">
+        <view class="grp">
+          <text class="grp-name">命令百科</text>
+          <text class="grp-num">{{bookTotal}} 条</text>
+        </view>
+        <view
+          wx:for="{{bookHits}}"
+          wx:key="id"
+          class="bk-item"
+          bindtap="openBook"
+          data-idx="{{index}}"
+          hover-class="bk-item-hover"
+        >
+          <view class="bk-top">
+            <text class="bk-name">{{item.name}}</text>
+            <text class="bk-arrow">›</text>
+          </view>
+          <view class="bk-tags">
+            <text
+              wx:for="{{item.cmds}}"
+              wx:for-item="c"
+              wx:key="vendor"
+              class="bk-tag"
+            >{{c.vendor}}</text>
+          </view>
+        </view>
+      </block>
+
+      <!-- 我的命令 -->
+      <block wx:if="{{mineHits.length}}">
+        <view class="grp">
+          <text class="grp-name">我的命令</text>
+          <text class="grp-num">{{mineHits.length}} 条</text>
+        </view>
+        <view
+          wx:for="{{mineHits}}"
+          wx:key="_key"
+          class="my-item"
+          bindtap="openMine"
+          data-idx="{{index}}"
+          hover-class="bk-item-hover"
+        >
+          <view class="my-main">
+            <text class="my-title">{{item.title}}</text>
+            <text class="my-code">{{item.preview}}</text>
+          </view>
+          <text class="my-dev">{{item.devText}}</text>
+        </view>
+      </block>
+
+      <!-- 加载更多 -->
+      <view wx:if="{{hasMore}}" class="more" bindtap="loadMore" hover-class="more-hover">
+        <text class="more-txt">{{bookHits.length}} / {{bookTotal}} · 上滑加载更多</text>
+      </view>
+
+      <!-- 空态 -->
+      <view wx:if="{{!hitTotal}}" class="hint">
+        <text class="hint-ico">🔍</text>
+        <text class="hint-txt">没找到{{kw ? '「' + kw + '」' : ''}}相关的命令</text>
+        <text wx:if="{{dev !== '全部'}}" class="hint-sub">「{{devText}}」下没有，把左边切到「全部」试试</text>
+        <text wx:else class="hint-sub">换个说法试试，比如「vlan」「路由」「保存」</text>
+      </view>
+
+      <view class="main-foot"></view>
+    </scroll-view>
+  </view>
+
+  <!-- 详情浮层 -->
+  <view wx:if="{{detail}}" class="mask" bindtap="closeDetail">
+    <view class="sheet" catchtap="noop">
+
+      <view class="sheet-head">
+        <view class="sheet-title-box">
+          <text class="sheet-title">{{detail.title}}</text>
+          <text class="sheet-sub">{{detail.sub}}</text>
+        </view>
+        <text class="sheet-close" bindtap="closeDetail">✕</text>
+      </view>
+
+      <scroll-view class="sheet-body" scroll-y>
+        <view wx:if="{{detail.tip}}" class="sheet-tip">
+          <text class="sheet-tip-ico">💡</text>
+          <text class="sheet-tip-txt">{{detail.tip}}</text>
+        </view>
+
+        <view wx:for="{{detail.blocks}}" wx:key="vendor" class="vd">
+          <view class="vd-head">
+            <text class="vd-name">{{item.vendor}}</text>
+            <text class="vd-copy" catchtap="copyOne" data-i="{{index}}">复制</text>
+          </view>
+          <view class="vd-code">
+            <text
+              wx:for="{{item.lines}}"
+              wx:for-item="ln"
+              wx:key="index"
+              class="vd-line {{ln.note ? 'vd-line-note' : ''}}"
+            >{{ln.t}}</text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view wx:if="{{detail.blocks.length > 1}}" class="sheet-foot">
+        <view class="sheet-btn" bindtap="copyAll" hover-class="sheet-btn-hover">复制全部命令</view>
+      </view>
+
+    </view>
+  </view>
+</view>

@@ -1,0 +1,57 @@
+<view class="page hp">
+
+  <view class="hp-lead">
+    <text class="hp-lead-t">这是什么</text>
+    <text class="hp-lead-d">一个给网络工程师用的命令速记本 + 成长档案。把平时敲的命令、做过的项目、想学的方向记下来，它会自动算出你各个方向到了什么水平。</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">命令库</text>
+    <text class="hp-p">右下角「+」添加一条命令。填设备类型、标题、命令本身，说明和标签可以留空。</text>
+    <text class="hp-p">列表顶部能按设备筛选，右上角放大镜可以搜标题、命令内容、说明。</text>
+    <text class="hp-p">点任意一条打开详情，可以「复制命令」直接粘到终端里，也能编辑或删除。</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">项目</text>
+    <text class="hp-p">记你参与过的项目：做了什么、担任什么角色、用了哪些设备。</text>
+    <text class="hp-p">起止日期只填开始也行。填了结束日期，列表会显示成「3/12 ~ 5/20」。</text>
+    <text class="hp-p">首页日历会把项目的起止日点亮，方便回看某个月在忙什么。</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">技能树</text>
+    <text class="hp-p">分成交换、路由、无线、排障、安全、自动化、项目管理几个方向。</text>
+    <text class="hp-p">等级不是手动设的，是看你实际留下多少痕迹：记一条相关命令 +1，记一个相关项目 +2，点亮一个相关技能 +2。</text>
+    <text class="hp-p">技能有三种状态：想学 / 在学 / 点亮，点一下列表右侧的圆点就能切换。</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">自动存档</text>
+    <text class="hp-p">每次删除东西之前，会自动存一份完整快照，最多保留最近 5 份，你什么都不用做。</text>
+    <text class="hp-p">删错了就进「我的 → 存档库」，挑离现在最近的那份恢复，命令、项目、技能会一起回到当时的样子。</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">数据存在哪</text>
+    <text class="hp-p">存在微信云开发数据库里，按你的微信身份隔离——别人打开看到的是他自己的空白本子。</text>
+    <text class="hp-p">换手机只要登录同一个微信，数据会自动回来，不需要手动同步或备份。</text>
+    <text class="hp-p">想带走或备份，用「设置 → 导出我的数据」，会整理成纯文本复制到剪贴板。</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">形象与背景</text>
+    <text class="hp-p">在「我的 → 设置 → 我的形象」里换，可以单独挑角色和背景。</text>
+    <text class="hp-p">前 5 个角色和第 1、2 张背景直接可用；后面几个需要看一小段广告解锁，解锁后永久可用，不会重复要求。广告解锁功能正在开发中，暂时点开只会提示敬请期待。</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">每日答案之书</text>
+    <text class="hp-p">首页那张小卡片，点一下换一句。都是些干活时用得上的碎碎念，不是鸡汤。</text>
+  </view>
+
+  <view class="hp-foot">
+    <text class="hp-foot-t">用着有问题？</text>
+    <text class="hp-foot-d">设置里有「意见反馈」，直接说就行。</text>
+  </view>
+</view>

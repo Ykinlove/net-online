@@ -1,0 +1,131 @@
+<view class="page cmd">
+
+  <view class="cmd-head">
+    <view class="cmd-title-wrap">
+      <text class="page-title">⌨️ 命令手记</text>
+      <text class="cmd-sub">共 {{total}} 条 · {{filterText}}</text>
+    </view>
+    <view class="cmd-actions">
+      <view class="icon-btn" bindtap="refresh" hover-class="icon-btn-hover">↻</view>
+      <view class="btn btn-sm btn-primary" bindtap="openAdd">+ 记命令</view>
+    </view>
+  </view>
+
+  <text class="cmd-diag {{diagErr ? 'is-err' : ''}}">{{diag}}</text>
+
+  <scroll-view class="dev-bar" scroll-x enable-flex>
+    <view
+      wx:for="{{devices}}"
+      wx:key="*this"
+      class="dev-chip {{filter === item ? 'on' : ''}}"
+      data-v="{{item}}"
+      bindtap="setFilter"
+    >
+      <text>{{item}}</text>
+      <text wx:if="{{devCount[item]}}" class="dev-num">{{devCount[item]}}</text>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{searching}}" class="search-row">
+    <input class="input" value="{{keyword}}" placeholder="搜索标题 / 命令 / 说明" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" bindinput="onSearch" />
+  </view>
+  <view class="search-toggle" bindtap="toggleSearch">{{searching ? '收起搜索' : '🔍 搜索'}}</view>
+
+  <view wx:if="{{!shown.length}}" class="empty">
+    {{total ? '这个设备下还没有命令' : '还没有命令，点右上角「+ 记命令」开始'}}
+  </view>
+
+  <view
+    wx:for="{{shown}}"
+    wx:key="_key"
+    class="cmd-card"
+    data-idx="{{index}}"
+    bindtap="openDetail"
+  >
+    <view class="cmd-card-top">
+      <text class="cmd-dev">{{item.device}}</text>
+      <text class="cmd-name">{{item.title}}</text>
+    </view>
+    <text class="cmd-code">{{item.preview}}</text>
+  </view>
+
+  <!-- 详情 -->
+  <view wx:if="{{detail}}" class="mask" bindtap="closeDetail">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">{{detail.title}}</text>
+        <text class="sheet-close" bindtap="closeDetail">×</text>
+      </view>
+      <view class="dt-meta">
+        <text class="chip">{{detail.device}}</text>
+        <text wx:if="{{detail.skill}}" class="chip">{{detail.skill}}</text>
+      </view>
+      <view class="dt-code-wrap">
+        <view class="dt-code-bar">
+          <view class="dt-dot d1"></view>
+          <view class="dt-dot d2"></view>
+          <view class="dt-dot d3"></view>
+          <text class="dt-code-label">console</text>
+        </view>
+        <scroll-view class="dt-code-scroll" scroll-y>
+          <text class="dt-code">{{detail.content}}</text>
+        </scroll-view>
+      </view>
+      <text wx:if="{{detail.desc}}" class="dt-desc">说明：{{detail.desc}}</text>
+
+      <view class="dt-actions">
+        <view class="btn btn-ghost" bindtap="openEdit">编辑</view>
+        <view class="btn btn-primary" bindtap="copyCmd">复制命令</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新增 / 编辑 -->
+  <view wx:if="{{formOpen}}" class="mask" bindtap="closeForm">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">{{editingId ? '编辑命令' : '记一条命令'}}</text>
+        <text class="sheet-close" bindtap="closeForm">×</text>
+      </view>
+
+      <view class="field">
+        <text class="field-label">设备类型</text>
+        <view class="seg">
+          <view
+            wx:for="{{devices2}}"
+            wx:key="*this"
+            class="seg-item {{form.device === item ? 'on' : ''}}"
+            data-v="{{item}}"
+            bindtap="pickDevice"
+          >{{item}}</view>
+        </view>
+      </view>
+
+      <view class="field">
+        <text class="field-label">标题 <text class="req">*</text></text>
+        <input class="input" value="{{form.title}}" maxlength="40" placeholder="比如：查看端口隔离组" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="title" bindinput="onFormInput" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">命令内容 <text class="req">*</text></text>
+        <textarea class="textarea cmd-term" value="{{form.content}}" placeholder="原样粘贴命令，支持多行" placeholder-class="input-placeholder" placeholder-style="color:#6b7f92;font-size:calc(27 * var(--u));" data-k="content" bindinput="onFormInput" auto-height />
+      </view>
+
+      <view class="field">
+        <text class="field-label">说明 / 用途</text>
+        <input class="input" value="{{form.desc}}" maxlength="60" placeholder="这条命令干什么用的" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="desc" bindinput="onFormInput" />
+      </view>
+
+      <view class="field">
+        <text class="field-label">标签（逗号分隔）</text>
+        <input class="input" value="{{form.tags}}" maxlength="60" placeholder="比如：排障,VLAN" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="tags" bindinput="onFormInput" />
+      </view>
+
+      <view wx:if="{{editingId}}" class="form-actions">
+        <view class="btn btn-danger" bindtap="deleteFromForm">删除</view>
+        <view class="btn btn-primary" bindtap="saveForm">保存</view>
+      </view>
+      <view wx:else class="btn btn-primary btn-block" bindtap="saveForm">保存</view>
+    </view>
+  </view>
+</view>

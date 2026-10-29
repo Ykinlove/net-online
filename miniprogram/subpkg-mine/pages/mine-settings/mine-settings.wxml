@@ -1,0 +1,62 @@
+<view class="page st">
+
+  <view class="group">
+    <text class="group-title">档案</text>
+    <view class="row" bindtap="editProfile" hover-class="row-hover">
+      <text class="row-label">修改档案</text>
+      <text class="row-value">{{nickname}}</text>
+      <text class="row-arrow">›</text>
+    </view>
+    <view class="row" bindtap="changeChar" hover-class="row-hover">
+      <text class="row-label">我的形象</text>
+      <text class="row-value">角色 / 背景</text>
+      <text class="row-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="group">
+    <text class="group-title">内容</text>
+    <view class="row" bindtap="goSkill" hover-class="row-hover">
+      <text class="row-label">技能树</text>
+      <text class="row-value">{{skillCount}} 个技能</text>
+      <text class="row-arrow">›</text>
+    </view>
+    <view class="row" bindtap="goArchive" hover-class="row-hover">
+      <text class="row-label">存档库</text>
+      <text class="row-value">{{archiveCount}} 个存档</text>
+      <text class="row-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="group">
+    <text class="group-title">工具</text>
+    <view class="row" bindtap="exportData" hover-class="row-hover">
+      <text class="row-label">导出数据</text>
+      <text class="row-value">Excel 表格</text>
+      <text class="row-arrow">›</text>
+    </view>
+    <button class="row row-fb" open-type="feedback" hover-class="row-fb-hover">
+      <text class="row-label">意见反馈</text>
+      <text class="row-arrow">›</text>
+    </button>
+  </view>
+
+  <view class="group">
+    <text class="group-title">关于</text>
+    <view class="row">
+      <text class="row-label">版本</text>
+      <text class="row-value">v5.20</text>
+    </view>
+    <view class="row">
+      <text class="row-label">制作人</text>
+      <text class="row-value">杨雷鹏</text>
+    </view>
+    <view class="row" bindtap="copyWechat" hover-class="row-hover">
+      <text class="row-label">联系微信</text>
+      <text class="row-value">Ykinlove11</text>
+      <text class="row-arrow">›</text>
+    </view>
+    <text class="group-tip">点这一行可以把微信号复制下来。数据保存在微信云开发，同一个微信换手机登录会自动同步。</text>
+  </view>
+
+</view>

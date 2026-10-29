@@ -1,0 +1,146 @@
+[
+ {
+  "section": "Windows",
+  "num": "1",
+  "title": "释放/重新获取 IP（release / renew）",
+  "content": "ipconfig  /{release;renew} # 释放/重新获取IP地址"
+ },
+ {
+  "section": "Windows",
+  "num": "2",
+  "title": "查路由 / 添加路由",
+  "content": "route print\nWindows命令行添加路由：\nroute add 目标网段 mask 子网掩码 下一跳 -p"
+ },
+ {
+  "section": "Switch",
+  "num": "1",
+  "title": "接口二层变三层",
+  "content": "undo portswitch\n反之 portswitch"
+ },
+ {
+  "section": "Switch",
+  "num": "1.1",
+  "title": "清空接口配置",
+  "content": "clear configuration interface [接口类型 编号]"
+ },
+ {
+  "section": "Switch",
+  "num": "1.2",
+  "title": "清空交换机配置并重启",
+  "content": "reset saved-configuration <main | backup>\nreboot\n是否保存当前配置：n\n重启确认：Y"
+ },
+ {
+  "section": "Switch",
+  "num": "1.3",
+  "title": "查看用户历史命令",
+  "content": "display history-command all"
+ },
+ {
+  "section": "Switch",
+  "num": "2",
+  "title": "华三查看 lldp 邻居及详细信息",
+  "content": "display lldp neighbor-information list\n（dis ll ne b）\ndisplay lldp neighbor brief\ndisplay lldp neighbor-information interface GigabitEthernet 1/0/21 verbose"
+ },
+ {
+  "section": "Switch",
+  "num": "3",
+  "title": "华三测光衰命令",
+  "content": "（dis tr di int ）\ndis transceiver diagnosis interface\ndisplay transceiver diagnosi interface [接口类型 编号]\ndisplay transceiver interface XGigabitEthernet 1/5/0/23 verbose"
+ },
+ {
+  "section": "Switch",
+  "num": "4",
+  "title": "查看端口隔离组",
+  "content": "display port-isolate group"
+ },
+ {
+  "section": "Switch",
+  "num": "5",
+  "title": "查看 vlan 端口配置",
+  "content": "display port vlan active\ndisplay port vlan"
+ },
+ {
+  "section": "Switch",
+  "num": "6",
+  "title": "快速查看接口配置",
+  "content": "dis cur int g0/0/1"
+ },
+ {
+  "section": "Switch",
+  "num": "7",
+  "title": "重置接口流量统计信息",
+  "content": "reset counters interface [接口类型 编号]"
+ },
+ {
+  "section": "Switch",
+  "num": "8",
+  "title": "查看聚合口及成员状态",
+  "content": "display link-aggregatio verbose Bridge-Aggregation"
+ },
+ {
+  "section": "Switch",
+  "num": "9",
+  "title": "设置时间时区同步",
+  "content": "需在【系统模式】下关闭NTP(如果开启):\nclock protocol none\n在<用户模式>下手动设置：\nclock datetime 15:24:30 2026/5/13\n进入【系统模式】后开启NTP:\nclock protocol ntp"
+ },
+ {
+  "section": "Switch",
+  "num": "10",
+  "title": "配置 syslog 日志采集",
+  "content": "info-center timestamp loghost iso with-timezone\ninfo-center loghost __LOG_HOST__ facility local6"
+ },
+ {
+  "section": "Switch",
+  "num": "11",
+  "title": "配置端口隔离",
+  "content": "port-isolate group 1\ninterface range GigabitEthernet 1/0/1 to GigabitEthernet 1/0/24\nport access vlan 10\nport-isolate enable group 1\nstp edged-port\narp rate-limit 20"
+ },
+ {
+  "section": "Switch",
+  "num": "11.1",
+  "title": "查看端口隔离组（全部成员）",
+  "content": "display port-isolate group all"
+ },
+ {
+  "section": "Switch",
+  "num": "12",
+  "title": "配置远程用户",
+  "content": "local-user ruijie class manage\npassword simple __LOCAL_USER_PASS__\nservice-type ssh http https\nauthorization-attribute user-role level-1\nauthorization-attribute user-role network-operator"
+ },
+ {
+  "section": "Switch",
+  "num": "13",
+  "title": "配置 telnet 远程",
+  "content": "local-user h3c\npassword simple __TELNET_USER_PASS__\nauthorization-attribute level 3\nservice-type telnet\nuser-interface vty 0 15\nauthentication-mode scheme"
+ },
+ {
+  "section": "Switch",
+  "num": "14",
+  "title": "查看 MAC 地址漂移记录",
+  "content": "display mac-address flapping record"
+ },
+ {
+  "section": "Switch",
+  "num": "15",
+  "title": "模拟终端获取地址",
+  "content": "进入业务接口 例如vlan 10\ninterface Vlan-interface 10\nip address dhcp-alloc\n查看\ndis ip interface brief"
+ },
+ {
+  "section": "Switch",
+  "num": "99",
+  "title": "配置 snmp",
+  "content": "snmp-agent\nsnmp-agent community read __SNMP_RO__\nsnmp-agent community read __SNMP_RO2__\nsnmp-agent sys-info version all\nor:\nsnmp-agent\nsnmp-agent local-engineid 383030303633413236353133373033443135363539364630（可不配置，默认设备会自动生成）\nsnmp-agent community read __SNMP_RO__\nsnmp-agent community write __SNMP_RW__\nsnmp-agent sys-info version all\nsnmp-agent target-host trap address udp-domain __TRAP_HOST__ params securityname __SNMP_RO__ v2c\nsnmp-agent trap enable default-route"
+ },
+ {
+  "section": "AC",
+  "num": "1",
+  "title": "查看 AP 组及信息",
+  "content": "dis wlan ap-group brief\ndis wlan ap all"
+ },
+ {
+  "section": "AC",
+  "num": "2",
+  "title": "进入 AP 组 / AP",
+  "content": "wlan ap-group <name>\n进入AP：\nwlan ap <name>\n查询AP\ndisplay wlan ap all | include <SN>"
+ }
+]

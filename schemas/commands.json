@@ -1,0 +1,12 @@
+{
+  "title": "eo_命令库",
+  "properties": [
+    { "name": "日期", "config": { "date": { "format": "yyyy-mm-dd" } } },
+    { "name": "设备类型", "config": { "select": { "options": [ { "text": "Windows" }, { "text": "Switch" }, { "text": "Router" }, { "text": "AC" }, { "text": "AP" }, { "text": "防火墙" }, { "text": "服务器" }, { "text": "其他设备" } ] } } },
+    { "name": "标题", "config": { "text": "" } },
+    { "name": "命令内容", "config": { "text": "" } },
+    { "name": "说明/用途", "config": { "text": "" } },
+    { "name": "标签", "config": { "text": "" } },
+    { "name": "关联技能", "config": { "text": "" } }
+  ]
+}

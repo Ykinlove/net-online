@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小程序自适应方案 · 效果预览</title>
+<style>
+  :root { --ink: #2c3e50; --paper: #fffdf6; --gold: #c9a455; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 24px 60px;
+    background: #eef4f9; color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { font-size: 13px; color: #5b7086; margin: 0 0 22px; line-height: 1.7; max-width: 980px; }
+  .lead code { background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid #d3e1ec; }
+  h2 { font-size: 15px; margin: 34px 0 4px; display: flex; align-items: center; gap: 10px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+  .badge.now { background: #ffe1e1; color: #a3341f; border: 1px solid #f0b7ab; }
+  .badge.fix { background: #dff3e6; color: #1f6b46; border: 1px solid #a9d9bd; }
+  .hint { font-size: 12px; color: #6c8098; margin: 0 0 14px; }
+  .strip {
+    display: flex; align-items: flex-start; gap: 20px;
+    overflow-x: auto; padding: 6px 2px 20px;
+    border-bottom: 1px dashed #cbdceb;
+  }
+  .slot { flex: none; }
+  .slot-label {
+    font-size: 11px; font-weight: 700; color: #3c5a78;
+    margin-bottom: 6px; display: flex; justify-content: space-between; gap: 10px;
+  }
+  .slot-label span { font-weight: 500; color: #7b8fa5; }
+  .frame {
+    border: 2px solid #9fb6cc; border-radius: 10px; overflow: hidden;
+    background: linear-gradient(180deg, #eaf4fb 0%, #f7fbfe 40%, #eef7fd 100%);
+    box-shadow: 0 6px 18px rgba(44,62,80,.08);
+  }
+
+  /* ===== 用 CSS 变量模拟 rpx：1rpx = var(--u) = 屏宽/750 ===== */
+  .page {
+    padding: calc(24 * var(--u)) calc(24 * var(--u)) calc(40 * var(--u));
+    font-size: calc(26 * var(--u));
+    line-height: 1.5;
+  }
+  .card {
+    background: var(--paper);
+    border: calc(4 * var(--u)) solid var(--ink);
+    box-shadow: 0 calc(8 * var(--u)) 0 rgba(44,62,80,.18);
+    padding: calc(22 * var(--u)) calc(24 * var(--u));
+    margin-bottom: calc(22 * var(--u));
+  }
+  .gold { border-color: var(--gold); background: linear-gradient(135deg,#fff8e6 0%,#fffdf6 60%); }
+  .title-row {
+    display: flex; align-items: center; gap: calc(10 * var(--u));
+    padding-bottom: calc(12 * var(--u)); margin-bottom: calc(16 * var(--u));
+    border-bottom: calc(3 * var(--u)) dashed #d9e4ee;
+  }
+  .title { font-size: calc(28 * var(--u)); font-weight: 800; }
+  .more { margin-left: auto; font-size: calc(22 * var(--u)); color: #c97a14; font-weight: 700; }
+  .ans-text { font-size: calc(26 * var(--u)); color: #6b5a34; font-weight: 600; }
+  .ans-head { display: flex; align-items: center; margin-bottom: calc(14 * var(--u)); }
+  .ans-label { font-size: calc(25 * var(--u)); font-weight: 800; color: #8a6d28; }
+  .ans-refresh { margin-left: auto; font-size: calc(20 * var(--u)); color: #b09a68; }
+
+  .cal-week { display: grid; grid-template-columns: repeat(7,1fr); gap: calc(4 * var(--u)); margin-bottom: calc(8 * var(--u)); }
+  .cal-wd { text-align: center; font-size: calc(20 * var(--u)); color: #93a7ba; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: calc(4 * var(--u)); }
+  .cell {
+    height: calc(52 * var(--u)); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; border-radius: calc(6 * var(--u));
+    font-size: calc(22 * var(--u)); color: #4c6478; position: relative;
+  }
+  .cell.today { background: #dcefff; border: calc(2 * var(--u)) solid #7db4dd; font-weight: 800; }
+  .cell.dot::after {
+    content: ""; position: absolute; bottom: calc(5 * var(--u));
+    width: calc(8 * var(--u)); height: calc(8 * var(--u)); border-radius: 50%; background: #e0813a;
+  }
+  .cal-foot { margin-top: calc(12 * var(--u)); text-align: center; font-size: calc(20 * var(--u)); color: #8ba0b3; }
+
+  .search {
+    display: flex; align-items: center; gap: calc(12 * var(--u));
+    height: calc(92 * var(--u)); padding: 0 calc(22 * var(--u));
+    margin-bottom: calc(22 * var(--u));
+    background: var(--paper); border: calc(4 * var(--u)) solid var(--ink);
+    border-radius: calc(10 * var(--u)); box-shadow: 0 calc(7 * var(--u)) 0 rgba(44,62,80,.18);
+  }
+  .search .ph { font-size: calc(26 * var(--u)); color: #9fb0c0; }
+  .tpl {
+    display: flex; align-items: center; gap: calc(14 * var(--u));
+    padding: calc(18 * var(--u)) calc(22 * var(--u)); margin-bottom: calc(22 * var(--u));
+    background: linear-gradient(135deg,#fff8e6 0%,#fffdf6 70%);
+    border: calc(4 * var(--u)) solid var(--gold); border-radius: calc(10 * var(--u));
+    box-shadow: 0 calc(7 * var(--u)) 0 rgba(201,164,85,.22);
+  }
+  .tpl-main { flex: 1; min-width: 0; }
+  .tpl-t { font-size: calc(27 * var(--u)); font-weight: 800; display: block; }
+  .tpl-s {
+    font-size: calc(20 * var(--u)); color: #a08c5f; display: block;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .hero { display: flex; gap: calc(16 * var(--u)); margin-bottom: calc(24 * var(--u)); }
+  .hero-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u));
+    padding: calc(20 * var(--u)) 0; background: var(--paper);
+    border: calc(4 * var(--u)) solid var(--ink); border-radius: calc(10 * var(--u));
+    box-shadow: 0 calc(7 * var(--u)) 0 rgba(44,62,80,.18);
+    font-size: calc(24 * var(--u)); font-weight: 700;
+  }
+  .hero-btn.two { background: #eaf7f0; border-color: #4f8f6c; box-shadow: 0 calc(7 * var(--u)) 0 rgba(79,143,108,.22); }
+  .foot { text-align: center; font-size: calc(20 * var(--u)); color: #a9bccd; padding-top: calc(26 * var(--u)); }
+
+  /* 方案 B 的容器：内容限宽 430px 居中，两侧留白 */
+  .column { width: min(100%, 430px); margin: 0 auto; }
+  .pad-area { background: repeating-linear-gradient(45deg,#e4eef7,#e4eef7 8px,#dde9f4 8px,#dde9f4 16px); }
+</style>
+</head>
+<body>
+
+<h1>小程序自适应 · 效果预览</h1>
+<p class="lead">
+每块画面的缩放比例都按真实规则计算：<code>1rpx = 屏宽 ÷ 750</code>。所以下面「现状」一排里，
+屏越宽字越大——768 宽（平板）字号约 27px，1200 宽（电脑微信放大）字号约 42px，这就是你现在看到的问题。
+「方案 B」一排是改造后：内容最宽 430px 居中，字号不再随窗口无限放大。
+</p>
+
+<h2>现状 <span class="badge now">纯 rpx，无上限</span></h2>
+<p class="hint">手机 320~430 宽表现正常；平板 / 电脑窗口放大后，整屏按比例吹大，一屏只能容下两张卡片。</p>
+<div class="strip" id="rowNow"></div>
+
+<h2>方案 B <span class="badge fix">限宽 430px 居中 + 字号封顶</span></h2>
+<p class="hint">手机端与现状完全一致（本来就没超过 430）；平板/电脑变成居中一列手机尺寸，两侧灰底留白，阅读密度稳定。</p>
+<div class="strip" id="rowFix"></div>
+
+<script>
+const WIDTHS = [
+  { w: 320, name: '小屏手机', note: 'iPhone SE' },
+  { w: 375, name: '标准手机', note: 'iPhone 8' },
+  { w: 430, name: '大屏手机', note: 'iPhone 15 Pro Max' },
+  { w: 768, name: '平板', note: 'iPad' },
+  { w: 1200, name: '电脑微信', note: '窗口放大' }
+];
+
+function mockCards() {
+  let cells = '';
+  const marks = { 3: 1, 7: 1, 12: 1, 16: 1, 21: 1, 24: 1 };
+  for (let i = 0; i < 4; i++) cells += '<div class="cell"></div>';
+  for (let d = 1; d <= 31; d++) {
+    const cls = 'cell' + (d === 26 ? ' today' : '') + (marks[d] ? ' dot' : '');
+    cells += '<div class="' + cls + '">' + d + '</div>';
+  }
+  return `
+    <div class="card gold">
+      <div class="ans-head">
+        <span class="ans-label">📖 每日答案之书</span>
+        <span class="ans-refresh">换一句 ↻</span>
+      </div>
+      <div class="ans-text">「先把手上的线理清楚，再谈架构」</div>
+    </div>
+
+    <div class="card">
+      <div class="title-row">
+        <span class="title">📅 2026 年 10 月</span>
+        <span class="more">‹　›</span>
+      </div>
+      <div class="cal-week">
+        <span class="cal-wd">日</span><span class="cal-wd">一</span><span class="cal-wd">二</span>
+        <span class="cal-wd">三</span><span class="cal-wd">四</span><span class="cal-wd">五</span><span class="cal-wd">六</span>
+      </div>
+      <div class="cal-grid">${cells}</div>
+      <div class="cal-foot">🗓 本月第 5 周</div>
+    </div>
+
+    <div class="search">
+      <span>🔍</span><span class="ph">搜命令，比如「划分端口」</span>
+    </div>
+
+    <div class="tpl">
+      <span>📋</span>
+      <div class="tpl-main">
+        <span class="tpl-t">配置模板库</span>
+        <span class="tpl-s">开局 / 排障直接套，23 个常用片段</span>
+      </div>
+      <span style="font-size:calc(34 * var(--u));color:#c9a455">›</span>
+    </div>
+
+    <div class="hero">
+      <div class="hero-btn"><span>⌨️</span><span>记一条命令</span></div>
+      <div class="hero-btn two"><span>📁</span><span>记一个项目</span></div>
+    </div>
+
+    <div class="foot">Net 操作命令速记　v5.20</div>
+  `;
+}
+
+function buildSlot(w, capped, mode) {
+  const eff = capped ? Math.min(w, 430) : w;
+  const slot = document.createElement('div');
+  slot.className = 'slot';
+  slot.innerHTML = `
+    <div class="slot-label">${w}px <span>${WIDTHS.find(x => x.w === w).note}</span></div>
+    <div class="frame" style="width:${w}px">
+      <div class="pad-area" style="--u:${(eff / 750).toFixed(4)}px">
+        <div class="page ${capped ? 'column' : ''}">${mockCards()}</div>
+      </div>
+    </div>`;
+  return slot;
+}
+
+const rowNow = document.getElementById('rowNow');
+const rowFix = document.getElementById('rowFix');
+WIDTHS.forEach(item => {
+  rowNow.appendChild(buildSlot(item.w, false));
+  rowFix.appendChild(buildSlot(item.w, true));
+});
+</script>
+</body>
+</html>

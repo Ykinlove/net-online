@@ -1,0 +1,213 @@
+const store = require('../../../utils/store.js');
+const { DEVICES, DEVICE_CN } = require('../../../utils/seed.js');
+const cmdbook = require('../../utils/cmdbook.js');
+
+/* 左侧设备栏：显示中文，值仍用英文 key（与 commands 表一致） */
+const SIDE = [{ v: '全部', t: '全部' }].concat(
+  DEVICES.map(d => ({ v: d, t: DEVICE_CN[d] || d }))
+);
+
+/* 百科条目多（近 300 条），一次全推给视图会很卡，按页追加 */
+const PAGE = 30;
+
+Page({
+  data: {
+    sideList: SIDE,
+    dev: '全部',
+    devText: '全部',
+    kw: '',
+    bookHits: [],
+    bookTotal: 0,
+    hasMore: false,
+    mineHits: [],
+    hitTotal: 0,
+    detail: null,
+    detailCopyLabel: '复制全部'
+  },
+
+  onLoad(q) {
+    store.init();
+    const patch = {};
+    if (q && q.dev) patch.dev = q.dev;
+    if (q && q.kw) patch.kw = q.kw;
+    if (Object.keys(patch).length) this.setData(patch);
+    this.doSearch();
+  },
+
+  onShow() {
+    this.doSearch();
+  },
+
+  /* ---------- 搜索 ---------- */
+  onInput(e) {
+    this.setData({ kw: e.detail.value }, () => this.doSearch());
+  },
+
+  onConfirm(e) {
+    this.setData({ kw: e.detail.value }, () => this.doSearch());
+  },
+
+  clearKw() {
+    this.setData({ kw: '' }, () => this.doSearch());
+  },
+
+  pickDev(e) {
+    this.setData({ dev: e.currentTarget.dataset.v }, () => this.doSearch());
+  },
+
+  doSearch() {
+    const kw = String(this.data.kw || '').trim();
+    let dev = this.data.dev;
+
+    /* 如果输入的就是设备名（「交换机」「路由器」），直接把左侧切过去，按设备列全部 */
+    let kwForSearch = kw;
+    const hitDev = SIDE.filter(s => s.v !== '全部' && s.t === kw)[0];
+    if (hitDev) {
+      kwForSearch = '';
+      if (dev !== hitDev.v) {
+        dev = hitDev.v;
+        this.setData({ dev: hitDev.v });
+      }
+    }
+
+    /* 1. 内置命令百科 */
+    const bookHits = cmdbook.search(kwForSearch, dev);
+
+    /* 2. 自己记过的命令 */
+    const words = cmdbook.expand(cmdbook.norm(kwForSearch));
+    let mine = store.getList('commands').slice();
+    mine.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (dev !== '全部') {
+      mine = mine.filter(c => (c.device || '其他设备') === dev);
+    }
+    if (words.length) {
+      mine = mine.filter(c => {
+        const bag = [c.title, c.content, c.desc, c.tags]
+          .map(x => String(x || ''))
+          .join('\n')
+          .toLowerCase();
+        for (let i = 0; i < words.length; i++) {
+          const g = words[i];
+          let ok = false;
+          for (let j = 0; j < g.length; j++) {
+            if (bag.indexOf(g[j]) >= 0) { ok = true; break; }
+          }
+          if (!ok) return false;
+        }
+        return true;
+      });
+    }
+    const mineHits = mine.slice(0, 50).map(c => ({
+      _key: c._id || c._localId,
+      title: c.title || '(未命名命令)',
+      device: c.device || '其他设备',
+      devText: DEVICE_CN[c.device || '其他设备'] || (c.device || '其他设备'),
+      preview: String(c.content || '').split('\n')[0],
+      content: c.content || '',
+      desc: c.desc || ''
+    }));
+
+    this._bookAll = bookHits;
+    this.setData({
+      bookHits: bookHits.slice(0, PAGE),
+      bookTotal: bookHits.length,
+      hasMore: bookHits.length > PAGE,
+      mineHits,
+      hitTotal: bookHits.length + mineHits.length,
+      devText: (SIDE.filter(s => s.v === dev)[0] || {}).t || dev
+    });
+  },
+
+  /* 结果多的时候滚动到底部再追加，避免首屏一次渲染几百条 */
+  loadMore() {
+    if (!this.data.hasMore) return;
+    const all = this._bookAll || [];
+    const cur = this.data.bookHits.length;
+    const next = all.slice(0, cur + PAGE);
+    this.setData({ bookHits: next, hasMore: next.length < all.length });
+  },
+
+  /* ---------- 详情浮层 ---------- */
+  /* 把命令块拆成一行一行：注释/说明行在界面上灰掉，复制时整行剔掉 */
+  buildLines(code, vendor) {
+    return String(code || '').split('\n').map(t => {
+      const s = t.trim();
+      const note = !s || /^[#!]/.test(s) || !/[a-zA-Z0-9]/.test(s) ||
+        (/^[（(].*[）)]$/.test(s) && /[\u4e00-\u9fa5]/.test(s));
+      return { t: s ? t : ' ', note: note };
+    });
+  },
+
+  openBook(e) {
+    const idx = Number(e.currentTarget.dataset.idx);
+    const it = this.data.bookHits[idx];
+    if (!it) return;
+    this.setData({
+      detail: {
+        kind: 'book',
+        title: it.name,
+        sub: it.devs.map(d => DEVICE_CN[d] || d).join(' / '),
+        tip: it.tip,
+        blocks: it.cmds.map(c => ({
+          vendor: c.vendor,
+          code: c.code,
+          lines: this.buildLines(c.code, c.vendor)
+        }))
+      }
+    });
+  },
+
+  openMine(e) {
+    const idx = Number(e.currentTarget.dataset.idx);
+    const it = this.data.mineHits[idx];
+    if (!it) return;
+    this.setData({
+      detail: {
+        kind: 'mine',
+        title: it.title,
+        sub: it.devText,
+        tip: it.desc,
+        blocks: [{
+          vendor: it.devText,
+          code: it.content,
+          lines: this.buildLines(it.content, it.devText)
+        }]
+      }
+    });
+  },
+
+  closeDetail() {
+    this.setData({ detail: null });
+  },
+
+  noop() {},
+
+  copyOne(e) {
+    const i = Number(e.currentTarget.dataset.i);
+    const d = this.data.detail;
+    if (!d || !d.blocks[i]) return;
+    const b = d.blocks[i];
+    /* 走一遍清洗：中文注释、说明行不带进剪贴板，粘到设备上不报错 */
+    const text = cmdbook.cleanCmd(b.code, b.vendor) || b.code;
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '已复制 ' + b.vendor, icon: 'none' })
+    });
+  },
+
+  copyAll() {
+    const d = this.data.detail;
+    if (!d) return;
+    const text = d.blocks
+      .map(b => '【' + b.vendor + '】\n' + (cmdbook.cleanCmd(b.code, b.vendor) || b.code))
+      .join('\n\n');
+    if (text.length > 60000) {
+      wx.showToast({ title: '内容过长，请逐个复制', icon: 'none' });
+      return;
+    }
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '命令已复制', icon: 'success' })
+    });
+  }
+});

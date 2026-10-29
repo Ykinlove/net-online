@@ -1,0 +1,203 @@
+.cmd { padding-bottom: calc(180 * var(--u)); }
+
+.cmd-head {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: calc(6 * var(--u));
+}
+.cmd-title-wrap { display: flex; flex-direction: column; }
+.page-title { font-size: calc(36 * var(--u)); font-weight: 800; color: #2c3e50; }
+.cmd-sub { font-size: calc(21 * var(--u)); color: #8a99aa; margin-top: calc(4 * var(--u)); }
+.cmd-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+}
+.icon-btn {
+  width: calc(62 * var(--u));
+  height: calc(62 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(30 * var(--u));
+  color: #2c3e50;
+  background: #fff;
+  border: calc(3 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+}
+.icon-btn-hover { background: #eaf3fb; }
+
+.cmd-diag {
+  display: block;
+  font-size: calc(20 * var(--u));
+  color: #a9bccd;
+  margin-bottom: calc(14 * var(--u));
+  line-height: 1.5;
+}
+.cmd-diag.is-err { color: #d9534f; }
+
+.dev-bar {
+  white-space: nowrap;
+  margin-bottom: calc(8 * var(--u));
+}
+.dev-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  padding: calc(10 * var(--u)) calc(20 * var(--u));
+  margin-right: calc(12 * var(--u));
+  font-size: calc(23 * var(--u));
+  font-weight: 700;
+  color: #6b7d8f;
+  background: #fff;
+  border: calc(3 * var(--u)) solid #c2d4e3;
+  border-radius: calc(40 * var(--u));
+}
+.dev-chip.on {
+  color: #2c3e50;
+  background: #ffd86b;
+  border-color: #2c3e50;
+}
+.dev-num {
+  font-size: calc(19 * var(--u));
+  color: #a08a5e;
+}
+.dev-chip.on .dev-num { color: #7a5a20; }
+
+.search-toggle {
+  font-size: calc(21 * var(--u));
+  color: #7a8a9b;
+  padding: calc(8 * var(--u)) calc(2 * var(--u)) calc(12 * var(--u));
+}
+.search-row { padding: calc(6 * var(--u)) 0 calc(4 * var(--u)); }
+
+.cmd-card {
+  background: #fffdf6;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.16);
+  padding: calc(18 * var(--u)) calc(20 * var(--u));
+  margin-bottom: calc(16 * var(--u));
+}
+.cmd-card-top {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  margin-bottom: calc(10 * var(--u));
+}
+.cmd-dev {
+  flex: none;
+  padding: calc(2 * var(--u)) calc(10 * var(--u));
+  font-size: calc(19 * var(--u));
+  font-weight: 800;
+  color: #fff;
+  background: #2c3e50;
+  border-radius: calc(4 * var(--u));
+}
+.cmd-name {
+  flex: 1;
+  font-size: calc(26 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 命令块：深蓝终端底 + 薄荷绿等宽字，沿用 H5 版的命令行配色 */
+.cmd-code {
+  display: block;
+  font-family: Menlo, Consolas, "Courier New", monospace;
+  font-size: calc(21 * var(--u));
+  line-height: 1.62;
+  letter-spacing: calc(0.4 * var(--u));
+  color: #a8e6bf;
+  background: #22303d;
+  border-left: calc(6 * var(--u)) solid #7fd6a0;
+  padding: calc(13 * var(--u)) calc(15 * var(--u));
+  border-radius: 0 calc(6 * var(--u)) calc(6 * var(--u)) 0;
+  /* 刚好装下 3 行（21rpx × 1.62 ≈ 34rpx/行 + 上下 13rpx），避免第 3 行被切一半 */
+  max-height: calc(128 * var(--u));
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 详情 */
+.dt-meta { display: flex; gap: calc(10 * var(--u)); margin-bottom: calc(16 * var(--u)); flex-wrap: wrap; }
+.dt-code-wrap {
+  background: #22303d;
+  border: calc(3 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+  margin-bottom: calc(14 * var(--u));
+  overflow: hidden;
+}
+/* 终端标题条：三个小圆点 + 窗口名 */
+.dt-code-bar {
+  display: flex;
+  align-items: center;
+  gap: calc(9 * var(--u));
+  padding: calc(9 * var(--u)) calc(14 * var(--u));
+  background: #17202a;
+  border-bottom: calc(2 * var(--u)) solid #2f3f4f;
+}
+.dt-dot { width: calc(13 * var(--u)); height: calc(13 * var(--u)); border-radius: 50%; flex: none; }
+.dt-dot.d1 { background: #ff5f57; }
+.dt-dot.d2 { background: #febc2e; }
+.dt-dot.d3 { background: #28c840; }
+.dt-code-label {
+  margin-left: calc(6 * var(--u));
+  font-family: Menlo, Consolas, "Courier New", monospace;
+  font-size: calc(18 * var(--u));
+  color: #64778a;
+  letter-spacing: calc(0.5 * var(--u));
+}
+.dt-code-scroll {
+  max-height: 42vh;
+  padding: calc(15 * var(--u)) calc(16 * var(--u));
+  box-sizing: border-box;
+}
+.dt-code {
+  font-family: Menlo, Consolas, "Courier New", monospace;
+  font-size: calc(23 * var(--u));
+  line-height: 1.7;
+  letter-spacing: calc(0.4 * var(--u));
+  color: #a8e6bf;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.dt-desc { display: block; font-size: calc(22 * var(--u)); color: #6b7d8f; margin-bottom: calc(16 * var(--u)); }
+.dt-actions { display: flex; gap: calc(12 * var(--u)); }
+.dt-actions .btn { flex: 1; }
+
+/* 编辑态底部：删除 + 保存 两列 */
+.form-actions {
+  display: flex;
+  gap: calc(12 * var(--u));
+  margin-top: calc(26 * var(--u));
+}
+.form-actions .btn { flex: 1; }
+
+/* 录入命令时的输入框也用终端配色，跟展示一致 */
+.cmd-term {
+  font-family: Menlo, Consolas, "Courier New", monospace;
+  font-size: calc(25 * var(--u));
+  line-height: 1.65;
+  letter-spacing: calc(0.4 * var(--u));
+  color: #a8e6bf;
+  background-color: #22303d;
+  border-color: #2c3e50;
+}
+
+.picker-box {
+  display: flex;
+  align-items: center;
+  height: calc(92 * var(--u));
+  padding: 0 calc(24 * var(--u));
+  background-color: #ffffff;
+  border: calc(4 * var(--u)) solid #b9cfe0;
+  border-radius: calc(8 * var(--u));
+  font-size: calc(29 * var(--u));
+  color: #2c3e50;
+}
+.picker-caret { margin-left: auto; color: #8a99aa; font-size: calc(22 * var(--u)); }

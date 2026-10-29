@@ -1,0 +1,325 @@
+{
+  "query": "",
+  "sheetQuery": "保存配置",
+  "side": [
+    {
+      "v": "全部",
+      "t": "全部"
+    },
+    {
+      "v": "Switch",
+      "t": "交换机"
+    },
+    {
+      "v": "Router",
+      "t": "路由器"
+    },
+    {
+      "v": "AC",
+      "t": "无线控制器"
+    },
+    {
+      "v": "AP",
+      "t": "无线AP"
+    },
+    {
+      "v": "防火墙",
+      "t": "防火墙"
+    },
+    {
+      "v": "Linux",
+      "t": "Linux"
+    },
+    {
+      "v": "Windows",
+      "t": "Windows"
+    },
+    {
+      "v": "服务器",
+      "t": "服务器"
+    },
+    {
+      "v": "其他设备",
+      "t": "其他"
+    }
+  ],
+  "list": [
+    {
+      "name": "进入 / 退出配置视图",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "修改设备名称",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "查看命令帮助 / Tab 补全",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "关闭分屏输出（---- More ----）",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "过滤命令输出（| include）",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "查看历史命令（忘了刚才敲了啥）",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "退出登录 / 断开当前会话",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "重启设备",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "ping 测试连通性",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "指定源地址 ping",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "路由追踪（tracert）",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷",
+        "Windows",
+        "Linux"
+      ]
+    },
+    {
+      "name": "从设备 telnet 到另一台设备",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "关闭日志弹屏（敲命令被日志打断）",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "查看下次启动用的配置",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "查看所有端口描述一览",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "查某个地址走哪条路由",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "查看 DHCP 地址池分配情况",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "只看配置里的某一段",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "一键收集诊断信息（报障给厂商）",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "命令行空闲超时",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "密码复杂度与登录锁定",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "关闭 HTTP，只留 HTTPS",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "SNMP v3（加密认证）",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    },
+    {
+      "name": "查看当前告警",
+      "vendors": [
+        "华为",
+        "思科",
+        "H3C",
+        "锐捷"
+      ]
+    }
+  ],
+  "one": {
+    "name": "保存配置",
+    "tip": "华为 / H3C 是 save，思科 / 锐捷是 write memory。H3C 加 force 可以不交互直接存。",
+    "cmds": [
+      {
+        "vendor": "华为",
+        "code": "save\n（提示 Y/N 时输入 y）",
+        "lines": [
+          {
+            "t": "save",
+            "note": false
+          },
+          {
+            "t": "（提示 Y/N 时输入 y）",
+            "note": true
+          }
+        ]
+      },
+      {
+        "vendor": "思科",
+        "code": "write memory\n或 copy running-config startup-config",
+        "lines": [
+          {
+            "t": "write memory",
+            "note": false
+          },
+          {
+            "t": "或 copy running-config startup-config",
+            "note": false
+          }
+        ]
+      },
+      {
+        "vendor": "H3C",
+        "code": "save force",
+        "lines": [
+          {
+            "t": "save force",
+            "note": false
+          }
+        ]
+      },
+      {
+        "vendor": "锐捷",
+        "code": "write memory",
+        "lines": [
+          {
+            "t": "write memory",
+            "note": false
+          }
+        ]
+      }
+    ]
+  },
+  "stats": {
+    "points": 561,
+    "cmds": 1790,
+    "total": 561
+  }
+}

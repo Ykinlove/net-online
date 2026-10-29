@@ -1,0 +1,251 @@
+/* ============================================================
+   app.wxss —— 全局像素风设计系统
+   设计稿宽度 750「单位」（与 H5 的 390px 视口对应，1 单位 ≈ 0.5px）
+
+   自适应策略（方案 B）
+   ------------------------------------------------------------
+   全站尺寸统一写成 calc(N * var(--u))，不再直接用 rpx：
+     · 手机：--u = 100vw / 750，等价于原来的 1rpx，像素级不变
+     · 平板 / 电脑微信（宽 ≥ 480px）：--u 锁死 0.5733px，
+       即按 430px 宽的设计稿渲染，页面居中、两侧留白，
+       字号不再随窗口无限放大
+   --W 是内容宽度，配合 .page 的 margin:0 auto 做居中限宽。
+   ============================================================ */
+
+page {
+  --u: calc(100vw * 0.0013333333);   /* = 100vw ÷ 750，用乘法兼容所有内核 */
+  --W: 100vw;
+  background: #eaf4fb;
+  color: #2c3e50;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: calc(26 * var(--u));
+  line-height: 1.5;
+}
+
+/* 宽屏锁尺：430px 宽的设计稿（≈ 大屏手机） */
+@media (min-width: 480px) {
+  page {
+    --u: 0.5733333px;
+    --W: 430px;
+  }
+}
+
+view, text, scroll-view, button, input, textarea, picker, image {
+  box-sizing: border-box;
+}
+
+/* ---------- 页面容器 ---------- */
+.page {
+  width: var(--W);
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  min-height: 100vh;
+  padding: calc(24 * var(--u)) calc(24 * var(--u)) calc(40 * var(--u));
+  background: linear-gradient(180deg, #eaf4fb 0%, #f7fbfe 40%, #eef7fd 100%);
+}
+.page-tight { padding: calc(16 * var(--u)) calc(24 * var(--u)) calc(32 * var(--u)); }
+
+/* 另外三个自带根容器的页面，同样限宽居中（不改内部布局） */
+.splash, .search-page, .tpl-page {
+  width: var(--W);
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: #fffdf6;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  box-shadow: 0 calc(8 * var(--u)) 0 rgba(44, 62, 80, 0.18);
+  padding: calc(22 * var(--u)) calc(24 * var(--u));
+  margin-bottom: calc(22 * var(--u));
+  position: relative;
+  overflow: hidden;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+  padding-bottom: calc(12 * var(--u));
+  margin-bottom: calc(16 * var(--u));
+  border-bottom: calc(3 * var(--u)) dashed #d9e4ee;
+}
+.card-title {
+  font-size: calc(28 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+}
+.card-more {
+  margin-left: auto;
+  font-size: calc(22 * var(--u));
+  color: #c97a14;
+  font-weight: 700;
+  padding: calc(4 * var(--u)) calc(8 * var(--u));
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8 * var(--u));
+  padding: calc(20 * var(--u)) calc(28 * var(--u));
+  font-size: calc(27 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+  background: #eaf3fb;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.35);
+  line-height: 1.2;
+}
+.btn::after { border: none; }
+.btn-primary { background: #ffd86b; }
+.btn-ghost { background: #fff; }
+.btn-danger { background: #ffd9d7; color: #a32e2a; border-color: #a32e2a; box-shadow: 0 calc(6 * var(--u)) 0 rgba(163, 46, 42, 0.3); }
+.btn-sm { padding: calc(12 * var(--u)) calc(20 * var(--u)); font-size: calc(24 * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 rgba(44, 62, 80, 0.3); }
+.btn-block { width: 100%; }
+.btn:active { transform: translateY(calc(4 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 rgba(44, 62, 80, 0.35); }
+
+/* ---------- 进度条 ---------- */
+.bar {
+  flex: 1;
+  height: calc(20 * var(--u));
+  background: #fdf4d8;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd86b 0%, #f5a623 100%);
+  transition: width 0.35s ease;
+}
+
+/* ---------- 标签 / 徽章 ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: calc(4 * var(--u)) calc(14 * var(--u));
+  font-size: calc(21 * var(--u));
+  font-weight: 700;
+  color: #2c3e50;
+  background: #eef6ff;
+  border: calc(3 * var(--u)) solid #9db6cc;
+  border-radius: calc(6 * var(--u));
+}
+.chip-gold { background: #fff3d6; border-color: #c9a455; color: #c97a14; }
+
+/* ---------- 表单 ----------
+   注意：input / textarea 是原生组件，深色模式下会跟随系统把文字渲染成白色，
+   所以这里必须显式写死 color / background，不能依赖继承或 CSS 变量。 */
+.field { margin-bottom: calc(22 * var(--u)); }
+.field-label {
+  display: block;
+  font-size: calc(25 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: calc(12 * var(--u));
+}
+.field-label .req { color: #d9534f; }
+
+.input {
+  width: 100%;
+  height: calc(92 * var(--u));
+  line-height: calc(92 * var(--u));
+  padding: 0 calc(24 * var(--u));
+  font-size: calc(29 * var(--u));
+  color: #2c3e50;
+  background-color: #ffffff;
+  border: calc(4 * var(--u)) solid #b9cfe0;
+  border-radius: calc(8 * var(--u));
+}
+.textarea {
+  width: 100%;
+  min-height: calc(200 * var(--u));
+  padding: calc(18 * var(--u)) calc(24 * var(--u));
+  font-size: calc(29 * var(--u));
+  line-height: 1.6;
+  color: #2c3e50;
+  background-color: #ffffff;
+  border: calc(4 * var(--u)) solid #b9cfe0;
+  border-radius: calc(8 * var(--u));
+}
+.input-placeholder { color: #9fb0c0; font-size: calc(27 * var(--u)); }
+.input-focus { border-color: #2c3e50; }
+
+/* ---------- 空状态 ---------- */
+.empty {
+  padding: calc(60 * var(--u)) calc(20 * var(--u));
+  text-align: center;
+  font-size: calc(24 * var(--u));
+  color: #8a99aa;
+}
+
+/* ---------- 小字 ---------- */
+.muted { color: #8a99aa; font-size: calc(22 * var(--u)); }
+.mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+
+/* ---------- 弹层 ---------- */
+.mask {
+  position: fixed;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(20, 32, 44, 0.55);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+.sheet {
+  width: 100%;
+  max-width: var(--W);
+  margin-left: auto;
+  margin-right: auto;
+  max-height: 88vh;
+  background: #fffdf6;
+  border-top: calc(5 * var(--u)) solid #2c3e50;
+  border-radius: calc(20 * var(--u)) calc(20 * var(--u)) 0 0;
+  padding: calc(26 * var(--u)) calc(26 * var(--u)) calc(calc(30 * var(--u)) + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.sheet-center {
+  margin: auto;
+  width: 88%;
+  border: calc(5 * var(--u)) solid #2c3e50;
+  border-radius: calc(16 * var(--u));
+  padding: calc(30 * var(--u)) calc(26 * var(--u));
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: calc(22 * var(--u));
+}
+.sheet-title { font-size: calc(30 * var(--u)); font-weight: 800; }
+.sheet-close {
+  margin-left: auto;
+  width: calc(56 * var(--u)); height: calc(56 * var(--u));
+  display: flex; align-items: center; justify-content: center;
+  font-size: calc(34 * var(--u)); color: #7a8a9b;
+}
+
+/* ---------- 分段选择 ---------- */
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(12 * var(--u));
+}
+.seg-item {
+  padding: calc(10 * var(--u)) calc(20 * var(--u));
+  font-size: calc(23 * var(--u));
+  font-weight: 700;
+  color: #6b7d8f;
+  background: #fff;
+  border: calc(3 * var(--u)) solid #c2d4e3;
+  border-radius: calc(6 * var(--u));
+}
+.seg-item.on {
+  color: #2c3e50;
+  background: #ffd86b;
+  border-color: #2c3e50;
+}

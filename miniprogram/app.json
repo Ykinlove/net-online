@@ -1,0 +1,80 @@
+{
+  "pages": [
+    "pages/splash/splash",
+    "pages/home/home",
+    "pages/commands/commands",
+    "pages/projects/projects",
+    "pages/mine/mine"
+  ],
+  "window": {
+    "backgroundColor": "#5fb4f2",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#2c3e50",
+    "navigationBarTitleText": "Net 操作命令速记",
+    "navigationBarTextStyle": "white"
+  },
+  "tabBar": {
+    "color": "#8a99aa",
+    "selectedColor": "#c97a14",
+    "backgroundColor": "#fffdf6",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/commands/commands",
+        "text": "命令"
+      },
+      {
+        "pagePath": "pages/projects/projects",
+        "text": "项目"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "subpackages": [
+    {
+      "root": "subpkg-tool",
+      "name": "tool",
+      "pages": [
+        "pages/search/search",
+        "pages/templates/templates"
+      ]
+    },
+    {
+      "root": "subpkg-mine",
+      "name": "mine",
+      "pages": [
+        "pages/mine-skill/mine-skill",
+        "pages/mine-archive/mine-archive",
+        "pages/mine-settings/mine-settings",
+        "pages/mine-help/mine-help",
+        "pages/onboard/onboard",
+        "pages/chargen/chargen"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/home/home": {
+      "network": "all",
+      "packages": [
+        "tool",
+        "mine"
+      ]
+    },
+    "pages/mine/mine": {
+      "network": "all",
+      "packages": [
+        "mine"
+      ]
+    }
+  }
+}

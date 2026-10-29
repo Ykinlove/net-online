@@ -1,0 +1,166 @@
+/* 协议细节与横向扩展批次（第 27 轮）
+   这一批补的是「四家厂商命令表以外」的高频盲区：
+   TCP/MTU 调优、时延抖动定位、设备加固清单、交付文档、
+   无线干扰排查、服务器 bond、虚拟化网络、容器网络、负载均衡、DNS 体系、DHCP Option、NTP 排障。
+   每条的共同点：现场一定会遇到，但搜「怎么配」搜不到，因为答案不在设备命令里。
+*/
+const BATCH27_EXTRA = [
+  {
+    id: 'net-tcp-mtu',
+    devs: ['Linux', '服务器', 'Router', '防火墙'],
+    name: 'TCP 调优与 MTU / MSS（大包不通、传大文件卡住）',
+    kw: ['mtu', 'mss', '分片', '大包不通', 'ping 大包', 'tcp 调优', '传输慢', 'pmtu'],
+    cmds: [
+      ['先判断是不是 MTU 问题', 'ping -s 1472 -M do 10.1.1.100      # Linux：不分片发 1500 字节包\nping -l 1472 -f 10.1.1.100          # Windows\n# 小包通、大包不通 = 典型 MTU/PMTUD 被墙'],
+      ['沿路 MTU 与 MSS', 'display interface GigabitEthernet 0/0/1 | include MTU\n# 隧道（GRE/IPsec/VXLAN）要减开销：GRE 24、IPsec 50~73、VXLAN 50\n# 直接把接口 MSS 钳住最稳：\ninterface GigabitEthernet 0/0/1\n tcp adjust-mss 1400'],
+      ['Linux 侧调优', 'sysctl -w net.ipv4.tcp_mtu_probing=1     # 允许 PMTUD 探测\nsysctl -w net.core.rmem_max=16777216     # 大带宽长肥管道才需要\n# 永久生效写 /etc/sysctl.d/99-net.conf'],
+      ['验证', 'tcpdump -i eth0 -vv "tcp[tcpflags] & tcp-syn != 0"\n# 看 SYN 里的 MSS 值，两端取小；中间设备改过就看实际值']
+    ],
+    tip: '「能 ping 通、网页打得开、但传大文件卡死」几乎都是 MTU：小包不触发分片所以正常。先 ping -s 1472 -M do 定位，再在隧道两端钳 MSS，比追着改 MTU 稳。'
+  },
+  {
+    id: 'net-latency',
+    devs: ['Router', 'Switch', 'Linux'],
+    name: '时延与抖动定位（慢在哪一跳 / 是不是单向）',
+    kw: ['时延', '抖动', '延迟高', 'mtr', '单向丢包', '网络慢', '卡顿', 'tracert 慢'],
+    cmds: [
+      ['分段测（mtr）', 'mtr -rwc 100 8.8.8.8        # 100 个包，报告模式\n# 看哪一跳开始丢包且后续一直丢 = 问题在那之后\n# 中间某一跳丢包但终点正常 = 该设备对 ICMP 限速，不用管'],
+      ['区分单向/双向', 'A 端：ping -c 100 B    记录 avg/mdev\nB 端：ping -c 100 A    反向再测\n# 一个方向正常一个方向差 = 路由不对称或单侧拥塞'],
+      ['设备侧看时延', 'display nqa results             # 华为 NQA 探测结果\nshow ip sla statistics          # 思科\n# 可看 min/avg/max 与丢包率，比 ping 更贴近业务'],
+      ['排除法', '① 换端口换跳线（物理层）② 换时间段（拥塞）\n③ 抓包看 TCP 重传与 RTT（tcp.analysis.ack_rtt）\n④ 看队列丢包：display qos queue statistics']
+    ],
+    tip: '「网络慢」先分清是带宽不够还是时延/丢包：带宽靠 iperf3，时延抖动靠 mtr + 双向 ping。中间跳丢包不代表有问题，终点丢包才是真丢包。'
+  },
+  {
+    id: 'sec-hardening',
+    devs: ['Switch', 'Router', '防火墙'],
+    name: '网络设备安全加固清单（等保三级要点）',
+    kw: ['加固', '等保', '安全基线', '合规', '弱口令', '关闭 telnet', '安全配置检查'],
+    cmds: [
+      ['账号与认证', '① 删除/禁用默认账号，一人一账号，不用共享账号\n② 密码策略：长度 ≥ 8、复杂度、90 天更换\n③ 只开 SSH，关 Telnet：undo telnet server enable\n④ 特权分级，运维用 15 级要单独审批'],
+      ['管理面收敛', '① 管理 VLAN 独立，ACL 只放行运维网段\n② 关掉 http/ snmp v1v2：undo http server enable\n③ SNMP 用 v3 + authPriv\n④ 闲置端口 shutdown 并划入隔离 VLAN'],
+      ['日志与审计', 'info-center enable\ninfo-center loghost <SYSLOG-IP>\n# 日志留存 ≥ 6 个月（等保要求）；设备本地日志会被覆盖'],
+      ['其他必查项', '关闭不必要的服务：ftp / tftp / dhcp server\n配置自动备份与变更留痕\n补丁/版本无高危漏洞（对照厂商公告）']
+    ],
+    tip: '等保检查最常被挑出来的三项：Telnet 没关、SNMP 还在用 v2c public、日志没外发。这三条改起来十分钟，但补起来要写整改报告。'
+  },
+  {
+    id: 'doc-deliver',
+    devs: ['其他设备'],
+    name: '网络交付文档清单（验收到底要交什么）',
+    kw: ['交付', '文档', '验收', '竣工资料', '拓扑图', '测试报告', 'IP 地址表'],
+    cmds: [
+      ['必备五件', '① 拓扑图（物理 + 逻辑，标注设备型号/端口/链路带宽）\n② IP 与 VLAN 规划表（含网关、DHCP 范围、保留段）\n③ 设备配置基线（每台一份，含版本号）\n④ 测试报告（连通性、性能、冗余切换）\n⑤ 账号与权限清单（谁有什么权限）'],
+      ['加分项', '⑥ 割接方案与回退步骤 ⑦ 运维手册（常见故障处理）\n⑧ 标签与端口对照表 ⑨ 备件清单 ⑩ 培训记录'],
+      ['测试报告要测什么', '连通性：全网段 ping + 关键业务访问\n性能：iperf3 打流（核心-接入各抽测）\n冗余：拔主链路/主设备，业务中断时长\n无线：覆盖与漫游（同 AP 间、跨 AP）'],
+      ['模板建议', '每份文档带版本号与日期，变更后同步更新\n# 文档不更新 = 三个月后没人敢信它']
+    ],
+    tip: '验收最容易吵的两件事：冗余切换到底断了几秒（提前约定指标）、无线到底算不算覆盖到位（提前定点位测）。先写进合同再施工。'
+  },
+  {
+    id: 'wlan-interference',
+    devs: ['AC', 'AP'],
+    name: '无线干扰与信道规划（Wi-Fi 卡、掉线）',
+    kw: ['干扰', '信道', '同频', '邻频', '2.4g 拥塞', '信道规划', 'wifi 卡', '丢包'],
+    cmds: [
+      ['看干扰（华为）', 'display radio all                    # 各射频信道/带宽/功率\ndisplay ap performance all           # 信道利用率、干扰率\ndisplay wlan radio-2g-profile all\ndisplay station all                  # 终端速率与重传'],
+      ['信道规划原则', '2.4G 只用 1 / 6 / 11 三个非重叠信道，其余别用\n5G 用 36~64、149~165，相邻 AP 错开\n# 高密场景降功率、缩小区，而不是加大功率'],
+      ['干扰源排查', '微波炉/无线鼠标/蓝牙（2.4G）\n私接家用路由器（最常见，还带 DHCP）\n邻居 Wi-Fi 同频——用扫描工具看 ESSID 数量'],
+      ['优化动作', '关掉低速率（1/2/5.5/11Mbps）逼终端上高速率\n开启频段引导（5G 优先）\n调整 CCA 门限 / 关闭波束成形试对比']
+    ],
+    tip: '2.4G 卡顿九成是「同频 + 私接路由」。先扫一圈看 ESSID 数量和信道分布，再谈调功率。高密场景把功率调小、AP 加密，比调大功率有效得多。'
+  },
+  {
+    id: 'srv-bond',
+    devs: ['Linux', '服务器'],
+    name: '服务器双网卡绑定（bond / team / 多路径）',
+    kw: ['bond', '双网卡', '网卡绑定', 'lacp', 'team', '链路聚合服务器', '冗余网卡'],
+    cmds: [
+      ['Linux bond（mode 4 = LACP）', 'nmcli con add type bond con-name bond0 ifname bond0 mode 802.3ad\nnmcli con add type bond-slave ifname ens33 master bond0\nnmcli con add type bond-slave ifname ens34 master bond0\nnmcli con mod bond0 ipv4.addresses 10.1.10.20/24 ipv4.gateway 10.1.10.1\nnmcli con up bond0'],
+      ['几种模式怎么选', 'mode 1（主备）：交换机不用配，切换秒级，最省事\nmode 4（LACP）：要交换机配 Eth-Trunk，带宽叠加\nmode 6（平衡负载）：交换机不用配，但可能乱序\n# 服务器侧首选 1 或 4，别用 0（轮询会乱序）'],
+      ['验证', 'cat /proc/net/bonding/bond0      # 看 mode 与两块网卡状态\nethtool bond0                    # 看速率\n# 交换机侧：display eth-trunk 1'],
+      ['常见坑', '① 交换机没配 LACP 却用 mode 4 → 链路起不来\n② 两块网卡接在同一台交换机同一块板 → 没冗余\n③ 交换机 hash 固定 → 单流跑不满']
+    ],
+    tip: 'bond mode 4 必须两端都配 LACP，只配一端会协商失败；而且两块网卡要接不同交换机（M-LAG/堆叠）才叫冗余，接同一台只解决网卡故障。'
+  },
+  {
+    id: 'vm-network',
+    devs: ['服务器', '其他设备'],
+    name: '虚拟化网络（vSwitch / 端口组 / VLAN）',
+    kw: ['vmware', 'vswitch', '虚拟交换机', '端口组', 'esxi 网络', '虚拟机不通', 'vlan trunk'],
+    cmds: [
+      ['三种关键概念', 'vSwitch：虚拟交换机，上行口（uplink）接物理网卡\n端口组（Port Group）：挂 VLAN ID，虚拟机接这里\nVMkernel： ESXi 自己的管理/存储/vMotion 地址'],
+      ['常见配置', '管理口：VMkernel + 管理 VLAN\n业务口：vSwitch + 端口组（VLAN ID 填对应值）\nTrunk 上行：端口组 VLAN 4095（允许所有）'],
+      ['虚机不通排查顺序', '① 虚机网卡连的端口组 VLAN 对不对\n② 上行物理口是不是 trunk 且放行该 VLAN\n③ 交换机侧 MAC 表能否学到虚机 MAC\n④ 是否有安全策略（混杂模式/伪造传输）'],
+      ['验证', 'esxcli network vswitch standard list\nesxcli network vswitch standard portgroup list\n# 交换机侧：display mac-address | include <虚机MAC>']
+    ],
+    tip: '虚机不通十有八九是「端口组 VLAN 与物理口 trunk 放行不一致」。排查别从虚机里开始，先在交换机上查能不能学到虚机 MAC——学不到就是二层没通。'
+  },
+  {
+    id: 'k8s-network',
+    devs: ['Linux', '服务器'],
+    name: '容器网络（Calico / Flannel，Pod 不通排查）',
+    kw: ['k8s', 'kubernetes', 'calico', 'flannel', 'pod 网络', '容器网络', 'cni', '跨节点不通', 'docker', 'docker 网络', '容器互通'],
+    cmds: [
+      ['先分层', '① 同节点 Pod 互通？② 跨节点 Pod 互通？③ Pod 出集群（SNAT）？\n# 分开测，别一上来就查 CNI 配置'],
+      ['常用检查', 'kubectl get pod -o wide            # 看 Pod IP 与所在节点\nkubectl exec -it <pod> -- ping <另一podIP>\nip route | grep cali               # 节点上看容器网段路由\nkubectl get nodes -o wide'],
+      ['CNI 选择', 'Flannel（VXLAN）：简单，overlay 封装，MTU 要减 50\nCalico（BGP）：不封装，性能好，要求底层三层可达\n# 底层是二层大网 → Calico BGP 更划算'],
+      ['常见原因', 'MTU 不匹配（overlay 减 50，主机网卡 1500 → Pod 1450）\n节点间安全组/防火墙拦了 IPIP 或 VXLAN 端口\nkube-proxy/iptables 规则异常（重启后恢复）']
+    ],
+    tip: '「大包不通、小包通」在容器网络里同样是 MTU 问题——VXLAN 封装要减 50 字节。先把 Pod MTU 调成 1450 试，比翻 CNI 文档快。'
+  },
+  {
+    id: 'lb-health',
+    devs: ['其他设备', '防火墙'],
+    name: '负载均衡健康检查（四层 / 七层怎么选）',
+    kw: ['负载均衡', '健康检查', 'slb', '四层', '七层', '后端无响应', '会话保持'],
+    cmds: [
+      ['四层 vs 七层', '四层（TCP）：只看端口能否连上，快但粗\n七层（HTTP）：请求一个健康页看返回码，准但要有健康接口\n# 后端只是进程卡死时，四层检查仍显示「健康」'],
+      ['健康检查参数', '间隔 5s、超时 3s、不健康阈值 3 次、健康阈值 2 次\n# 间隔×阈值 = 故障发现时间，别配成 30s×5 次'],
+      ['会话保持', '源 IP 保持：同一客户端固定后端（NAT 环境下会全压一台）\nCookie 插入：七层更可靠\n# 有状态业务（老系统）才需要，无状态别开'],
+      ['排障', '后端全摘：查健康页是否 200、安全组是否放行探测源 IP\n部分摘：查该后端进程/端口/磁盘\n# 抓包看探测请求有没有到后端']
+    ],
+    tip: '健康检查最常见的坑：探测源 IP 没在后端白名单里，导致后端被「全部摘除」——业务全挂但后端其实是好的。上线前先确认探测源地址。'
+  },
+  {
+    id: 'dns-arch',
+    devs: ['Linux', '服务器', '其他设备'],
+    name: 'DNS 体系（权威 / 递归 / 分离解析）',
+    kw: ['dns', '域名', '递归', '权威', '分离解析', '泛解析', '内网域名', '解析不到'],
+    cmds: [
+      ['两种角色', '权威服务器：负责某个域名的「标准答案」，对外提供服务\n递归服务器：替客户端去问，带缓存（企业内网一般用这个）\n# 内网域名不要用公网后缀，避免泄漏与冲突'],
+      ['分离解析（内外网不同答案）', 'view "internal" { match-clients { 10.0.0.0/8; }; zone "corp.com" { ... }; };\nview "external" { match-clients { any; }; zone "corp.com" { ... }; };'],
+      ['排查顺序', 'dig @10.1.1.53 app.corp.com +trace      # 从根开始追\ndig app.corp.com +short                  # 用本机 DNS 查\nnslookup app.corp.com 10.1.1.53          # Windows\n# 换一个 DNS 查对比，能立刻分出「解析问题」还是「网络问题」'],
+      ['常见故障', '解析超时：53 端口被拦 / 递归被关\n解析到旧 IP：TTL 未过或本地缓存（ipconfig /flushdns）\n泛解析抢答：*.corp.com 把具体记录盖掉了']
+    ],
+    tip: '「网站打不开」先 dig 一下：解析正常就是网络/证书问题，解析不对就是 DNS 问题。换公共 DNS 再查一次，两分钟就能定位方向。'
+  },
+  {
+    id: 'dhcp-option',
+    devs: ['Switch', 'Router', '服务器'],
+    name: 'DHCP Option 43 / 60 / 66 / 67（AP、PXE、IP 电话）',
+    kw: ['option 43', 'option 60', 'dhcp option', 'ap 跨三层', 'pxe 启动', 'dhcp 66', 'ip 电话', 'dhcp 保留'],
+    cmds: [
+      ['Option 43（跨三层找 AC）', '华为：\nip pool AP\n option 43 sub-option 2 ip-address 10.1.1.10   # AC 地址\n# 思科写法是把 IP 转十六进制：option 43 hex 0a01010a'],
+      ['Option 60（厂商标识）', 'DHCP 根据 Option 60（如 "Huawei AP"）区分设备，\n把不同厂商 AP 分到不同地址池'],
+      ['Option 66 / 67（PXE）', 'next-server 10.1.1.20;      # TFTP 服务器\nnfilename "pxelinux.0";     # 启动文件\n# Windows DHCP：066 启动服务器、067 启动文件名'],
+      ['IP 电话', 'Option 66 给话机下发配置服务器地址\n常见默认：把话机接到语音 VLAN，DHCP 只发该 VLAN 地址池']
+    ],
+    tip: 'AP 跨三层上线失败，八成是 Option 43 没配或写错格式（华为是子选项 2 直接写 IP，思科要转十六进制）。抓 DHCP 交互一看就知道有没有下发。'
+  },
+  {
+    id: 'ntp-trouble',
+    devs: ['Switch', 'Router', 'Linux', '服务器'],
+    name: 'NTP 不同步排查（时间偏差 / 层级异常）',
+    kw: ['ntp', '时间不同步', '时钟偏差', 'stratum', '时间源', '日志时间错'],
+    cmds: [
+      ['看状态（华为）', 'display ntp-service status\n display ntp-service sessions\n# 关键看：clock status（synchronized）、stratum、offset'],
+      ['看状态（Linux）', 'chronyc tracking        # 偏差、层级、参考源\nchronyc sources -v      # 每个源的 reach 与 offset\nntpq -p                 # 老系统 ntpdate/ntpd'],
+      ['常见原因', '① UDP 123 被防火墙拦（最常见）\n② 时间源本身不同步（层级 16 表示不可用）\n③ 偏差太大（超过 1000s 时 NTP 会拒绝步进）\n④ 设备时区配错（时间对、显示时间不对）'],
+      ['快速修', '手工指定一次：ntp-service unicast-server 10.1.1.100\n偏差 > 1000s 先手工设一次时间，再等 NTP 收敛\n# Linux：chronyc makestep 立即步进']
+    ],
+    tip: '日志时间乱、证书报无效、审计对不上——根因常常只是 NTP 没同步。查时间先看「层级」：16 就是没同步上，别急着改时区。'
+  }
+];
+
+module.exports = { BATCH27_EXTRA };

@@ -1,0 +1,28 @@
+<view class="page arc">
+
+  <view class="card">
+    <view class="card-title-row">
+      <text class="card-title">🗄 存档库</text>
+      <text class="arc-tip">{{list.length}} / 5 份</text>
+    </view>
+    <text class="arc-tip-d">删除命令、项目、技能之前会自动存一份，保留最近 5 份。删错了就挑一份恢复。</text>
+  </view>
+
+  <view wx:if="{{!list.length}}" class="empty">还没有自动存档。等你第一次删除东西时会自动生成。</view>
+
+  <view wx:for="{{list}}" wx:key="at" class="arc-card">
+    <view class="arc-top">
+      <text class="arc-name">{{item.reason}}</text>
+      <text class="arc-time">{{item.timeLabel}}</text>
+    </view>
+    <view class="arc-stats">
+      <text class="arc-stat">{{item.cmdCount}} 条命令</text>
+      <text class="arc-stat">{{item.projectCount}} 个项目</text>
+      <text class="arc-stat">{{item.skillCount}} 个技能</text>
+    </view>
+    <view class="arc-ops">
+      <view class="btn btn-sm btn-primary" data-at="{{item.at}}" bindtap="restore">恢复这份</view>
+      <view class="btn btn-sm btn-danger" data-at="{{item.at}}" bindtap="askDelete">删除</view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,10 @@
+{
+  "title": "eo_技能",
+  "properties": [
+    { "name": "技能名", "config": { "text": "" } },
+    { "name": "状态", "config": { "select": { "options": [ { "text": "已点亮" }, { "text": "学习中" }, { "text": "想学" } ] } } },
+    { "name": "目标", "config": { "text": "" } },
+    { "name": "进度说明", "config": { "text": "" } },
+    { "name": "确认日期", "config": { "date": { "format": "yyyy-mm-dd" } } }
+  ]
+}
