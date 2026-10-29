@@ -1,3 +1,4 @@
+const store = require('../../../utils/store.js');
 const cmdbook = require('../../utils/cmdbook.js');
 const { TPLS } = require('../../../utils/tplbook.js');
 
@@ -58,6 +59,9 @@ Page({
     this.setData({
       detail: {
         id: t.id,
+        favKind: 'tpl',
+        favId: t.id,
+        faved: store.isFav('tpl', t.id),
         title: t.name,
         vendor: t.vendor,
         sub: t.vendor + ' · ' + t.cat,
@@ -66,6 +70,55 @@ Page({
         lines: this.buildLines(t.code)
       }
     });
+  },
+
+
+  /* open-type="share" 自己就会拉起分享面板，
+     这个 handler 只是占位——部分基础库要求绑定的函数必须存在。 */
+  shareBtn() {},
+
+  /* ---------- 分享 ---------- */
+  onShareAppMessage() {
+    const d = this.data.detail;
+    if (d && d.favKind) {
+      const card = cmdbook.shareCard({
+        kind: d.favKind,
+        id: d.favId,
+        title: d.title,
+        sub: d.sub,
+        blocks: d.blocks
+      });
+      return { title: card.title, path: card.path, content: card.content };
+    }
+    return {
+      title: 'Net 操作命令速记 · 网络工程师命令速查',
+      path: '/subpkg-tool/pages/templates/templates'
+    };
+  },
+
+  onShareTimeline() {
+    const d = this.data.detail;
+    if (d && d.favKind) {
+      return {
+        title: d.title,
+        query: 'kind=' + encodeURIComponent(d.favKind) + '&id=' + encodeURIComponent(d.favId)
+      };
+    }
+    return { title: 'Net 操作命令速记 · 网络工程师命令速查' };
+  },
+
+  /* ---------- 收藏 ---------- */
+  async toggleFav() {
+    const d = this.data.detail;
+    if (!d || !d.favKind) return;
+    const on = await store.toggleFav({
+      kind: d.favKind,
+      id: d.favId,
+      title: d.title,
+      sub: d.sub
+    });
+    this.setData({ 'detail.faved': on });
+    wx.showToast({ title: on ? '已收藏' : '已取消收藏', icon: 'none' });
   },
 
   closeDetail() {

@@ -17,7 +17,8 @@ Page({
     interests: [],
     careers: [],
     lv: { level: 1, pct: 0 },
-    recent: []
+    recent: [],
+    favCount: 0
   },
 
   onShow() {
@@ -34,7 +35,8 @@ Page({
       interests: splitKw(p.interests),
       careers: splitKw(p.careers),
       lv: this.buildLv(),
-      recent: this.buildRecent()
+      recent: this.buildRecent(),
+      favCount: store.getFavs().length
     });
   },
 
@@ -77,5 +79,9 @@ Page({
 
   goSettings() {
     wx.navigateTo({ url: '/subpkg-mine/pages/mine-settings/mine-settings' });
+  },
+
+  goFav() {
+    wx.navigateTo({ url: '/subpkg-tool/pages/fav/fav' });
   }
 });

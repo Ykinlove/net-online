@@ -66,6 +66,12 @@
 
   <!-- 入口 -->
   <view class="menu">
+    <view class="menu-row" bindtap="goFav" hover-class="menu-row-hover">
+      <text class="menu-ico">⭐</text>
+      <text class="menu-txt">我的收藏</text>
+      <text wx:if="{{favCount}}" class="menu-badge">{{favCount}}</text>
+      <text class="menu-arrow">›</text>
+    </view>
     <view class="menu-row" bindtap="goSettings" hover-class="menu-row-hover">
       <text class="menu-ico">⚙️</text>
       <text class="menu-txt">设置</text>

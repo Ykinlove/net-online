@@ -280,6 +280,63 @@ function formatShortDate(s) {
   return p.length === 3 ? parseInt(p[1], 10) + '/' + parseInt(p[2], 10) : s;
 }
 
+/* ---------------- 收藏 ----------------
+ * 收藏三类东西：百科条目（book）、配置模板（tpl）、自己记的命令（mine）。
+ * 统一存进 profile.favs —— 跟着档案走，不用新建云端集合，
+ * 换设备自动同步（档案本来就是云端同步的）。
+ *
+ * 每条收藏记：kind 类型、id 主键、title 名字、sub 副标题（设备/分类/厂商）、
+ * ts 收藏时间。内容本体不存——百科和模板都在包里，存了会重复占空间。
+ */
+const FAV_MAX = 200;   /* 收藏上限，防止无限膨胀拖慢档案读写 */
+
+function getFavs() {
+  init();
+  const p = mem.profile || {};
+  const raw = (p.favs && Array.isArray(p.favs)) ? p.favs : (sGet('favs', []) || []);
+  return raw.filter(f => f && f.id);
+}
+
+function isFav(kind, id) {
+  return getFavs().some(f => f.kind === kind && f.id === id);
+}
+
+function favKey(kind, id) { return kind + ':' + id; }
+
+/**
+ * 收藏 / 取消收藏。
+ * @param {object} item {kind, id, title, sub}
+ * @returns {Promise<boolean>} 操作后是否处于「已收藏」
+ */
+async function toggleFav(item) {
+  init();
+  const list = getFavs();
+  const key = favKey(item.kind, item.id);
+  const idx = list.findIndex(f => favKey(f.kind, f.id) === key);
+  let on;
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    on = false;
+  } else {
+    list.unshift({
+      kind: item.kind,
+      id: item.id,
+      title: item.title || '',
+      sub: item.sub || '',
+      ts: Date.now()
+    });
+    on = true;
+    /* 新的排前面，超过上限就丢最旧的 */
+    while (list.length > FAV_MAX) list.pop();
+  }
+  sSet('favs', list);
+  const p = mem.profile;
+  if (p && p.nickname) {
+    await saveProfile(Object.assign({}, p, { favs: list }));
+  }
+  return on;
+}
+
 /* ---------------- 形象 / 背景解锁 ---------------- */
 function getUnlocks() {
   init();
@@ -456,6 +513,7 @@ module.exports = {
   init, getProfile, hasProfile, saveProfile, clearProfile, setProfileLocal,
   getList, setListLocal, addRecord, updateRecord, removeRecord,
   pullAll, waitPull,
+  getFavs, isFav, toggleFav,
   today, uid, formatShortDate,
   getUnlocks, isUnlocked, addUnlock,
   getSnapshots, snapshot, removeSnapshot, applySnapshot,

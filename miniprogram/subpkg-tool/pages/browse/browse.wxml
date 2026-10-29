@@ -87,7 +87,13 @@
           <text class="sheet-title">{{detail.title}}</text>
           <text class="sheet-sub">{{detail.sub}}</text>
         </view>
-        <text class="sheet-close" bindtap="closeDetail">✕</text>
+        <view class="sheet-ops">
+          <text wx:if="{{detail.favKind}}" class="fav-btn {{detail.faved ? 'fav-btn-on' : ''}}"
+            bindtap="toggleFav">{{detail.faved ? '★ 已收藏' : '☆ 收藏'}}</text>
+          <text wx:if="{{detail.favKind}}" class="fav-btn" bindtap="shareBtn"
+            open-type="share">转发</text>
+          <text class="sheet-close" bindtap="closeDetail">✕</text>
+        </view>
       </view>
 
       <scroll-view class="sheet-body" scroll-y>

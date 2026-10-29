@@ -1,0 +1,356 @@
+/* 收藏页：沿用像素风（#fffdf6 卡片 + #2c3e50 描边 + #ffd86b 选中） */
+
+.fav-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #eaf4fb 0%, #f7fbfe 40%, #eef7fd 100%);
+}
+
+/* ---------- 顶部 ---------- */
+.head {
+  flex: none;
+  padding: calc(26 * var(--u)) calc(28 * var(--u)) calc(16 * var(--u));
+}
+.head-main {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--u));
+}
+.head-title {
+  font-size: calc(34 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+  letter-spacing: calc(1 * var(--u));
+}
+.head-num {
+  font-size: calc(20 * var(--u));
+  font-weight: 800;
+  color: #c97a14;
+  background: #fff3d6;
+  border: calc(2 * var(--u)) solid #e8c98a;
+  border-radius: calc(16 * var(--u));
+  padding: calc(2 * var(--u)) calc(14 * var(--u));
+}
+.head-sub {
+  display: block;
+  margin-top: calc(10 * var(--u));
+  font-size: calc(21 * var(--u));
+  color: #7c8fa3;
+  line-height: 1.5;
+}
+
+/* ---------- 类型切换 ---------- */
+.tabs {
+  flex: none;
+  display: flex;
+  gap: calc(12 * var(--u));
+  padding: 0 calc(28 * var(--u)) calc(16 * var(--u));
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2 * var(--u));
+  padding: calc(12 * var(--u)) 0;
+  box-sizing: border-box;
+  background: #fffdf6;
+  border: calc(3 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+  box-shadow: 0 calc(4 * var(--u)) 0 rgba(44, 62, 80, 0.14);
+}
+.tab.on {
+  background: #ffd86b;
+}
+.tab-name {
+  font-size: calc(22 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+}
+.tab-num {
+  font-size: calc(18 * var(--u));
+  font-weight: 700;
+  color: #8a99aa;
+}
+.tab.on .tab-num {
+  color: #8a6d3b;
+}
+
+/* ---------- 列表 ---------- */
+.list {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 0 calc(24 * var(--u));
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  background: #fffdf6;
+  border: calc(3 * var(--u)) solid #2c3e50;
+  border-radius: calc(8 * var(--u));
+  padding: calc(16 * var(--u)) calc(20 * var(--u));
+  margin-bottom: calc(14 * var(--u));
+  box-shadow: 0 calc(5 * var(--u)) 0 rgba(44, 62, 80, 0.14);
+}
+.item-hover {
+  transform: translateY(calc(3 * var(--u)));
+  box-shadow: 0 calc(2 * var(--u)) 0 rgba(44, 62, 80, 0.14);
+}
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+.item-head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--u));
+}
+.item-kind {
+  flex: none;
+  font-size: calc(17 * var(--u));
+  font-weight: 800;
+  color: #2f6fb4;
+  background: #e8f2fc;
+  border: calc(2 * var(--u)) solid #b3d2ef;
+  border-radius: calc(4 * var(--u));
+  padding: calc(1 * var(--u)) calc(8 * var(--u));
+}
+.item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(25 * var(--u));
+  font-weight: 800;
+  line-height: 1.35;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.item-sub {
+  display: block;
+  margin-top: calc(6 * var(--u));
+  font-size: calc(19 * var(--u));
+  color: #9fb0c0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.item-ops {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+}
+.item-del {
+  font-size: calc(19 * var(--u));
+  color: #c97a14;
+  background: #fff3d6;
+  border: calc(2 * var(--u)) solid #e8c98a;
+  border-radius: calc(4 * var(--u));
+  padding: calc(3 * var(--u)) calc(12 * var(--u));
+}
+.item-arrow {
+  font-size: calc(30 * var(--u));
+  color: #b9cfe0;
+}
+
+/* 空态 */
+.empty {
+  padding: calc(90 * var(--u)) calc(40 * var(--u));
+  text-align: center;
+}
+.empty-ico { font-size: calc(56 * var(--u)); }
+.empty-txt {
+  display: block;
+  margin-top: calc(16 * var(--u));
+  font-size: calc(24 * var(--u));
+  color: #7c8fa3;
+}
+.empty-sub {
+  display: block;
+  margin-top: calc(8 * var(--u));
+  font-size: calc(21 * var(--u));
+  color: #9fb0c0;
+  line-height: 1.6;
+}
+
+.list-foot { height: calc(40 * var(--u)); }
+
+/* ---------- 详情浮层 ---------- */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(20, 32, 44, 0.55);
+}
+.sheet {
+  width: 100%;
+  max-width: var(--W);
+  margin-left: auto;
+  margin-right: auto;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: #fffdf6;
+  border-top: calc(5 * var(--u)) solid #2c3e50;
+  border-radius: calc(18 * var(--u)) calc(18 * var(--u)) 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.sheet-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(12 * var(--u));
+  padding: calc(22 * var(--u)) calc(24 * var(--u)) calc(16 * var(--u));
+  border-bottom: calc(3 * var(--u)) dashed #d9e4ee;
+}
+.sheet-title-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--u));
+}
+.sheet-title {
+  font-size: calc(30 * var(--u));
+  font-weight: 800;
+  line-height: 1.35;
+  color: #2c3e50;
+}
+.sheet-sub { font-size: calc(20 * var(--u)); color: #9fb0c0; }
+.sheet-close {
+  flex: none;
+  width: calc(52 * var(--u));
+  height: calc(52 * var(--u));
+  line-height: calc(52 * var(--u));
+  text-align: center;
+  font-size: calc(23 * var(--u));
+  color: #7c8fa3;
+  background: #eef2f6;
+  border-radius: 50%;
+}
+
+/* 详情头部的收藏按钮 */
+.sheet-ops {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+}
+.fav-btn {
+  font-size: calc(20 * var(--u));
+  font-weight: 800;
+  color: #c97a14;
+  background: #fff3d6;
+  border: calc(2 * var(--u)) solid #e8c98a;
+  border-radius: calc(6 * var(--u));
+  padding: calc(4 * var(--u)) calc(14 * var(--u));
+}
+.fav-btn-on {
+  color: #fffdf6;
+  background: #c97a14;
+  border-color: #c97a14;
+}
+.sheet-body {
+  flex: 1;
+  min-height: calc(240 * var(--u));
+  max-height: 62vh;
+  box-sizing: border-box;
+  padding: calc(18 * var(--u)) calc(24 * var(--u));
+}
+
+.sheet-tip {
+  display: flex;
+  gap: calc(10 * var(--u));
+  background: #fff8e6;
+  border: calc(3 * var(--u)) solid #e8c98a;
+  border-radius: calc(8 * var(--u));
+  padding: calc(14 * var(--u)) calc(16 * var(--u));
+  margin-bottom: calc(20 * var(--u));
+}
+.sheet-tip-ico { flex: none; font-size: calc(21 * var(--u)); }
+.sheet-tip-txt {
+  flex: 1;
+  font-size: calc(21 * var(--u));
+  line-height: 1.62;
+  color: #8a6d3b;
+}
+
+/* 命令块 */
+.vd { margin-bottom: calc(8 * var(--u)); }
+.vd-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: calc(8 * var(--u));
+}
+.vd-name {
+  font-size: calc(21 * var(--u));
+  font-weight: 800;
+  letter-spacing: calc(1 * var(--u));
+  color: #fffdf6;
+  background: #2c3e50;
+  border-radius: calc(4 * var(--u));
+  padding: calc(3 * var(--u)) calc(16 * var(--u));
+}
+.vd-copy {
+  margin-left: auto;
+  font-size: calc(19 * var(--u));
+  font-weight: 700;
+  color: #c97a14;
+  background: #fff3d6;
+  border: calc(2 * var(--u)) solid #e8c98a;
+  border-radius: calc(4 * var(--u));
+  padding: calc(3 * var(--u)) calc(16 * var(--u));
+}
+.vd-code {
+  background: #22303d;
+  border-left: calc(6 * var(--u)) solid #7fd6a0;
+  border-radius: 0 calc(6 * var(--u)) calc(6 * var(--u)) 0;
+  padding: calc(14 * var(--u)) calc(16 * var(--u));
+}
+.vd-line {
+  display: block;
+  font-family: Menlo, Consolas, "Courier New", monospace;
+  font-size: calc(21 * var(--u));
+  line-height: 1.62;
+  letter-spacing: calc(0.4 * var(--u));
+  color: #a8e6bf;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.vd-line-note {
+  color: #7c93a6;
+}
+
+.sheet-foot {
+  flex: none;
+  padding: calc(14 * var(--u)) calc(24 * var(--u)) calc(24 * var(--u));
+  border-top: calc(3 * var(--u)) dashed #d9e4ee;
+}
+.sheet-btn {
+  height: calc(82 * var(--u));
+  line-height: calc(82 * var(--u));
+  text-align: center;
+  font-size: calc(27 * var(--u));
+  font-weight: 800;
+  color: #2c3e50;
+  background: #ffd86b;
+  border: calc(4 * var(--u)) solid #2c3e50;
+  border-radius: calc(10 * var(--u));
+  box-shadow: 0 calc(7 * var(--u)) 0 rgba(44, 62, 80, 0.25);
+}
+.sheet-btn-hover {
+  transform: translateY(calc(4 * var(--u)));
+  box-shadow: 0 calc(3 * var(--u)) 0 rgba(44, 62, 80, 0.25);
+}

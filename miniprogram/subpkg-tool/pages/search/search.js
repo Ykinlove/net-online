@@ -33,6 +33,33 @@ Page({
     if (q && q.kw) patch.kw = q.kw;
     if (Object.keys(patch).length) this.setData(patch);
     this.doSearch();
+    /* 分享落地：别人点进来的卡片带了 kind + id，直接打开那一条 */
+    if (q && q.kind && q.id) this.openShared(q.kind, q.id);
+  },
+
+  /* 从分享卡片进来：按 id 找到条目并打开详情 */
+  openShared(kind, id) {
+    const it = cmdbook.lookupById(kind, id);
+    if (!it) {
+      wx.showToast({ title: '这条内容已更新', icon: 'none' });
+      return;
+    }
+    this.setData({
+      detail: {
+        kind: it.kind,
+        favKind: it.kind,
+        favId: it.id,
+        faved: store.isFav(it.kind, it.id),
+        title: it.name,
+        sub: it.sub,
+        tip: it.tip || '',
+        blocks: it.blocks.map(b => ({
+          vendor: b.vendor,
+          code: b.code,
+          lines: this.buildLines(b.code, b.vendor)
+        }))
+      }
+    });
   },
 
   onShow() {
@@ -152,6 +179,9 @@ Page({
     this.setData({
       detail: {
         kind: 'book',
+        favKind: 'book',
+        favId: it.id,
+        faved: store.isFav('book', it.id),
         title: it.name,
         sub: it.devs.map(d => DEVICE_CN[d] || d).join(' / '),
         tip: it.tip,
@@ -171,6 +201,9 @@ Page({
     this.setData({
       detail: {
         kind: 'tpl',
+        favKind: 'tpl',
+        favId: it.id,
+        faved: store.isFav('tpl', it.id),
         title: it.name,
         sub: it.cat + ' · ' + it.vendor,
         tip: it.note,
@@ -183,12 +216,16 @@ Page({
     });
   },
 
-  openMine(e) {    const idx = Number(e.currentTarget.dataset.idx);
+  openMine(e) {
+    const idx = Number(e.currentTarget.dataset.idx);
     const it = this.data.mineHits[idx];
     if (!it) return;
     this.setData({
       detail: {
         kind: 'mine',
+        favKind: 'mine',
+        favId: it._key,
+        faved: store.isFav('mine', it._key),
         title: it.title,
         sub: it.devText,
         tip: it.desc,
@@ -199,6 +236,61 @@ Page({
         }]
       }
     });
+  },
+
+  /* open-type="share" 自己就会拉起分享面板，
+     这个 handler 只是占位——部分基础库要求绑定的函数必须存在。 */
+  shareBtn() {},
+
+  /* ---------- 分享 ---------- */
+  /* 转发按钮走 open-type="share"，内容从这里取。
+     页面本身也可以通过右上角菜单分享——那就分享当前打开的条目，
+     什么都没打开时分享整个小程序。 */
+  onShareAppMessage() {
+    const d = this.data.detail;
+    if (d && d.favKind) {
+      const card = cmdbook.shareCard({
+        kind: d.favKind,
+        id: d.favId,
+        title: d.title,
+        sub: d.sub,
+        blocks: d.blocks
+      });
+      return { title: card.title, path: card.path, content: card.content };
+    }
+    return {
+      title: 'Net 操作命令速记 · 网络工程师命令速查',
+      path: '/subpkg-tool/pages/search/search'
+    };
+  },
+
+  onShareTimeline() {
+    const d = this.data.detail;
+    if (d && d.favKind) {
+      const card = cmdbook.shareCard({
+        kind: d.favKind,
+        id: d.favId,
+        title: d.title,
+        sub: d.sub,
+        blocks: d.blocks
+      });
+      return { title: card.title, query: 'kind=' + encodeURIComponent(d.favKind) + '&id=' + encodeURIComponent(d.favId) };
+    }
+    return { title: 'Net 操作命令速记 · 网络工程师命令速查' };
+  },
+
+  /* ---------- 收藏 ---------- */
+  async toggleFav() {
+    const d = this.data.detail;
+    if (!d || !d.favKind) return;
+    const on = await store.toggleFav({
+      kind: d.favKind,
+      id: d.favId,
+      title: d.title,
+      sub: d.sub
+    });
+    this.setData({ 'detail.faved': on });
+    wx.showToast({ title: on ? '已收藏' : '已取消收藏', icon: 'none' });
   },
 
   closeDetail() {

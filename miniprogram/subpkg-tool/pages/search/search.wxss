@@ -300,6 +300,28 @@
   background: #eef2f6;
   border-radius: 50%;
 }
+
+/* 详情头部的收藏按钮 */
+.sheet-ops {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+}
+.fav-btn {
+  font-size: calc(20 * var(--u));
+  font-weight: 800;
+  color: #c97a14;
+  background: #fff3d6;
+  border: calc(2 * var(--u)) solid #e8c98a;
+  border-radius: calc(6 * var(--u));
+  padding: calc(4 * var(--u)) calc(14 * var(--u));
+}
+.fav-btn-on {
+  color: #fffdf6;
+  background: #c97a14;
+  border-color: #c97a14;
+}
 .sheet-body {
   flex: 1;
   min-height: calc(240 * var(--u));

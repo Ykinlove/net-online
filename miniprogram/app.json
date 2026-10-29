@@ -47,6 +47,7 @@
       "pages": [
         "pages/search/search",
         "pages/browse/browse",
+        "pages/fav/fav",
         "pages/templates/templates"
       ]
     },

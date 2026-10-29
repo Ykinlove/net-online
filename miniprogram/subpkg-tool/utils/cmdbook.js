@@ -1443,8 +1443,96 @@ function categoryStats() {
   });
 }
 
+/**
+ * 按 id 取一条百科条目（收藏页用）。
+ * @returns {object|null}
+ */
+function findById(id) {
+  const all = buildIndex();
+  for (let i = 0; i < all.length; i++) {
+    if (all[i].it.id === id) return all[i].it;
+  }
+  return null;
+}
+
+/**
+ * 按 id 取一个模板（收藏页用）。
+ * @returns {object|null}
+ */
+function findTplById(id) {
+  const idx = tplIndex();
+  for (let i = 0; i < idx.length; i++) {
+    if (idx[i].it.id === id) return idx[i].it;
+  }
+  return null;
+}
+
+/**
+ * 生成分享卡片的内容。
+ *
+ * 分享路径带 kind + id，别人点进来能直接落到那一条：
+ *   /subpkg-tool/pages/search/search?kind=book&id=vlan-basic
+ *
+ * @param {object} item {kind, id, title, sub, blocks}
+ * @returns {object} {title, path, content}
+ */
+function shareCard(item) {
+  const kind = item.kind || 'book';
+  const id = item.id || '';
+  const name = item.title || 'Net 操作命令速记';
+
+  /* 路径统一走搜索页：它是唯一的入口，而且已经能按 id 直接打开详情。
+     模板和百科都能落到那儿。 */
+  const path = '/subpkg-tool/pages/search/search?kind=' +
+    encodeURIComponent(kind) + '&id=' + encodeURIComponent(id);
+
+  /* 卡片正文：带上第一条命令，让人一眼知道分享的是什么 */
+  let content = '';
+  const blocks = item.blocks || [];
+  if (blocks.length && blocks[0].code) {
+    const first = String(blocks[0].code).split('\n')
+      .map(x => x.trim())
+      .filter(x => x && x[0] !== '!' && x[0] !== '#')
+      .slice(0, 3)
+      .join('\n');
+    content = first;
+  }
+  if (!content) content = item.sub || '';
+
+  return { title: name, path, content };
+}
+
+/**
+ * 按 id 找条目（分享落地用）。
+ * @returns {object|null} {kind, id, name, tip, devs, blocks:[{vendor,code}]}
+ */
+function lookupById(kind, id) {
+  if (kind === 'tpl') {
+    const t = findTplById(id);
+    if (!t) return null;
+    return {
+      kind: 'tpl',
+      id: t.id,
+      name: t.name,
+      tip: t.note,
+      sub: t.cat + ' · ' + t.vendor,
+      blocks: [{ vendor: t.vendor, code: t.code }]
+    };
+  }
+  const it = findById(id);
+  if (!it) return null;
+  return {
+    kind: 'book',
+    id: it.id,
+    name: it.name,
+    tip: it.tip,
+    sub: it.devs.join(' / '),
+    blocks: it.cmds.map(c => ({ vendor: c[0], code: c[1] }))
+  };
+}
+
 module.exports = { VENDORS, BOOK, search, norm, expand, cleanCmd, searchTemplates,
-  listBy, categoryStats,
+  listBy, categoryStats, findById, findTplById, shareCard, lookupById,
   /* 调试用：只在本地 node 脚本里调，页面不引用 */
   _dbg: { buildIndex, dropGreedy, rarity, scoreOf, intentsOf, segChinese, stripLead,
     isStrongIntent, tplIndex } };
