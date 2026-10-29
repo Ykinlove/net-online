@@ -698,6 +698,24 @@ function buildVocab() {
       }
     }
   }
+  /* 模板的关键词也要进词表。少了这一步，模板独有的说法切不开——
+     「默认路由配置」在百科里切不出「默认路由」（百科没这条说法），
+     整词去匹配模板也匹配不上（模板写的是「默认路由」不是「默认路由配置」），
+     结果就是模板明明有、却搜不到。 */
+  const tpls = tplIndex();
+  for (let i = 0; i < tpls.length; i++) {
+    const t = tpls[i].it;
+    const text = [t.name, t.cat].concat(t.kw || []).join(' ');
+    let m;
+    RE.lastIndex = 0;
+    while ((m = RE.exec(text))) {
+      const run = m[0];
+      const max = Math.min(8, run.length);
+      for (let L = 2; L <= max; L++) {
+        for (let p = 0; p + L <= run.length; p++) set.add(run.substr(p, L));
+      }
+    }
+  }
   VOCAB = set;
   return set;
 }
@@ -1188,8 +1206,246 @@ function search(kw, dev) {
   });
 }
 
-module.exports = { VENDORS, BOOK, search, norm, expand, cleanCmd,
+/**
+ * 模板搜索：64 个配置模板并入统一搜索。
+ *
+ * 模板没有 kw 字段，匹配文本分三层，权重递减：
+ *   name  —— 模板标题，用户就是按这个找的，权重最高
+ *   cat   —— 分类（开局模板 / 安全模板…），次之
+ *   note  —— 排障说明，术语密度极高但匹配价值低。
+ *           「IPsec VPN 站点互联模板」的 note 里写着「中间NAT」，
+ *           搜 nat 时它会命中——但用户想找的是 NAT 模板，不是 IPsec。
+ *           所以 note 命中只给很低的分。
+ * **code（命令正文）完全不参与匹配**——正文里几乎每条都有 vlan / interface，
+ * 拿它匹配会让 64 个模板在「vlan」「接口」这类词下全部命中，失去筛选意义。
+ *
+ * 分词复用 norm/expand，跟百科走同一套口径，
+ * 否则会出现「百科搜得到、模板搜不到」的割裂。
+ *
+ * 匹配规则（按强度）：
+ *   1. 整句出现在 name 里 → 强匹配（这条就是为这个说法准备的）
+ *   2. 每个词组都要命中 → 中等匹配，按命中层级加权
+ *   3. 只命中一部分 → 弱匹配，只在没有更强结果时补位
+ */
+let TPL_INDEX = null;
+function tplIndex() {
+  if (TPL_INDEX) return TPL_INDEX;
+  let list = [];
+  try {
+    /* tplbook 在主包，分包可引用主包公共资源。
+       本文件在 subpkg-tool/utils/ 下，往上两级是 miniprogram/，
+       所以是 ../../utils/（分包页面在 subpkg-tool/pages/xxx/ 下，
+       才需要往三级——两者别搞混）。 */
+    list = require('../../utils/tplbook.js').TPLS || [];
+  } catch (e) {
+    list = [];
+  }
+  TPL_INDEX = list.map(function (t) {
+    const name = String(t.name || '').toLowerCase();
+    const cat = String(t.cat || '').toLowerCase();
+    const note = String(t.note || '').toLowerCase();
+    const kw = (t.kw || []).map(function (x) { return String(x).toLowerCase(); });
+    return {
+      it: t,
+      name: name,
+      kw: kw,
+      /* 四层匹配文本，命中时按层级给不同权重：
+         kw（用户明确搜的说法）> name > cat > note */
+      l0: kw.join('\n'),
+      l1: name,
+      l2: name + '\n' + cat,
+      l3: name + '\n' + cat + '\n' + note
+    };
+  });
+  return TPL_INDEX;
+}
+
+/** 一个词组在四层文本里的命中强度：4=kw 3=名称 2=分类 1=说明 0=没中 */
+function tplHitLevel(rec, group) {
+  let lv = 0;
+  for (let j = 0; j < group.length; j++) {
+    const w = group[j];
+    if (rec.l0.indexOf(w) >= 0) { lv = Math.max(lv, 4); }
+    else if (tplKwContains(rec, w)) { lv = Math.max(lv, 4); }
+    else if (rec.l1.indexOf(w) >= 0) { lv = Math.max(lv, 3); }
+    else if (rec.l2.indexOf(w) >= 0) { lv = Math.max(lv, 2); }
+    else if (rec.l3.indexOf(w) >= 0) { lv = Math.max(lv, 1); }
+  }
+  return lv;
+}
+
+/**
+ * 查这个说法在模板的关键词里有没有「互相包含」的关系。
+ *
+ * 场景：查「默认路由配置」，切词后是一个 6 字整词，
+ * 而模板的关键词写的是「默认路由」——谁也不包含谁，就都匹配不上。
+ * 但用户的意思显然就是那个模板。
+ *
+ * 只在 kw 层做这个判断：kw 是人工写的说法，噪音极低。
+ * 不能推广到 name / note 层——note 是排障说明，
+ * 「IPsec VPN」的 note 里写着「中间NAT」，
+ * 放开包含就会让搜 nat 把它顶到 NAT 模板前面。
+ */
+function tplKwContains(rec, w) {
+  if (w.length < 2) return false;
+  for (let i = 0; i < rec.kw.length; i++) {
+    const k = rec.kw[i];
+    if (k.length < 2) continue;
+    /* 查询词包含关键词：「默认路由配置」包含「默认路由」 */
+    if (w.indexOf(k) >= 0) return true;
+    /* 关键词包含查询词：「默认路由」包含「默认路由」 */
+    if (k.indexOf(w) >= 0) return true;
+  }
+  return false;
+}
+
+/**
+ * @param {string} kw 查询词
+ * @param {number} limit 最多返回几条
+ * @returns {Array} 命中的模板，按匹配强度排序
+ */
+function searchTemplates(kw, limit) {
+  const idx = tplIndex();
+  if (!idx.length) return [];
+  const qtext = String(kw || '').trim().toLowerCase();
+  if (!qtext) return [];
+  const nq = qtext.replace(/\s+/g, '');
+  const words = expand(norm(qtext));
+
+  const strong = [];
+  const mid = [];
+  const weak = [];
+  for (let i = 0; i < idx.length; i++) {
+    const rec = idx[i];
+    let score = 0;
+    /* 整句相等或整句出现在名字里 */
+    if (rec.name === nq || (nq.length >= 4 && rec.name.indexOf(nq) >= 0)) {
+      score = 1000;
+    } else {
+      /* 查询整句就是某个 kw —— 这是模板作者亲手写的说法，最强信号 */
+      let kwHit = false;
+      for (let k = 0; k < rec.kw.length; k++) {
+        const kk = rec.kw[k];
+        if (kk === nq) { kwHit = true; break; }
+        /* 互相包含也算：查「默认路由配置」该命中关键词「默认路由」 */
+        if (nq.length >= 3 && kk.length >= 3 &&
+            (kk.indexOf(nq) >= 0 || nq.indexOf(kk) >= 0)) {
+          kwHit = true;
+          break;
+        }
+      }
+      if (kwHit) {
+        score = 900;
+      } else {
+        /* 逐词组匹配：每个词取它命中的最强层级 */
+        let hitAll = true;
+        let sum = 0;
+        let minLv = 4;
+        for (let w = 0; w < words.length; w++) {
+          const lv = tplHitLevel(rec, words[w]);
+          if (!lv) { hitAll = false; continue; }
+          sum += lv;
+          if (lv < minLv) minLv = lv;
+        }
+        if (hitAll && words.length) {
+          /* 全词命中：层级越高分越高。kw 全中(4) 明显强于只在 note 里命中(1) */
+          score = 100 + sum * 10 + minLv * 5;
+        } else if (sum > 0) {
+          score = 10 + sum * 2;
+        }
+      }
+    }
+    if (!score) continue;
+    const item = { tpl: rec.it, score: score };
+    if (score >= 1000) strong.push(item);
+    else if (score >= 100) mid.push(item);
+    else weak.push(item);
+  }
+
+  let out = strong.concat(mid, weak);
+  /* 弱匹配排在最后：只在有强/中匹配时丢弃 */
+  if (strong.length || mid.length) out = strong.concat(mid);
+  out.sort(function (a, b) { return b.score - a.score; });
+  const max = limit || out.length;
+  return out.slice(0, max).map(function (x) {
+    const t = x.tpl;
+    return {
+      id: t.id,
+      name: t.name,
+      cat: t.cat,
+      vendor: t.vendor,
+      note: t.note,
+      code: t.code,
+      score: x.score
+    };
+  });
+}
+
+/**
+ * 列出条目（不做搜索打分），用于分类浏览。
+ *
+ * 与 search 的区别：search 是「按相关度排」，
+ * 这里必须保持**稳定顺序**——同一批条目每次进来顺序一样，
+ * 用户翻页时不会发现列表在跳。
+ *
+ * @param {object} opts
+ *   cat   分类 key（分类体系里的 key），不限则全部
+ *   dev   设备筛选值，不限则全部
+ *   limit 最多返回几条
+ *   offset 跳过前几条（分页）
+ * @returns {Array} 条目概要
+ */
+function listBy(opts) {
+  const o = opts || {};
+  const all = buildIndex();
+  const cats = require('../../utils/categories.js');
+  const rows = [];
+
+  for (let i = 0; i < all.length; i++) {
+    const rec = all[i];
+    const it = rec.it;
+    if (o.dev && o.dev !== '全部' && it.devs.indexOf(o.dev) < 0) continue;
+    if (o.cat) {
+      const c = cats.classifyItem(it);
+      if (c.key !== o.cat) continue;
+    }
+    rows.push({
+      id: it.id,
+      name: it.name,
+      tip: it.tip,
+      devs: it.devs,
+      vendorText: it.cmds.map(function (x) { return x[0]; }).join(' '),
+      cmds: it.cmds.map(function (x) { return { vendor: x[0], code: x[1] }; })
+    });
+  }
+
+  const offset = o.offset || 0;
+  const limit = o.limit || rows.length;
+  return rows.slice(offset, offset + limit);
+}
+
+/**
+ * 分类目录：每个分类有多少条，用于浏览页的分类栏。
+ * @returns {Array} [{key, name, desc, count}]
+ */
+function categoryStats() {
+  const all = buildIndex();
+  const cats = require('../../utils/categories.js');
+  const counts = {};
+  cats.CATEGORIES.forEach(function (c) { counts[c.key] = 0; });
+  for (let i = 0; i < all.length; i++) {
+    const c = cats.classifyItem(all[i].it);
+    if (counts[c.key] === undefined) counts[c.key] = 0;
+    counts[c.key]++;
+  }
+  return cats.CATEGORIES.map(function (c) {
+    return { key: c.key, name: c.name, desc: c.desc, count: counts[c.key] || 0 };
+  });
+}
+
+module.exports = { VENDORS, BOOK, search, norm, expand, cleanCmd, searchTemplates,
+  listBy, categoryStats,
   /* 调试用：只在本地 node 脚本里调，页面不引用 */
   _dbg: { buildIndex, dropGreedy, rarity, scoreOf, intentsOf, segChinese, stripLead,
-    isStrongIntent } };
+    isStrongIntent, tplIndex } };
 

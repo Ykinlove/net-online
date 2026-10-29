@@ -61,6 +61,31 @@
         </view>
       </block>
 
+      <!-- 配置模板：复制就能用，排在「我的命令」前面 -->
+      <block wx:if="{{tplHits.length}}">
+        <view class="grp">
+          <text class="grp-name">配置模板</text>
+          <text class="grp-num">{{tplHits.length}} 个</text>
+        </view>
+        <view
+          wx:for="{{tplHits}}"
+          wx:key="id"
+          class="bk-item"
+          bindtap="openTpl"
+          data-idx="{{index}}"
+          hover-class="bk-item-hover"
+        >
+          <view class="bk-top">
+            <text class="bk-name">{{item.name}}</text>
+            <text class="bk-arrow">›</text>
+          </view>
+          <view class="bk-tags">
+            <text class="bk-tag">{{item.cat}}</text>
+            <text class="bk-tag">{{item.vendor}}</text>
+          </view>
+        </view>
+      </block>
+
       <!-- 我的命令 -->
       <block wx:if="{{mineHits.length}}">
         <view class="grp">
@@ -134,8 +159,12 @@
         </view>
       </scroll-view>
 
-      <view wx:if="{{detail.blocks.length > 1}}" class="sheet-foot">
-        <view class="sheet-btn" bindtap="copyAll" hover-class="sheet-btn-hover">复制全部命令</view>
+      <!-- 单块命令（模板 / 我的命令）也要有一键复制：
+           原来只在多块时才显示底部按钮，单块的用户只能逐块点「复制」。 -->
+      <view class="sheet-foot">
+        <view class="sheet-btn" bindtap="copyAll" hover-class="sheet-btn-hover">
+          {{detail.blocks.length > 1 ? '复制全部命令' : '复制命令'}}
+        </view>
       </view>
 
     </view>

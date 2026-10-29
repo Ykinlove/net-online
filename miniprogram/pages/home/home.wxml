@@ -41,6 +41,16 @@
     <text class="se-ph">搜命令，比如「划分端口」</text>
   </view>
 
+  <!-- 百科浏览入口：不知道搜什么的时候，从这里翻 -->
+  <view class="tpl-entry" bindtap="goBrowse" hover-class="tpl-entry-hover">
+    <text class="tpl-entry-ico">📚</text>
+    <view class="tpl-entry-main">
+      <text class="tpl-entry-t">命令百科</text>
+      <text class="tpl-entry-s">{{bookCount}} 条按 10 个分类翻，不用想关键词</text>
+    </view>
+    <text class="tpl-entry-arrow">›</text>
+  </view>
+
   <!-- 配置模板入口 -->
   <view class="tpl-entry" bindtap="goTemplates" hover-class="tpl-entry-hover">
     <text class="tpl-entry-ico">📋</text>

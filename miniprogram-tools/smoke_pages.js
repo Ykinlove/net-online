@@ -87,6 +87,40 @@ try {
   console.log('✓ 模板库 TPLS →', TPLS.length, '个');
 } catch (e) { fail++; console.log('✗ 模板库:', e.message); }
 
+/* 浏览页的两个核心接口：分类统计和按分类列条目。
+   分类体系改过好几次，这里守住两条底线：
+   ① 分类数不为空、每类都有条目
+   ② 所有分类的条数加起来 == 全部条数（不能有条目在目录里消失） */
+try {
+  const cb = require('/utils/cmdbook.js');
+  const stats = cb.categoryStats();
+  if (!stats.length) throw new Error('分类目录为空');
+  const empty = stats.filter(s => !s.count);
+  if (empty.length) throw new Error('空分类: ' + empty.map(s => s.name).join('/'));
+  const sum = stats.reduce((a, s) => a + s.count, 0);
+  const total = cb.listBy({}).length;
+  if (sum !== total) throw new Error('分类合计 ' + sum + ' != 全部 ' + total);
+  const one = cb.listBy({ cat: stats[0].key });
+  if (one.length !== stats[0].count) throw new Error('listBy 条数与统计不符');
+  console.log('✓ 浏览页分类 →', stats.length, '类 /', sum, '条，无遗漏');
+} catch (e) { fail++; console.log('✗ 浏览页分类:', e.message); }
+
+/* 模板搜索：模板要能被搜到（并入统一搜索的核心保证） */
+try {
+  const cb = require('/utils/cmdbook.js');
+  const r = cb.searchTemplates('nat');
+  if (!r.length) throw new Error('searchTemplates(nat) 零结果');
+  console.log('✓ 模板搜索 searchTemplates(nat) →', r.length, '个');
+} catch (e) { fail++; console.log('✗ 模板搜索:', e.message); }
+
+/* BOOK_COUNT 必须与实际条数一致（首页显示的数字不能过期） */
+try {
+  const { BOOK_COUNT } = require('/utils/seed.js');
+  const real = require('/utils/cmdbook.js').BOOK.length;
+  if (BOOK_COUNT !== real) throw new Error('BOOK_COUNT ' + BOOK_COUNT + ' != 实际 ' + real);
+  console.log('✓ BOOK_COUNT 与实际一致 →', BOOK_COUNT);
+} catch (e) { fail++; console.log('✗ BOOK_COUNT:', e.message); }
+
 console.log('----');
 console.log(fail === 0 ? '分包冒烟全部通过 ✓（%d 页）' : '失败 %d 项', pages.length);
 process.exit(fail === 0 ? 0 : 1);

@@ -19,6 +19,7 @@ Page({
     bookHits: [],
     bookTotal: 0,
     hasMore: false,
+    tplHits: [],
     mineHits: [],
     hitTotal: 0,
     detail: null,
@@ -73,6 +74,11 @@ Page({
     /* 1. 内置命令百科 */
     const bookHits = cmdbook.search(kwForSearch, dev);
 
+    /* 2. 配置模板：64 个可直接复制的模板并入搜索。
+       模板不属于任何设备分类，所以设备筛选时不过滤模板——
+       「配个开局模板」这种事不会先想「我这是交换机还是路由器」。 */
+    const tplHits = cmdbook.searchTemplates(kwForSearch, 20);
+
     /* 2. 自己记过的命令 */
     const words = cmdbook.expand(cmdbook.norm(kwForSearch));
     let mine = store.getList('commands').slice();
@@ -112,8 +118,9 @@ Page({
       bookHits: bookHits.slice(0, PAGE),
       bookTotal: bookHits.length,
       hasMore: bookHits.length > PAGE,
+      tplHits,
       mineHits,
-      hitTotal: bookHits.length + mineHits.length,
+      hitTotal: bookHits.length + tplHits.length + mineHits.length,
       devText: (SIDE.filter(s => s.v === dev)[0] || {}).t || dev
     });
   },
@@ -157,8 +164,26 @@ Page({
     });
   },
 
-  openMine(e) {
+  openTpl(e) {
     const idx = Number(e.currentTarget.dataset.idx);
+    const it = this.data.tplHits[idx];
+    if (!it) return;
+    this.setData({
+      detail: {
+        kind: 'tpl',
+        title: it.name,
+        sub: it.cat + ' · ' + it.vendor,
+        tip: it.note,
+        blocks: [{
+          vendor: it.vendor,
+          code: it.code,
+          lines: this.buildLines(it.code, it.vendor)
+        }]
+      }
+    });
+  },
+
+  openMine(e) {    const idx = Number(e.currentTarget.dataset.idx);
     const it = this.data.mineHits[idx];
     if (!it) return;
     this.setData({
@@ -198,8 +223,14 @@ Page({
   copyAll() {
     const d = this.data.detail;
     if (!d) return;
+    const multi = d.blocks.length > 1;
     const text = d.blocks
-      .map(b => '【' + b.vendor + '】\n' + (cmdbook.cleanCmd(b.code, b.vendor) || b.code))
+      .map(b => {
+        const body = cmdbook.cleanCmd(b.code, b.vendor) || b.code;
+        /* 只有多块时才加厂商前缀——单块（模板 / 我的命令）加了是噪音，
+           粘到设备上还得自己删。 */
+        return multi ? '【' + b.vendor + '】\n' + body : body;
+      })
       .join('\n\n');
     if (text.length > 60000) {
       wx.showToast({ title: '内容过长，请逐个复制', icon: 'none' });

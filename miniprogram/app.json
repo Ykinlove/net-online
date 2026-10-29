@@ -46,6 +46,7 @@
       "name": "tool",
       "pages": [
         "pages/search/search",
+        "pages/browse/browse",
         "pages/templates/templates"
       ]
     },

@@ -143,4 +143,11 @@ const STAGE_LEGACY = {
 const PRESET_CHARS = ['character_01', 'character_02', 'character_03', 'character_04', 'character_05', 'character_08', 'character_09', 'character_10', 'character_12', 'character_14'];
 const PRESET_BGS = ['background_01', 'background_02', 'background_03', 'background_04', 'background_05'];
 
-module.exports = { DEVICES, DEVICE_CN, NET_CATEGORIES, ANSWER_BOOK, STAGES, STAGE_LEGACY, PRESET_CHARS, PRESET_BGS };
+/* 百科条目总数。
+   首页要显示「命令百科 1378 条」，但百科数据在分包（subpkg-tool/utils/cmdbook.js），
+   主包引用不到分包的东西——所以这里放一个常量，
+   由 miniprogram-tools/sync_book_count.js 从真实数据自动同步，
+   避免手写数字跟实际条数对不上。 */
+const BOOK_COUNT = 1378;
+
+module.exports = { DEVICES, DEVICE_CN, NET_CATEGORIES, ANSWER_BOOK, STAGES, STAGE_LEGACY, PRESET_CHARS, PRESET_BGS, BOOK_COUNT };

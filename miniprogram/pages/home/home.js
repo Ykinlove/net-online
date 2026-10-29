@@ -1,5 +1,5 @@
 const store = require('../../utils/store.js');
-const { ANSWER_BOOK } = require('../../utils/seed.js');
+const { ANSWER_BOOK, BOOK_COUNT } = require('../../utils/seed.js');
 const { TPLS } = require('../../utils/tplbook.js');
 const { dayInfo, weekOfMonth, weeksInMonth } = require('../../utils/lunar.js');
 
@@ -14,7 +14,8 @@ Page({
     calTitle: '',
     calCells: [],
     calFoot: '',
-    tplCount: TPLS.length
+    tplCount: TPLS.length,
+    bookCount: BOOK_COUNT
   },
 
   onLoad() {
@@ -124,6 +125,10 @@ Page({
 
   goSearch() {
     wx.navigateTo({ url: '/subpkg-tool/pages/search/search' });
+  },
+
+  goBrowse() {
+    wx.navigateTo({ url: '/subpkg-tool/pages/browse/browse' });
   },
 
   goTemplates() {

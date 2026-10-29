@@ -1090,7 +1090,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-pon-ftth',
-    devs: ['OLT', 'ONU', '光猫'],
+    devs: ['OLT', 'ONU', '光猫', '其他设备', 'Switch'],
     name: 'PON 光纤入户开局（OLT 侧加 ONU 全流程）',
     kw: ['pon', 'olt', 'onu', '光猫', '光纤入户', 'ftth', 'pon开局', '加onu', 'gpon', 'xgs-pon', 'pon注册', '光接入'],
     cmds: [
@@ -1300,7 +1300,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-sys-bond',
-    devs: ['Linux 服务器'],
+    devs: ['Linux 服务器', '服务器', 'Linux'],
     name: 'Linux bond 网卡绑定（接入交换机端口聚合对接）',
     kw: ['bond', '网卡绑定', '双网卡', 'bond配置', 'mode4', 'lacp', '链路聚合linux', '网卡冗余', '服务器网卡', 'bond排障'],
     cmds: [
@@ -1310,7 +1310,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-sys-k8s',
-    devs: ['Linux 服务器', '容器'],
+    devs: ['Linux 服务器', '容器', 'Linux', '服务器'],
     name: 'K8s/容器网络排查（CNI / Calico / flannel）',
     kw: ['k8s', 'kubernetes', '容器网络', 'cni', 'calico', 'flannel', 'pod不通', '容器排障', 'service不通', 'ingress不通', 'k8s网络'],
     cmds: [
@@ -1370,7 +1370,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-net-ipplan',
-    devs: ['网络规划'],
+    devs: ['网络规划','Switch','Router'],
     name: 'IP 地址规划与子网划分（VLSM 按需分配）',
     kw: ['ip规划', '子网划分', 'vlsm', '地址规划', '网段划分', '掩码计算', '子网计算', '地址分配', 'ip地址规划', '编址', '网段不够', '地址不够', 'ip不够分'],
     cmds: [
@@ -1380,7 +1380,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-ops-monitor-system',
-    devs: ['网管平台', 'Linux 服务器'],
+    devs: ['网管平台', 'Linux 服务器', '服务器', 'Linux'],
     name: '网络监控体系搭建（Zabbix / Prometheus / 告警联动）',
     kw: ['监控', 'zabbix', 'prometheus', 'grafana', '告警', '监控搭建', '网络监控', 'telemetry监控', '巡检自动化', '监控告警', '发到手机', '手机告警', '短信告警', '微信告警', '钉钉告警', '告警推送', '告警通知'],
     cmds: [
@@ -1390,7 +1390,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-trans-spn',
-    devs: ['传输设备', 'PTN', 'SPN', 'OTN'],
+    devs: ['传输设备', 'PTN', 'SPN', 'OTN', '其他设备', 'Router'],
     name: '运营商传输网认知与排查（SPN / PTN / OTN）',
     kw: ['传输网', 'spn', 'ptn', 'otn', '承载网', '5g承载', '传输排查', '分组传输', '前传', '中传', '回传', '传输告警'],
     cmds: [
@@ -1410,7 +1410,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-net-toolbox',
-    devs: ['客户端工具'],
+    devs: ['客户端工具','其他设备'],
     name: '网络工程师工具箱（软件 + 在线工具 + 设备脚本）',
     kw: ['工具箱', '工具推荐', '软件', 'securecrt', 'xshell', 'putty', 'wireshark', '在线工具', '子网计算器', '排障工具', 'ip计算', '有什么工具', '用什么工具', '排障神器'],
     cmds: [
@@ -1430,7 +1430,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-net-deliver',
-    devs: ['项目管理'],
+    devs: ['项目管理','其他设备'],
     name: '网络交付文档体系（拓扑/配置/验收/应急预案）',
     kw: ['交付文档', '验收', '拓扑图', '配置清单', '运维手册', '应急预案', '交付物', '项目验收', '网络文档', '变更文档'],
     cmds: [
@@ -1470,7 +1470,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-net-cutover-plan',
-    devs: ['项目管理'],
+    devs: ['项目管理','其他设备'],
     name: '割接方案编制（窗口 / 步骤 / 回退 / 验证四要素）',
     kw: ['割接方案', '割接', '变更窗口', '回退方案', '割接步骤', '割接验证', '网络变更', '停机窗口', '割接计划'],
     cmds: [
@@ -1480,7 +1480,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-sys-logserver',
-    devs: ['Linux 服务器', '网管平台'],
+    devs: ['Linux 服务器', '网管平台', '服务器', 'Linux'],
     name: '日志/trap 服务器搭建（syslog + SNMP trap 集中）',
     kw: ['日志服务器', 'syslog', 'trap集中', '日志集中', 'syslog搭建', 'rsyslog', 'trap接收', '日志审计', '日志留存', 'elk','trap收不到','日志收不到','收不到日志','trap 不上送','告警收不到'],
     cmds: [
@@ -1490,7 +1490,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-linux-adv',
-    devs: ['Linux 服务器'],
+    devs: ['Linux 服务器', 'Linux', '服务器'],
     name: 'Linux 网络高级（bridge / netns / tc 流控）',
     kw: ['linux网桥', 'bridge', 'netns', '命名空间', 'tc', 'qdisc', '流控', 'linux高级', 'veth', '容器网络', 'tc限速'],
     cmds: [
@@ -1500,7 +1500,7 @@ const PRACTICE = [
   },
   {
     id: 'pr-win-server',
-    devs: ['Windows Server'],
+    devs: ['Windows Server', 'Windows', '服务器'],
     name: 'Windows Server DHCP/DNS 服务端配置',
     kw: ['windows server', 'dhcp服务器', 'dns服务器', 'ad域网络', '域控', 'windows dhcp', 'windows dns', 'scope', '作用域', '域网络排障'],
     cmds: [
