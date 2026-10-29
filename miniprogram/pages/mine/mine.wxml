@@ -64,6 +64,18 @@
     </view>
   </view>
 
+  <!-- 搜不到的：内容缺口的输入源 -->
+  <view wx:if="{{missList.length}}" class="card">
+    <view class="card-title-row">
+      <text class="card-title">🔍 搜不到的说法</text>
+      <text class="card-more" bindtap="goSearchMiss">全部 ›</text>
+    </view>
+    <view class="miss-list">
+      <text wx:for="{{missList}}" wx:key="kw" class="miss-chip">{{item.kw}}</text>
+    </view>
+    <text class="miss-tip">这些是库里还没有的说法，可以反馈补充</text>
+  </view>
+
   <!-- 入口 -->
   <view class="menu">
     <view class="menu-row" bindtap="goFav" hover-class="menu-row-hover">

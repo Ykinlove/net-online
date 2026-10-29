@@ -20,6 +20,7 @@ Page({
     bookTotal: 0,
     hasMore: false,
     tplHits: [],
+    history: [],
     mineHits: [],
     hitTotal: 0,
     detail: null,
@@ -64,6 +65,26 @@ Page({
 
   onShow() {
     this.doSearch();
+    this.loadHistory();
+  },
+
+  /* 读搜索历史 */
+  loadHistory() {
+    this.setData({ history: store.getSearchHistory().slice(0, 12) });
+  },
+
+  /* 点历史词直接搜 */
+  pickHistory(e) {
+    const kw = e.currentTarget.dataset.kw;
+    if (!kw) return;
+    this.setData({ kw }, () => this.doSearch());
+    this.recordHistory();
+  },
+
+  clearHistory() {
+    store.clearSearchHistory();
+    this.setData({ history: [] });
+    wx.showToast({ title: '已清空', icon: 'none' });
   },
 
   /* ---------- 搜索 ---------- */
@@ -73,6 +94,8 @@ Page({
 
   onConfirm(e) {
     this.setData({ kw: e.detail.value }, () => this.doSearch());
+    /* 记历史只在「确认搜索」时记——每敲一个字都记会把历史冲垮 */
+    this.recordHistory();
   },
 
   clearKw() {
@@ -139,6 +162,10 @@ Page({
       content: c.content || '',
       desc: c.desc || ''
     }));
+
+    /* 命中数为 0 的搜索词会被记进「搜不到」清单，
+       那是内容建设的输入源——说明库里缺这个说法 */
+    this._lastHit = bookHits.length + tplHits.length + mineHits.length;
 
     this._bookAll = bookHits;
     this.setData({
@@ -241,6 +268,13 @@ Page({
   /* open-type="share" 自己就会拉起分享面板，
      这个 handler 只是占位——部分基础库要求绑定的函数必须存在。 */
   shareBtn() {},
+
+  /* 记搜索历史 + 零结果 */
+  recordHistory() {
+    const kw = String(this.data.kw || '').trim();
+    if (!kw) return;
+    store.addSearchHistory(kw, this._lastHit || 0);
+  },
 
   /* ---------- 分享 ---------- */
   /* 转发按钮走 open-type="share"，内容从这里取。

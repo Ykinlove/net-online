@@ -337,6 +337,62 @@ async function toggleFav(item) {
   return on;
 }
 
+/* ---------------- 搜索历史 / 零结果 ----------------
+ * 搜索历史：用户搜过的词，最近的排前面，同一个词不重复。
+ * 零结果记录：搜了但一条都没搜到的词——这是内容建设的输入源，
+ * 说明库里缺这个说法。不上云，先存本地（云端集合要手动建，
+ * 而且个人用法上报到云端没意义，开发者本地看更直接）。
+ */
+const HIST_MAX = 20;
+const MISS_MAX = 100;
+
+function getSearchHistory() {
+  init();
+  const arr = sGet('searchHistory', []) || [];
+  return Array.isArray(arr) ? arr : [];
+}
+
+/**
+ * 记一次搜索。
+ * @param {string} kw 搜索词
+ * @param {number} hitCount 命中的条目数
+ */
+function addSearchHistory(kw, hitCount) {
+  init();
+  const q = String(kw || '').trim();
+  if (!q) return;
+  const arr = getSearchHistory().filter(x => x.kw !== q);
+  arr.unshift({ kw: q, hit: hitCount || 0, ts: Date.now() });
+  while (arr.length > HIST_MAX) arr.pop();
+  sSet('searchHistory', arr);
+  /* 一次都没搜到的单独记一份 */
+  if (!hitCount) {
+    const miss = sGet('searchMiss', []) || [];
+    const m = Array.isArray(miss) ? miss : [];
+    const idx = m.findIndex(x => x.kw === q);
+    if (idx >= 0) {
+      m[idx].count = (m[idx].count || 1) + 1;
+      m[idx].ts = Date.now();
+    } else {
+      m.unshift({ kw: q, count: 1, ts: Date.now() });
+    }
+    while (m.length > MISS_MAX) m.pop();
+    sSet('searchMiss', m);
+  }
+}
+
+function clearSearchHistory() {
+  init();
+  sSet('searchHistory', []);
+  sSet('searchMiss', []);
+}
+
+function getSearchMiss() {
+  init();
+  const arr = sGet('searchMiss', []) || [];
+  return Array.isArray(arr) ? arr : [];
+}
+
 /* ---------------- 形象 / 背景解锁 ---------------- */
 function getUnlocks() {
   init();
@@ -514,6 +570,7 @@ module.exports = {
   getList, setListLocal, addRecord, updateRecord, removeRecord,
   pullAll, waitPull,
   getFavs, isFav, toggleFav,
+  getSearchHistory, addSearchHistory, clearSearchHistory, getSearchMiss,
   today, uid, formatShortDate,
   getUnlocks, isUnlocked, addUnlock,
   getSnapshots, snapshot, removeSnapshot, applySnapshot,

@@ -48,6 +48,7 @@
         "pages/search/search",
         "pages/browse/browse",
         "pages/fav/fav",
+        "pages/miss/miss",
         "pages/templates/templates"
       ]
     },

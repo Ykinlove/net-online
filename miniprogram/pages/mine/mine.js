@@ -18,7 +18,8 @@ Page({
     careers: [],
     lv: { level: 1, pct: 0 },
     recent: [],
-    favCount: 0
+    favCount: 0,
+    missList: []
   },
 
   onShow() {
@@ -36,7 +37,8 @@ Page({
       careers: splitKw(p.careers),
       lv: this.buildLv(),
       recent: this.buildRecent(),
-      favCount: store.getFavs().length
+      favCount: store.getFavs().length,
+      missList: store.getSearchMiss().slice(0, 6)
     });
   },
 
@@ -83,5 +85,9 @@ Page({
 
   goFav() {
     wx.navigateTo({ url: '/subpkg-tool/pages/fav/fav' });
+  },
+
+  goSearchMiss() {
+    wx.navigateTo({ url: '/subpkg-tool/pages/miss/miss' });
   }
 });

@@ -102,6 +102,34 @@ function check(name, cond, extra) {
   check('路径参数可解析', q.kind === 'book' && q.id === 'console-password');
   check('按路径参数能落地', !!cmdbook.lookupById(q.kind, q.id));
 
+  /* ---------- 搜索历史 / 零结果 ---------- */
+  store.clearSearchHistory();
+  check('清空后无历史', store.getSearchHistory().length === 0);
+
+  store.addSearchHistory('划分端口', 5);
+  check('记入搜索历史', store.getSearchHistory().length === 1);
+  check('历史带命中数', store.getSearchHistory()[0].hit === 5);
+
+  store.addSearchHistory('划分端口', 5);
+  check('同一个词不重复', store.getSearchHistory().length === 1);
+
+  store.addSearchHistory('vlan', 3);
+  check('新的排最前', store.getSearchHistory()[0].kw === 'vlan');
+
+  store.addSearchHistory('查不到的说法', 0);
+  check('零结果单独记一份', store.getSearchMiss().length === 1);
+  check('零结果记的是那个词', store.getSearchMiss()[0].kw === '查不到的说法');
+  check('有结果的不进零结果', store.getSearchMiss().every(m => m.kw === '查不到的说法'));
+
+  store.addSearchHistory('查不到的说法', 0);
+  check('零结果重复搜会累加次数', store.getSearchMiss()[0].count === 2);
+
+  for (let i = 0; i < 40; i++) store.addSearchHistory('bulk' + i, 1);
+  check('历史有上限', store.getSearchHistory().length <= 20, '实际 ' + store.getSearchHistory().length);
+
+  store.clearSearchHistory();
+  check('清空后零结果也没了', store.getSearchMiss().length === 0);
+
   console.log('');
   console.log('通过 ' + pass + ' / ' + (pass + fail));
   process.exit(fail === 0 ? 0 : 1);

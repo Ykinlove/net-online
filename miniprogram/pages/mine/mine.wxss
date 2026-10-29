@@ -147,3 +147,25 @@
 .foot-brand { font-size: calc(22 * var(--u)); font-weight: 700; color: #8a99aa; }
 .foot-line { font-size: calc(20 * var(--u)); color: #a9bccd; }
 .foot-ver { font-size: calc(20 * var(--u)); color: #b9cfe0; }
+
+/* 搜不到的说法 */
+.miss-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(10 * var(--u));
+  margin-top: calc(4 * var(--u));
+}
+.miss-chip {
+  font-size: calc(20 * var(--u));
+  color: #a35b3f;
+  background: #fdeee7;
+  border: calc(2 * var(--u)) solid #f0c4ac;
+  border-radius: calc(8 * var(--u));
+  padding: calc(5 * var(--u)) calc(14 * var(--u));
+}
+.miss-tip {
+  display: block;
+  margin-top: calc(12 * var(--u));
+  font-size: calc(19 * var(--u));
+  color: #9fb0c0;
+}

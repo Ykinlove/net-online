@@ -13,6 +13,39 @@
   flex: none;
   padding: calc(20 * var(--u)) calc(24 * var(--u)) calc(14 * var(--u));
 }
+
+/* ---------- 搜索历史 ---------- */
+.hist {
+  padding: calc(4 * var(--u)) calc(24 * var(--u)) calc(16 * var(--u));
+}
+.hist-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: calc(12 * var(--u));
+}
+.hist-title {
+  font-size: calc(21 * var(--u));
+  font-weight: 800;
+  color: #7c8fa3;
+}
+.hist-clear {
+  margin-left: auto;
+  font-size: calc(20 * var(--u));
+  color: #b9cfe0;
+}
+.hist-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(10 * var(--u));
+}
+.hist-chip {
+  font-size: calc(21 * var(--u));
+  color: #2c3e50;
+  background: #fffdf6;
+  border: calc(2 * var(--u)) solid #cfe0ee;
+  border-radius: calc(8 * var(--u));
+  padding: calc(8 * var(--u)) calc(18 * var(--u));
+}
 .sb {
   display: flex;
   align-items: center;

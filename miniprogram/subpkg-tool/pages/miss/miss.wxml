@@ -1,0 +1,44 @@
+<view class="miss-page">
+
+  <!-- 顶部 -->
+  <view class="head">
+    <view class="head-main">
+      <text class="head-title">🔍 搜不到的说法</text>
+      <text class="head-num">{{total}} 条</text>
+    </view>
+    <text class="head-sub">搜了但一条都没搜到的词，说明库里还缺这个说法</text>
+  </view>
+
+  <!-- 列表 -->
+  <scroll-view class="list" scroll-y>
+    <view
+      wx:for="{{list}}"
+      wx:key="kw"
+      class="item"
+      bindtap="goSearch"
+      data-kw="{{item.kw}}"
+      hover-class="item-hover"
+    >
+      <view class="item-main">
+        <text class="item-kw">{{item.kw}}</text>
+        <text class="item-meta">{{item.time}}<text wx:if="{{item.count > 1}}"> · 搜了 {{item.count}} 次</text></text>
+      </view>
+      <text class="item-arrow">›</text>
+    </view>
+
+    <view wx:if="{{!list.length}}" class="empty">
+      <text class="empty-ico">🎉</text>
+      <text class="empty-txt">没有搜不到的说法</text>
+      <text class="empty-sub">说明你搜的东西库里都有，这是好事</text>
+    </view>
+
+    <view class="list-foot"></view>
+  </scroll-view>
+
+  <!-- 底部操作 -->
+  <view wx:if="{{list.length}}" class="foot">
+    <view class="foot-btn foot-btn-ghost" bindtap="clearAll">清空</view>
+    <view class="foot-btn foot-btn-main" bindtap="copyAll">复制全部</view>
+  </view>
+
+</view>

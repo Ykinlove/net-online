@@ -15,6 +15,23 @@
       />
       <text wx:if="{{kw}}" class="sb-clear" bindtap="clearKw">✕</text>
     </view>
+
+    <!-- 搜索历史：空输入时显示最近搜过的，点一下直接搜 -->
+    <view wx:if="{{!kw && history.length}}" class="hist">
+      <view class="hist-head">
+        <text class="hist-title">最近搜过</text>
+        <text class="hist-clear" bindtap="clearHistory">清空</text>
+      </view>
+      <view class="hist-list">
+        <text
+          wx:for="{{history}}"
+          wx:key="kw"
+          class="hist-chip"
+          bindtap="pickHistory"
+          data-kw="{{item.kw}}"
+        >{{item.kw}}</text>
+      </view>
+    </view>
   </view>
 
   <!-- 左：设备筛选  右：结果 -->
