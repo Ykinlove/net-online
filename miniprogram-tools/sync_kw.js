@@ -1,13 +1,20 @@
 /**
- * 把「已上线（压缩版）数据文件」里某条记录的 kw 数组，同步回 data-src 的可读源码。
+ * 诊断工具：对比 data-src 源与线上产物的 kw 差异。
  *
- * 背景：kw 补丁是在 miniprogram 各 utils 目录的压缩文件上直接打的，
- *       minify_data.py 只在 data-src 不存在时才备份，所以补丁不会回流到 data-src。
- *       一旦执行 `minify_data.py --restore`，补丁就全丢。
+ * 背景：以前 kw 补丁是直接打在 miniprogram 各 utils 目录的压缩文件上的，
+ *       minify_data.py 只在 data-src 不存在时才备份，所以补丁不会回流到 data-src，
+ *       一旦执行 `minify_data.py --restore` 补丁就全丢。
+ *       历史上靠这个脚本做「产物 → 源」的反向同步。
+ *
+ * 现在架构改成「源 → 产物」单向（见 build_data.py），
+ * 源是唯一真源，不再需要反向同步。
+ * 本脚本保留为诊断工具：看源和产物在 kw 上到底差在哪，差多少。
+ * 正常情况下应该输出 0 条差异；若有差异，说明产物被手改过，
+ * 正确做法是跑 `python build_data.py build` 用源覆盖产物。
  *
  * 用法：
- *   node sync_kw.js            # 同步下面 IDS 里列出的记录
- *   node sync_kw.js --all      # 同步两份数据里所有同名 id 的 kw（慎用，会覆盖手改）
+ *   node sync_kw.js            # 检查下面 IDS 里列出的记录
+ *   node sync_kw.js --all      # 检查所有同名 id 的 kw（不止 IDS 列表）
  */
 const fs = require('fs');
 const path = require('path');
@@ -87,15 +94,21 @@ IDS.forEach(function (id) {
   const src = fs.readFileSync(dst, 'utf8');
   const hit = findKw(src, id);
   if (!hit) { missing.push(id + '(源码内找不到)'); return; }
-
   if (hit.list.join('\u0001') === info.list.join('\u0001')) return; // 已一致
 
-  const line = 'kw: [' + info.list.map(function (w) { return "'" + w + "'"; }).join(', ') + ']';
-  fs.writeFileSync(dst, src.slice(0, hit.start) + line + src.slice(hit.end), 'utf8');
-  console.log('同步 ' + info.file + '  ' + id + '  (' + info.list.length + ' 词)');
+  const onlyProd = info.list.filter(function (w) { return hit.list.indexOf(w) < 0; });
+  const onlySrc = hit.list.filter(function (w) { return info.list.indexOf(w) < 0; });
+  console.log('差异 ' + info.file + '  ' + id);
+  console.log('  仅产物有: ' + (onlyProd.length ? onlyProd.join(', ') : '（无）'));
+  console.log('  仅源有  : ' + (onlySrc.length ? onlySrc.join(', ') : '（无）'));
   changed++;
 });
 
 console.log('');
-console.log('共同步 ' + changed + ' 条');
-if (missing.length) console.log('未同步: ' + missing.join(', '));
+console.log('有差异的记录 ' + changed + ' 条');
+if (missing.length) console.log('未找到: ' + missing.join(', '));
+if (changed > 0) {
+  console.log('');
+  console.log('提示：源是唯一真源。确认产物里的新词值得保留时，');
+  console.log('      先把词补进 data-src 源码，再跑 python build_data.py build。');
+}

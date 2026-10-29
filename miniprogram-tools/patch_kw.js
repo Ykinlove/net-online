@@ -1,14 +1,14 @@
 /**
- * 按 id 给记录的 kw 数组追加关键词，三个位置一次改到位：
- *   1) miniprogram/utils/*.js              （主包，压缩版  kw:['a','b']）
- *   2) miniprogram/subpkg-tool/utils/*.js  （分包，压缩版  kw:['a','b']）
- *   3) miniprogram-tools/data-src/*.js     （可读源码  kw: ['a', 'b']）
+ * 按 id 给记录的 kw 数组追加关键词。
+ *
+ * 只改 data-src 的可读源码一处，产物由 build_data.py 生成。
+ * 以前这里是「主包 + 分包 + 源码」三个位置一次改到位，
+ * 漏掉任何一个都会造成源与产物漂移（本项目已实测漂移 4 个文件）。
  *
  * 只追加、不删除、不改顺序，已存在的词自动跳过。
- * 输出格式跟随目标文件原样：压缩文件保持紧排，源码文件保持空格+逗号。
  *
  * 用法：
- *   node patch_kw.js            # 执行下面 PATCH 表
+ *   node patch_kw.js            # 执行下面 PATCH 表，改完自动重建产物
  *   node patch_kw.js --dry      # 只看会改什么，不落盘
  */
 const fs = require('fs');
@@ -16,11 +16,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const DATA_SRC = path.join(__dirname, 'data-src');
-const DIRS = [
-  path.join(ROOT, 'miniprogram', 'utils'),
-  path.join(ROOT, 'miniprogram', 'subpkg-tool', 'utils'),
-  DATA_SRC
-];
+const DIRS = [DATA_SRC];
 
 /* id → 要补的说法（用户真实会打出来的现象/动作描述） */
 const PATCH = {
@@ -166,3 +162,18 @@ Object.keys(PATCH).forEach(function (id) {
 console.log('');
 console.log((DRY ? '[dry-run] 将改 ' : '共改 ') + changed + ' 处');
 if (missing.length) console.log('id 不存在，已跳过: ' + missing.join(', '));
+
+/* 源改完后重建产物，保证源与产物始终一致 */
+if (!DRY && changed > 0) {
+  console.log('');
+  console.log('重建产物...');
+  const { execFileSync } = require('child_process');
+  try {
+    const out = execFileSync('python', [path.join(ROOT, 'miniprogram-tools', 'build_data.py'), 'build'],
+      { encoding: 'utf8' });
+    console.log(out.trim());
+  } catch (e) {
+    console.log('  ! 重建失败：' + (e.stdout || e.message));
+    process.exitCode = 1;
+  }
+}

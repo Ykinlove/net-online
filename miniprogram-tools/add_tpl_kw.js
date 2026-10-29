@@ -85,9 +85,10 @@ const KW = {
 };
 
 const ROOT = path.resolve(__dirname, '..');
+/* 只改 data-src 的可读源码，产物由 build_data.py 生成。
+   以前这里是「源 + 压缩版」两个目标，改数据要写两处、容易走偏。 */
 const TARGETS = [
-  path.join(ROOT, 'miniprogram-tools', 'data-src', 'tplbook.js'),
-  path.join(ROOT, 'miniprogram', 'utils', 'tplbook.js')
+  path.join(ROOT, 'miniprogram-tools', 'data-src', 'tplbook.js')
 ];
 
 const dry = process.argv.indexOf('--dry') >= 0;
@@ -108,7 +109,7 @@ TARGETS.forEach(function (file) {
   Object.keys(KW).forEach(function (id) {
     const kws = KW[id];
     /* 只在 id 后紧跟 cat/name 等字段的位置插入 kw。
-       压缩版是 id:'x',cat:'y',... ；源码版是 id: 'x',\n    cat: 'y',... */
+       源码版是 id: 'x',\n    cat: 'y',... */
     const re = new RegExp("(id:\\s*" + q(id) + "\\s*,)(\\s*)(cat:)");
     const m = src.match(re);
     if (!m) {
@@ -119,9 +120,8 @@ TARGETS.forEach(function (file) {
     const after = src.slice(m.index + m[0].length, m.index + m[0].length + 120);
     if (/^\s*kw\s*:/.test(after)) return;
 
-    const tight = m[2] === ''; /* 压缩版没空格 */
-    const body = kws.map(q).join(tight ? ',' : ', ');
-    const insert = 'kw:[' + body + '],' + (tight ? '' : ' ');
+    const body = kws.map(q).join(', ');
+    const insert = 'kw: [' + body + '],\n    ';
     src = src.slice(0, m.index + m[1].length) + insert + src.slice(m.index + m[1].length);
     changedItems++;
   });
@@ -141,3 +141,18 @@ TARGETS.forEach(function (file) {
 
 console.log('');
 console.log('改动条目 ' + changedItems + ' 处，文件 ' + changedFiles + ' 个' + (dry ? '（dry-run，未落盘）' : ''));
+
+/* 源改完后重建产物，保证源与产物始终一致 */
+if (!dry && changedFiles > 0) {
+  console.log('');
+  console.log('重建产物...');
+  const { execFileSync } = require('child_process');
+  try {
+    const out = execFileSync('python', [path.join(ROOT, 'miniprogram-tools', 'build_data.py'), 'build'],
+      { encoding: 'utf8' });
+    console.log(out.trim());
+  } catch (e) {
+    console.log('  ! 重建失败：' + (e.stdout || e.message));
+    process.exitCode = 1;
+  }
+}

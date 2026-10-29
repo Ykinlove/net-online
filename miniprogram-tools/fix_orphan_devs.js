@@ -33,9 +33,10 @@ const FIX = [
 ];
 
 const ROOT = path.resolve(__dirname, '..');
+/* 只改 data-src 的可读源码，产物由 build_data.py 生成。
+   以前这里是「源 + 压缩版」两个目标，改数据要写两处、容易走偏。 */
 const TARGETS = [
-  path.join(ROOT, 'miniprogram-tools', 'data-src', 'cmdbook-practice.js'),
-  path.join(ROOT, 'miniprogram', 'subpkg-tool', 'utils', 'cmdbook-practice.js')
+  path.join(ROOT, 'miniprogram-tools', 'data-src', 'cmdbook-practice.js')
 ];
 
 const dry = process.argv.indexOf('--dry') >= 0;
@@ -67,9 +68,7 @@ TARGETS.forEach(function (file) {
 
   FIX.forEach(function (item) {
     /* 定位这条：id 后面紧跟 devs 数组。
-       两种格式：
-         源码版  devs: ['OLT', 'ONU', '光猫'],
-         压缩版  devs:['OLT','ONU','光猫'],
+       源码版  devs: ['OLT', 'ONU', '光猫'],
        正则统一兼容。 */
     const re = new RegExp(
       "(id:\\s*" + q(item.id) + "\\s*,\\s*devs:\\s*\\[)([^\\]]*)(\\])"
@@ -85,9 +84,7 @@ TARGETS.forEach(function (file) {
     const merged = uniq(current.concat(item.add));
     if (merged.length === current.length) return; /* 已有，不动 */
 
-    /* 保持原有紧凑程度：原本没有空格就不加空格 */
-    const tight = m[2].indexOf(',') < 0 && m[2].indexOf(':') < 0 && m[2].trim().indexOf(' ') < 0;
-    const body = merged.map(q).join(tight ? ',' : ', ');
+    const body = merged.map(q).join(', ');
     src = src.slice(0, m.index) + m[1] + body + m[3] + src.slice(m.index + m[0].length);
     changedItems++;
   });
@@ -107,3 +104,18 @@ TARGETS.forEach(function (file) {
 
 console.log('');
 console.log('改动条目 ' + changedItems + ' 处，文件 ' + changedFiles + ' 个' + (dry ? '（dry-run，未落盘）' : ''));
+
+/* 源改完后重建产物，保证源与产物始终一致 */
+if (!dry && changedFiles > 0) {
+  console.log('');
+  console.log('重建产物...');
+  const { execFileSync } = require('child_process');
+  try {
+    const out = execFileSync('python', [path.join(ROOT, 'miniprogram-tools', 'build_data.py'), 'build'],
+      { encoding: 'utf8' });
+    console.log(out.trim());
+  } catch (e) {
+    console.log('  ! 重建失败：' + (e.stdout || e.message));
+    process.exitCode = 1;
+  }
+}
