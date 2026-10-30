@@ -23,6 +23,7 @@
     14. 云函数/投稿结构     cloudfunctions x4 + 投稿页 + 制作人页 + contrib.js 齐备
     15. 重复 id 检查       scan_dup_ids.js    （百科/模板 id 唯一，有重复返回非 0）
     16. 入口路径/集合容错  制作人页为唯一入口 + 云函数集合缺失容错 + 自动建表
+    17. 部署结构          project.config.json 在根 + cloudfunctionRoot + 云函数 x4 齐备
 """
 import io, os, re, subprocess, sys, time
 
@@ -266,6 +267,65 @@ def check_entry_paths():
     return not problems
 
 
+def check_deploy_layout():
+    """部署结构守卫。
+
+    微信开发者工具要求 project.config.json 在项目根，且同时声明
+    miniprogramRoot / cloudfunctionRoot —— 否则左侧文件树看不到云函数目录，
+    右键没有「上传并部署」，用户会卡在部署第一步。
+    """
+    import json
+    problems = []
+
+    cfg_path = os.path.join(ROOT, 'project.config.json')
+    if not os.path.isfile(cfg_path):
+        problems.append('缺少根目录 project.config.json（开发者工具无法识别项目 / 看不到云函数）')
+    else:
+        with io.open(cfg_path, encoding='utf-8') as f:
+            try:
+                cfg = json.load(f)
+            except Exception as e:
+                cfg = {}
+                problems.append('project.config.json 不是合法 JSON：%s' % e)
+
+        mroot = (cfg.get('miniprogramRoot') or '').rstrip('/')
+        croot = (cfg.get('cloudfunctionRoot') or '').rstrip('/')
+
+        if mroot != 'miniprogram':
+            problems.append('project.config.json 的 miniprogramRoot 应为 "miniprogram/"，当前是 "%s"' % mroot)
+        if croot != 'cloudfunctions':
+            problems.append('project.config.json 的 cloudfunctionRoot 应为 "cloudfunctions/"，当前是 "%s"' % croot)
+
+        # 声明的路径必须真实存在
+        for label, rel in [('miniprogramRoot', mroot), ('cloudfunctionRoot', croot)]:
+            if rel and not os.path.isdir(os.path.join(ROOT, rel)):
+                problems.append('%s 指向的目录不存在：%s' % (label, rel))
+
+        # appid 必须有，否则无法上传部署
+        if not cfg.get('appid'):
+            problems.append('project.config.json 缺少 appid')
+
+        # 旧位置不应再留一份（开发者工具会读到旧的那份，导致云函数不可见）
+        stale = os.path.join(MP, 'project.config.json')
+        if os.path.isfile(stale):
+            problems.append('miniprogram/project.config.json 仍存在 —— 请移到项目根，否则开发者工具打开 miniprogram/ 时看不到云函数')
+
+    # 四个云函数目录必须齐备，且带 package.json（否则「云端安装依赖」装不了 wx-server-sdk）
+    cf_root = os.path.join(ROOT, 'cloudfunctions')
+    for fn in ['publishContent', 'submitContribution', 'listContent', 'reviewContribution']:
+        d = os.path.join(cf_root, fn)
+        if not os.path.isdir(d):
+            problems.append('缺少云函数目录：cloudfunctions/%s' % fn)
+        elif not os.path.isfile(os.path.join(d, 'package.json')):
+            problems.append('cloudfunctions/%s 缺 package.json（装不了 wx-server-sdk）' % fn)
+
+    if problems:
+        results.append(('部署结构', False, 1, '\n'.join('  ' + p for p in problems), 0))
+    else:
+        results.append(('部署结构', True, 0, '  project.config.json 在根 + cloudfunctionRoot 正确 + 云函数 x4 齐备', 0))
+    return not problems
+
+
 def main():
     print('=' * 62)
     print('  Net 操作命令速记 —— 一键回归')
@@ -306,6 +366,9 @@ def main():
 
     # 14 入口路径 / 集合容错
     check_entry_paths()
+
+    # 15 部署结构（开发者工具能否看到并上传云函数）
+    check_deploy_layout()
 
     # 11 体积
     check_size()

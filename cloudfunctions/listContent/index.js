@@ -6,8 +6,10 @@
 // 入参：
 //   since      content_patch 增量游标（updatedAt > since，0 表示全量）
 //   extraSince extra_items 增量游标（approvedAt > extraSince，0 表示全量）
+//   action     传 'whoami' 时只返回调用者的 openid（用于配置 ADMIN_OPENIDS 白名单）
 // 返回：
 //   { patches:[...content_patch 文档...], extras:[...extra_items 文档...] }
+//   action=whoami 时返回 { ok:true, openid:'oXXXX...' }
 
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
@@ -47,6 +49,15 @@ async function pull(since, coll, timeField) {
 
 exports.main = async (event) => {
   try {
+    /* whoami：只回显调用者自己的 openid。
+       配置 ADMIN_OPENIDS 白名单时，用这个拿到自己的 openid 最省事
+       （开发者工具 → 云函数 → listContent → 云端测试，参数 {"action":"whoami"}）。
+       只返回自己的 openid，不泄露他人数据。 */
+    if (event.action === 'whoami') {
+      const { OPENID } = cloud.getWXContext();
+      return { ok: true, openid: OPENID || '' };
+    }
+
     const since = Number(event.since) || 0;
     const extraSince = Number(event.extraSince) || 0;
     const patches = await pull(since, COLL_PATCH, 'updatedAt');

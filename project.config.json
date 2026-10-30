@@ -3,6 +3,8 @@
   "projectname": "net-online-miniprogram",
   "compileType": "miniprogram",
   "libVersion": "3.5.0",
+  "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "setting": {
     "urlCheck": false,
     "es6": true,
