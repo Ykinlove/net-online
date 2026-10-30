@@ -49,6 +49,10 @@ Page({
     });
   },
 
+  goMaker() {
+    wx.navigateTo({ url: '/subpkg-mine/pages/maker/maker' });
+  },
+
   /* 导出成 .xlsx：命令 / 项目 / 技能 三张表 */
   exportData() {
     const cmds = store.getList('commands').slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));

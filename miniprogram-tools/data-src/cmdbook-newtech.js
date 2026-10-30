@@ -9,7 +9,7 @@
 */
 const NEWTECH_EXTRA = [
   {
-    id: 'dc-roce',
+    id: 'dc-roce-lossless',
     devs: ['Switch'],
     name: 'RoCE 无损网络（PFC / ECN / 缓冲区）',
     kw: ['roce', '无损网络', 'pfc', 'ecn', 'rdma', '智算', 'ai 网络', '拥塞控制', '丢包敏感'],
@@ -21,7 +21,7 @@ const NEWTECH_EXTRA = [
     tip: 'RoCE 对丢包极其敏感（万分之一就能让训练性能腰斩）。三件套缺一不可：PFC 防丢、ECN 防 PFC 风暴、缓冲区够大。上生产前用大包长跑压测确认零丢包。具体命令在 CE 各版本略有差异，以设备 ? 补全为准。'
   },
   {
-    id: 'cloud-direct-connect',
+    id: 'cloud-direct-connect-hybrid',
     devs: ['Router', 'Switch', '防火墙'],
     name: '云专线接入（本地机房 ↔ 云 VPC）',
     kw: ['云专线', '专线', 'direct connect', '混合云', '上云', 'vpc 互联', 'bgp 对接云'],
@@ -111,7 +111,7 @@ const NEWTECH_EXTRA = [
     tip: 'plan 里出现 destroy 或 replace 一定要停下来看清楚——网络资源被 replace 通常意味着换 IP、断连接。生产环境用 workspace 或按目录隔离环境。'
   },
   {
-    id: 'auto-nornir',
+    id: 'auto-nornir-eng',
     devs: ['其他设备', 'Switch', 'Router'],
     name: 'Nornir 批量任务框架（比手写脚本更工程化）',
     kw: ['nornir', '批量框架', '网络自动化', 'python 批量', '并发执行'],

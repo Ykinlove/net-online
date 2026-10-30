@@ -63,7 +63,7 @@ node miniprogram-tools/patch_kw.js
 python miniprogram-tools/ci.py
 ```
 
-15 项检查全绿再提交：源产物一致、源格式体检、语法检查、宽评测(690)、排序评测(56)、模板评测(29)、收藏分享(31)、基础清单(107)、页面冒烟(17)、热更新覆盖层(16)、投稿页数据链路(11)、云端新增合并(14)、条目数一致、云函数/投稿结构、体积上限。
+17 项检查全绿再提交：源产物一致、源格式体检、语法检查、宽评测(690)、排序评测(56)、模板评测(29)、收藏分享(31)、基础清单(107)、页面冒烟(19)、热更新覆盖层(16)、投稿页数据链路(11)、云端新增合并(14)、条目数一致、云函数/投稿结构、重复 id 检查、入口路径/集合容错、体积上限。
 
 快跑版（跳过宽评测，约省 5 秒）：`python miniprogram-tools/ci.py --fast`
 
@@ -117,7 +117,7 @@ python miniprogram-tools/ci.py
 | 脚本 | 作用 |
 |---|---|
 | `build_data.py` | 构建 / 校验 / 回灌（核心） |
-| `ci.py` | 一键回归 15 项 |
+| `ci.py` | 一键回归 17 项 |
 | `check_src_style.py` | 源排版体检 |
 | `normalize_src.py` | 长 kw 数组折行 |
 | `normalize_tpl.py` | tplbook 字段拆行 |
@@ -235,8 +235,21 @@ python miniprogram-tools/ci.py
 ### 解决什么
 
 让每个用户都能贡献命令百科 / 配置模板，**提交先由作者审核**，通过才生效——
-既调动社区参与感，又不让未验证内容污染库。投稿页是一个**独立的公开页**（「我的 → 贡献内容」），
+既调动社区参与感，又不让未验证内容污染库。投稿页是一个**独立的公开页**，
 不集成进作者管理页（作者管理页只做「编辑发布 + 待审核」）。
+
+### 入口位置（2026-10 调整）
+
+两个入口统一收口在 **「我的 → 设置 → 关于 → 制作人」** 页面里，菜单文案只有
+「内容管理」和「贡献内容」，不带「（作者）/（投稿）」后缀：
+
+```
+我的 → 设置 → 关于 → 制作人
+                        ├── 内容管理   → /subpkg-tool/pages/admin/admin
+                        └── 贡献内容   → /subpkg-tool/pages/contribute/contribute
+```
+
+「我的」页不再直接暴露这两个入口（避免普通用户误触进入管理区）。
 
 ### 数据流
 
@@ -282,6 +295,11 @@ python miniprogram-tools/ci.py
 > `extra_items` 客户端不直接写，但集合权限仍建议设为「仅管理端可写」以防越权；云函数运行在
 > 管理端环境，不受端侧权限限制，可读写全部集合。
 
+> **不用手动建表也行**：写集合的云函数（`submitContribution` / `publishContent` /
+> `reviewContribution`）在首次调用时会自动 `createCollection`，报「集合不存在」已被吞掉；
+> 读集合的 `listContent` 在集合缺失时返回空数组，不影响本地内容。
+> 手动建表只是让第一次访问更快，不是必需步骤。
+
 ### 2. 上传并部署四个云函数
 
 用微信开发者工具：右键 `cloudfunctions/` 下的四个目录 → 「上传并部署：云端安装依赖」。
@@ -300,9 +318,21 @@ ADMIN_OPENIDS = oxxxxxx1,oxxxxxxx2
 
 ### 4. 验证
 
-- 用作者号进「我的 → 贡献内容」发一条投稿 → 用作者号进「我的 → 内容管理（作者）→ 待审核」
-  看到它 → 通过 → 普通用户搜索能命中该新增 / 修正。
+- 用作者号进「我的 → 设置 → 关于 → 制作人 → 贡献内容」发一条投稿
+  → 再进「制作人 → 内容管理 → 待审核」看到它 → 通过 → 普通用户搜索能命中该新增 / 修正。
 - 作者进「内容管理 → 编辑发布」改一条条目 → 发布成功 → 搜索立即反映。
+
+### 常见报错对照
+
+| 报错 | 原因 | 处理 |
+|---|---|---|
+| `errCode -502005 / Db or Table not exist: contributions` | 云端没建 `contributions` 集合 | 重新部署 `reviewContribution`（新版会自动建表）；或手动建集合 |
+| `无审核权限（请配置 ADMIN_OPENIDS）` | 云函数没配白名单 | 在 `reviewContribution` 环境变量加 `ADMIN_OPENIDS` |
+| `无发布权限（请配置 ADMIN_OPENIDS）` | 同上 | 在 `publishContent` 环境变量加 `ADMIN_OPENIDS` |
+| `无法读取待审核列表：云函数未部署…` | 云函数没上传或网络失败 | 上传部署 `reviewContribution` 云函数 |
+
+> 端侧所有读集合的路径都加了 try/catch：集合缺失时返回友好中文提示，
+> 不会再把 `database collection not exists` 的原始 errMsg 抛到页面上。
 
 ---
 
@@ -312,4 +342,7 @@ ADMIN_OPENIDS = oxxxxxx1,oxxxxxxx2
 |---|---|
 | `eval_admin.js` | 投稿页数据链路校验（含模板结构修复） |
 | `eval_extras.js` | extra_items 合并到索引 / 搜索 / 分类 / 详情 校验 |
+| `scan_dup_ids.js` | 扫描 data-src 真源里的重复 id（有重复返回退出码 1，CI 门禁） |
+| `analyze_dup.js` | 重复 id 详细分析（内容是否真的重复） |
+| `rename_dup_ids.js` | 按「保留较早批次原 id、较晚批次改名」执行去重 |
 

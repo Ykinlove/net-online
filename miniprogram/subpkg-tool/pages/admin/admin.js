@@ -13,7 +13,7 @@ const cmdbook = require('../../utils/cmdbook.js');
 const hotfix = require('../../../utils/hotfix.js');
 const contrib = require('../../../utils/contrib.js');
 
-const ADMIN_PASS = 'net-admin-2026';
+const ADMIN_PASS = '__ADMIN_PASS__';
 
 // 待审核卡片的字段摘要（只读预览用）
 function buildSummary(kind, f) {

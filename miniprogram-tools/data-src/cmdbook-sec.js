@@ -291,7 +291,7 @@ const SEC_EXTRA = [
     tip: 'WMM 把无线流量分四个优先级（语音/视频/尽力/背景）。无线 IP 电话卡顿，先确认 WMM 开了没有。'
   },
   {
-    id: 'wlan-locate',
+    id: 'wlan-locate-terminal',
     devs: ['AC'],
     name: '无线终端定位',
     kw: ['终端定位', 'wifi定位', '找设备位置', '三角定位'],

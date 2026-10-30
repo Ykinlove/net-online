@@ -15,12 +15,14 @@
     6. 模板评测            eval_tpl.js        （29 用例）
     7. 收藏/分享闭环       eval_fav_share.js  （31 用例）
     8. 基础清单            basics_check.js    （107 条说法）
-    9. 页面冒烟            smoke_pages.js     （16 页）
+    9. 页面冒烟            smoke_pages.js     （19 页）
     10. 条目数一致         sync_book_count.js --check
     11. 体积上限           主包 ≤ 2MB / 各分包 ≤ 2MB / 总计 ≤ 20MB
     12. 云端新增合并       eval_extras.js    （extra_items 合并到搜索/分类/详情）
     13. 投稿页数据链路     eval_admin.js      （定位→灌字段→增量 diff，含模板修复）
-    14. 云函数/投稿结构     cloudfunctions x4 + 投稿页 + contrib.js 齐备
+    14. 云函数/投稿结构     cloudfunctions x4 + 投稿页 + 制作人页 + contrib.js 齐备
+    15. 重复 id 检查       scan_dup_ids.js    （百科/模板 id 唯一，有重复返回非 0）
+    16. 入口路径/集合容错  制作人页为唯一入口 + 云函数集合缺失容错 + 自动建表
 """
 import io, os, re, subprocess, sys, time
 
@@ -168,7 +170,7 @@ def check_structure():
                 return True
         return False
 
-    for need in ['pages/contribute/contribute', 'pages/admin/admin']:
+    for need in ['pages/contribute/contribute', 'pages/admin/admin', 'pages/maker/maker']:
         if not is_registered(need):
             problems.append('app.json 未注册页面：' + need)
 
@@ -188,7 +190,79 @@ def check_structure():
     if problems:
         results.append(('云函数/投稿结构', False, 1, '\n'.join('  ' + p for p in problems), 0))
     else:
-        results.append(('云函数/投稿结构', True, 0, '  cloudfunctions x4 + 投稿页 + contrib.js 均齐备', 0))
+        results.append(('云函数/投稿结构', True, 0, '  cloudfunctions x4 + 投稿页 + 制作人页 + contrib.js 均齐备', 0))
+    return not problems
+
+
+def check_entry_paths():
+    """入口路径与集合容错守卫。
+
+    守住三件事：
+      ① 内容管理 / 贡献内容 只能从「设置→关于→制作人」进，「我的」页不得再直接暴露
+      ② 「我的」页不得再出现（作者）/（投稿）这类后缀文案
+      ③ 读集合的云函数必须有集合缺失容错（否则 -502005 会把页面炸掉）
+    """
+    problems = []
+
+    def read(rel):
+        p = os.path.join(MP, rel)
+        if not os.path.isfile(p):
+            return ''
+        with io.open(p, encoding='utf-8') as f:
+            return f.read()
+
+    mine_wxml = read(os.path.join('pages', 'mine', 'mine.wxml'))
+    mine_js = read(os.path.join('pages', 'mine', 'mine.js'))
+    if 'goAdmin' in mine_wxml or 'goContribute' in mine_wxml:
+        problems.append('mine.wxml 仍直接暴露「内容管理 / 贡献内容」入口（应移到制作人页）')
+    if 'goAdmin' in mine_js or 'goContribute' in mine_js:
+        problems.append('mine.js 仍保留 goAdmin/goContribute（应移到 maker.js）')
+    for word in ['（作者）', '（投稿）', '(作者)', '(投稿)']:
+        if word in mine_wxml:
+            problems.append('mine.wxml 仍带后缀文案：%s' % word)
+
+    settings_wxml = read(os.path.join('subpkg-mine', 'pages', 'mine-settings', 'mine-settings.wxml'))
+    settings_js = read(os.path.join('subpkg-mine', 'pages', 'mine-settings', 'mine-settings.js'))
+    if 'goMaker' not in settings_wxml:
+        problems.append('mine-settings.wxml 的「制作人」行未绑定 goMaker')
+    if 'goMaker' not in settings_js:
+        problems.append('mine-settings.js 缺少 goMaker')
+
+    maker_wxml = read(os.path.join('subpkg-mine', 'pages', 'maker', 'maker.wxml'))
+    maker_js = read(os.path.join('subpkg-mine', 'pages', 'maker', 'maker.js'))
+    if 'goAdmin' not in maker_wxml or 'goContribute' not in maker_wxml:
+        problems.append('maker.wxml 缺少「内容管理 / 贡献内容」两个入口')
+    if 'goAdmin' not in maker_js or 'goContribute' not in maker_js:
+        problems.append('maker.js 缺少 goAdmin/goContribute')
+    for word in ['（作者）', '（投稿）', '(作者)', '(投稿)']:
+        if word in maker_wxml:
+            problems.append('maker.wxml 仍带后缀文案：%s' % word)
+
+    # 读集合的云函数：集合缺失时必须容错
+    cf_root = os.path.join(ROOT, 'cloudfunctions')
+    for fn in ['listContent', 'reviewContribution']:
+        src = ''
+        p = os.path.join(cf_root, fn, 'index.js')
+        if os.path.isfile(p):
+            with io.open(p, encoding='utf-8') as f:
+                src = f.read()
+        if 'try' not in src:
+            problems.append('cloudfunctions/%s 缺少集合缺失容错（会抛 -502005）' % fn)
+
+    # 写集合的云函数：应自动建表
+    for fn in ['submitContribution', 'publishContent']:
+        src = ''
+        p = os.path.join(cf_root, fn, 'index.js')
+        if os.path.isfile(p):
+            with io.open(p, encoding='utf-8') as f:
+                src = f.read()
+        if 'createCollection' not in src:
+            problems.append('cloudfunctions/%s 未自动创建集合（首次调用会报集合不存在）' % fn)
+
+    if problems:
+        results.append(('入口路径/集合容错', False, 1, '\n'.join('  ' + p for p in problems), 0))
+    else:
+        results.append(('入口路径/集合容错', True, 0, '  制作人页入口唯一 + 云函数集合容错齐备', 0))
     return not problems
 
 
@@ -226,6 +300,12 @@ def main():
 
     # 12 云函数 / 投稿页结构
     check_structure()
+
+    # 13 重复 id 检查
+    run('重复 id 检查', ['node', os.path.join(HERE, 'scan_dup_ids.js')])
+
+    # 14 入口路径 / 集合容错
+    check_entry_paths()
 
     # 11 体积
     check_size()

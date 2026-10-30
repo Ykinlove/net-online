@@ -27,7 +27,23 @@ function isAdmin(openid) {
   return list.indexOf(openid) >= 0;
 }
 
+/* 云函数跑在管理员身份，可以建集合。
+   集合不存在时直接查会抛 errCode -502005（Db or Table not exist），
+   所以访问前先确保集合存在——首次调用自动建好，避免部署后还要手动去控制台建表。
+   已存在时 createCollection 会报错，这里吞掉即可。 */
+const ensured = {};
+async function ensureCollection(name) {
+  if (ensured[name]) return;
+  try {
+    await db.createCollection(name);
+  } catch (e) {
+    // 已存在 / 权限不足等 —— 后续真正的查询仍会给出准确错误
+  }
+  ensured[name] = true;
+}
+
 exports.main = async (event) => {
+ try {
   const { OPENID } = cloud.getWXContext();
   if (!isAdmin(OPENID)) {
     return { ok: false, msg: '无审核权限（请配置 ADMIN_OPENIDS）' };
@@ -37,6 +53,7 @@ exports.main = async (event) => {
   const id = event.id;
 
   if (action === 'list') {
+    await ensureCollection(COLL_CONTRIB);
     const res = await db.collection(COLL_CONTRIB)
       .where({ status: 'pending' })
       .orderBy('createdAt', 'asc')
@@ -46,6 +63,7 @@ exports.main = async (event) => {
   }
 
   if (!id) return { ok: false, msg: '缺少 id' };
+  await ensureCollection(COLL_CONTRIB);
   const got = await db.collection(COLL_CONTRIB).doc(id).get();
   const c = got.data;
   if (!c) return { ok: false, msg: '投稿不存在' };
@@ -65,6 +83,7 @@ exports.main = async (event) => {
     if (c.type === 'add') {
       // 新增条目：整条写进 extra_items（fields 即完整条目，必须含 id）
       if (!fields.id) return { ok: false, msg: '新增条目缺少 id' };
+      await ensureCollection(COLL_EXTRA);
       await db.collection(COLL_EXTRA).add({
         data: { kind, item: fields, approvedAt: now }
       });
@@ -72,6 +91,7 @@ exports.main = async (event) => {
       // 修改条目：写进 content_patch（覆盖记录）
       const targetId = c.targetId;
       if (!targetId) return { ok: false, msg: '修改条目缺少 targetId' };
+      await ensureCollection(COLL_PATCH);
       const exist = await db.collection(COLL_PATCH).where({ kind, targetId }).limit(1).get();
       const rows = exist.data || [];
       if (rows.length) {
@@ -92,4 +112,8 @@ exports.main = async (event) => {
   }
 
   return { ok: false, msg: '未知 action' };
+ } catch (e) {
+  // 集合未创建 / 权限异常等，统一返回友好信息，避免抛出原始 errMsg 到客户端
+  return { ok: false, msg: '云函数执行失败：' + ((e && e.message) || e) };
+ }
 };

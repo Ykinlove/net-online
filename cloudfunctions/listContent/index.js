@@ -18,14 +18,27 @@ const PAGE = 100;
 const COLL_PATCH = 'content_patch';
 const COLL_EXTRA = 'extra_items';
 
+/* 只读拉取：集合不存在时应当视为「暂无内容」而不是报错。
+   客户端启动时必调本函数，若因集合缺失直接抛 -502005 会让首页内容加载失败。 */
 async function pull(since, coll, timeField) {
   let q = db.collection(coll);
   if (since && since > 0) q = q.where({ [timeField]: _.gt(since) });
-  const cnt = await q.count();
+  let cnt;
+  try {
+    cnt = await q.count();
+  } catch (e) {
+    // 集合不存在（errCode -502005）→ 视为空集合
+    return [];
+  }
   const total = cnt.total || 0;
   const out = [];
   for (let skip = 0; skip < total; skip += PAGE) {
-    const res = await q.orderBy(timeField, 'asc').skip(skip).limit(PAGE).get();
+    let res;
+    try {
+      res = await q.orderBy(timeField, 'asc').skip(skip).limit(PAGE).get();
+    } catch (e) {
+      break;
+    }
     out.push.apply(out, res.data || []);
     if ((res.data || []).length < PAGE) break;
   }
@@ -33,9 +46,13 @@ async function pull(since, coll, timeField) {
 }
 
 exports.main = async (event) => {
-  const since = Number(event.since) || 0;
-  const extraSince = Number(event.extraSince) || 0;
-  const patches = await pull(since, COLL_PATCH, 'updatedAt');
-  const extras = await pull(extraSince, COLL_EXTRA, 'approvedAt');
-  return { ok: true, patches, extras };
+  try {
+    const since = Number(event.since) || 0;
+    const extraSince = Number(event.extraSince) || 0;
+    const patches = await pull(since, COLL_PATCH, 'updatedAt');
+    const extras = await pull(extraSince, COLL_EXTRA, 'approvedAt');
+    return { ok: true, patches, extras };
+  } catch (e) {
+    return { ok: false, patches: [], extras: [], msg: '拉取云端内容失败：' + ((e && e.message) || e) };
+  }
 };

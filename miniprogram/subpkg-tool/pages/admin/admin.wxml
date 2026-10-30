@@ -10,7 +10,7 @@
       <input class="input lock-input" placeholder="请输入管理口令" placeholder-class="input-placeholder"
              value="{{passInput}}" bindinput="onPassInput" password/>
       <button class="btn btn-primary btn-block lock-btn" bindtap="unlock">进入管理</button>
-      <text class="hint">口令在 admin.js 的 ADMIN_PASS 配置；正式运营建议改用云函数鉴权。</text>
+      <text class="hint">口令用于进入管理界面；发布与审核的权限由云端 openid 白名单鉴权（需在云函数配置 ADMIN_OPENIDS）。</text>
     </view>
   </view>
 

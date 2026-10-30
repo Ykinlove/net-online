@@ -44,26 +44,41 @@ async function submit(kind, type, targetId, fields) {
 
   const d = db();
   if (!d) return { ok: false, msg: '云开发不可用' };
-  const res = await d.collection(COLL_CONTRIB).add({
-    data: Object.assign({}, data, { status: 'pending', createdAt: Date.now() })
-  });
-  return { ok: true, id: res._id };
+  try {
+    const res = await d.collection(COLL_CONTRIB).add({
+      data: Object.assign({}, data, { status: 'pending', createdAt: Date.now() })
+    });
+    return { ok: true, id: res._id };
+  } catch (e) {
+    return { ok: false, msg: '投稿提交失败：请确认已部署 submitContribution 云函数，或手动创建 contributions 集合（见 DATA_GUIDE）。' };
+  }
 }
 
-/** 作者：拉取待审核列表（优先云函数，降级直连）。 */
+/** 作者：拉取待审核列表（优先云函数，降级直连；任何异常都返回友好提示，不抛原始错误）。 */
 async function listPending() {
   const call = cloud();
   if (call) {
     try {
       const r = await call({ name: 'reviewContribution', data: { action: 'list' } });
-      if (r && r.result && r.result.ok) return { ok: true, list: r.result.list || [] };
-    } catch (e) { /* 降级直连 */ }
+      if (r && r.result) {
+        if (r.result.ok) return { ok: true, list: r.result.list || [] };
+        // 云函数已部署但返回失败（如集合未创建 / 未授权）
+        return { ok: false, msg: r.result.msg || '云函数返回失败' };
+      }
+    } catch (e) { /* 云函数未部署 / 网络失败 → 下面直连降级 */ }
   }
+  // 降级直连（要求 contributions 集合存在且可读）
   const d = db();
-  if (!d) return { ok: false, msg: '云开发不可用' };
-  const res = await d.collection(COLL_CONTRIB).where({ status: 'pending' })
-    .orderBy('createdAt', 'asc').limit(50).get();
-  return { ok: true, list: res.data || [] };
+  if (!d) {
+    return { ok: false, msg: '云函数未部署：请先在云函数控制台上传 reviewContribution，并创建 contributions 集合（见 DATA_GUIDE）。' };
+  }
+  try {
+    const res = await d.collection(COLL_CONTRIB).where({ status: 'pending' })
+      .orderBy('createdAt', 'asc').limit(50).get();
+    return { ok: true, list: res.data || [] };
+  } catch (e) {
+    return { ok: false, msg: '无法读取待审核列表：云函数未部署或 contributions 集合不存在，请参考 DATA_GUIDE 完成部署。' };
+  }
 }
 
 /** 作者：通过投稿（必须走云函数）。fields 可传审核时修正后的字段。 */

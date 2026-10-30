@@ -87,14 +87,6 @@ Page({
     wx.navigateTo({ url: '/subpkg-tool/pages/fav/fav' });
   },
 
-  goAdmin() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/admin/admin' });
-  },
-
-  goContribute() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/contribute/contribute' });
-  },
-
   goSearchMiss() {
     wx.navigateTo({ url: '/subpkg-tool/pages/miss/miss' });
   }

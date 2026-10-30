@@ -47,9 +47,10 @@
       <text class="row-label">版本</text>
       <text class="row-value">v5.20</text>
     </view>
-    <view class="row">
+    <view class="row" bindtap="goMaker" hover-class="row-hover">
       <text class="row-label">制作人</text>
       <text class="row-value">杨雷鹏</text>
+      <text class="row-arrow">›</text>
     </view>
     <view class="row" bindtap="copyWechat" hover-class="row-hover">
       <text class="row-label">联系微信</text>

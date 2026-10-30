@@ -1,0 +1,25 @@
+/* pages/maker/maker.wxss —— 复用全局卡片系统，仅补充专属样式 */
+.head-card {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: calc(44 * var(--u)) calc(24 * var(--u));
+}
+.maker-avatar { font-size: calc(84 * var(--u)); }
+.maker-name { font-size: calc(34 * var(--u)); font-weight: 800; color: #2c3e50; margin-top: calc(12 * var(--u)); }
+.maker-desc { font-size: calc(23 * var(--u)); color: #6b7d8f; margin-top: calc(8 * var(--u)); }
+
+.menu-row {
+  display: flex; align-items: center;
+  padding: calc(24 * var(--u)) 0;
+  border-bottom: calc(2 * var(--u)) dashed #e2ebf2;
+}
+.menu-row:last-child { border-bottom: none; }
+.menu-row-hover { background: #f3f8fc; }
+.menu-ico { font-size: calc(34 * var(--u)); margin-right: calc(16 * var(--u)); }
+.menu-txt { font-size: calc(28 * var(--u)); font-weight: 700; color: #2c3e50; }
+.menu-arrow { margin-left: auto; color: #9fb0c0; font-size: calc(34 * var(--u)); }
+
+.maker-foot {
+  display: block;
+  font-size: calc(22 * var(--u)); color: #8a99aa;
+  text-align: center; padding: calc(22 * var(--u)) calc(28 * var(--u)); line-height: 1.6;
+}

@@ -63,7 +63,8 @@
         "pages/mine-settings/mine-settings",
         "pages/mine-help/mine-help",
         "pages/onboard/onboard",
-        "pages/chargen/chargen"
+        "pages/chargen/chargen",
+        "pages/maker/maker"
       ]
     }
   ],

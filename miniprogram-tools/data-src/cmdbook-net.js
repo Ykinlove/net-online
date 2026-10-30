@@ -72,7 +72,7 @@ const NET_EXTRA = [
     tip: '这四家写法完全一样。端口描述是最便宜的运维投入，出问题一眼就知道线接到哪。'
   },
   {
-    id: 'port-security',
+    id: 'port-security-mac',
     devs: ['Switch'],
     name: '端口安全（限制 MAC 数）',
     kw: ['端口安全', 'mac限制', '绑定mac', 'port-security', '防私接'],
@@ -241,7 +241,7 @@ const NET_EXTRA = [
     tip: '优先级默认 100，主设备配大一点（如 120）。配了 preempt delay 可以避免链路抖动时来回抢主。'
   },
   {
-    id: 'dhcp-snooping',
+    id: 'dhcp-snooping-rogue',
     devs: ['Switch'],
     name: 'DHCP Snooping（防私接路由）',
     kw: [
@@ -469,7 +469,7 @@ const NET_EXTRA = [
     tip: 'Super VLAN 让多个子 VLAN 共用一个网关网段，省 IP；但子 VLAN 之间默认二层隔离，要互通得靠本地代理 ARP。'
   },
   {
-    id: 'qinq',
+    id: 'qinq-label',
     devs: ['Switch'],
     name: 'QinQ（VLAN 双层标签）',
     kw: ['qinq', '双层vlan', 'vlan嵌套', '运营商vlan', 'dot1q-tunnel'],

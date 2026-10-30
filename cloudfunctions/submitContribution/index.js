@@ -11,6 +11,17 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const COLL = 'contributions';
 
+/* 集合不存在时直接写会抛 errCode -502005。云函数是管理员身份，首次调用自动建好，
+   免去部署后还要去控制台手动建表的步骤。已存在时报错会被吞掉。 */
+const ensured = {};
+async function ensureCollection(name) {
+  if (ensured[name]) return;
+  try {
+    await db.createCollection(name);
+  } catch (e) { /* 已存在 / 权限不足，后续操作会给出准确错误 */ }
+  ensured[name] = true;
+}
+
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext();
 
@@ -22,6 +33,7 @@ exports.main = async (event) => {
     return { ok: false, msg: '参数缺失' };
   }
 
+  await ensureCollection(COLL);
   const res = await db.collection(COLL).add({
     data: {
       kind, type, targetId,

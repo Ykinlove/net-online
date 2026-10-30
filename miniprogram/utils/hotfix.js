@@ -181,11 +181,20 @@ async function pull(since) {
   const _ = d.command;
   let q = d.collection(COLL);
   if (since && since > 0) q = q.where({ updatedAt: _.gt(since) });
-  const cnt = await q.count();
+  let cnt;
+  try {
+    cnt = await q.count();
+  } catch (e) {
+    // 集合不存在（errCode -502005）→ 视为暂无云端内容，不阻断本地使用
+    return [];
+  }
   const total = (cnt && cnt.total) || 0;
   const out = [];
   for (let skip = 0; skip < total; skip += PAGE) {
-    const res = await q.orderBy('updatedAt', 'asc').skip(skip).limit(PAGE).get();
+    let res;
+    try {
+      res = await q.orderBy('updatedAt', 'asc').skip(skip).limit(PAGE).get();
+    } catch (e) { break; }
     const rows = (res && res.data) || [];
     out.push.apply(out, rows);
     if (rows.length < PAGE) break;
@@ -200,11 +209,19 @@ async function pullExtras(since) {
   const _ = d.command;
   let q = d.collection(EXTRA);
   if (since && since > 0) q = q.where({ approvedAt: _.gt(since) });
-  const cnt = await q.count();
+  let cnt;
+  try {
+    cnt = await q.count();
+  } catch (e) {
+    return [];
+  }
   const total = (cnt && cnt.total) || 0;
   const out = [];
   for (let skip = 0; skip < total; skip += PAGE) {
-    const res = await q.orderBy('approvedAt', 'asc').skip(skip).limit(PAGE).get();
+    let res;
+    try {
+      res = await q.orderBy('approvedAt', 'asc').skip(skip).limit(PAGE).get();
+    } catch (e) { break; }
     const rows = (res && res.data) || [];
     out.push.apply(out, rows);
     if (rows.length < PAGE) break;

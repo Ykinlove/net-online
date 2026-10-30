@@ -16,6 +16,17 @@ const db = cloud.database();
 const _ = db.command;
 const COLL = 'content_patch';
 
+/* 集合不存在时直接写会抛 errCode -502005。云函数是管理员身份，首次调用自动建好，
+   免去部署后还要去控制台手动建表的步骤。已存在时报错会被吞掉。 */
+const ensured = {};
+async function ensureCollection(name) {
+  if (ensured[name]) return;
+  try {
+    await db.createCollection(name);
+  } catch (e) { /* 已存在 / 权限不足，后续操作会给出准确错误 */ }
+  ensured[name] = true;
+}
+
 function isAdmin(openid) {
   const list = (process.env.ADMIN_OPENIDS || '')
     .split(',').map(s => s.trim()).filter(Boolean);
@@ -38,6 +49,7 @@ exports.main = async (event) => {
   }
 
   const now = Date.now();
+  await ensureCollection(COLL);
   const exist = await db.collection(COLL).where({ kind, targetId }).limit(1).get();
   const rows = exist.data || [];
   if (rows.length) {

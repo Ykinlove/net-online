@@ -98,7 +98,7 @@ const BATCH50_EXTRA = [
     tip: 'vMotion 的问题九成是「网络没隔离」。迁移是突发大流量，和业务抢带宽必然导致抖动——给它一条独立的路，比调任何参数都有效。'
   },
   {
-    id: 'dc-cabling',
+    id: 'dc-cable-select',
     devs: ['Switch', '数据中心', '其他设备'],
     name: '高速线缆选型（DAC / AOC / 光模块）',
     kw: ['dac', 'aoc', '高速线缆', '光模块选型', '有源光缆', '直连铜缆', '25g 光模块'],
