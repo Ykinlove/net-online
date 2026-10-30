@@ -1,0 +1,40 @@
+/* pages/admin/admin.wxss */
+.admin-root { padding: 24rpx; min-height: 100vh; background: #0e1116; color: #e6edf3; box-sizing: border-box; }
+
+/* 口令锁 */
+.lock { padding-top: 120rpx; display: flex; flex-direction: column; align-items: center; }
+.lock-title { font-size: 40rpx; font-weight: 700; margin-bottom: 16rpx; }
+.lock-sub { font-size: 24rpx; color: #8b98a5; margin-bottom: 48rpx; text-align: center; padding: 0 40rpx; }
+.pass { width: 560rpx; height: 84rpx; background: #161b22; border: 1rpx solid #30363d; border-radius: 12rpx; padding: 0 24rpx; color: #e6edf3; margin-bottom: 32rpx; }
+.hint { font-size: 22rpx; color: #6e7681; margin-top: 40rpx; text-align: center; padding: 0 60rpx; line-height: 1.6; }
+
+/* 通用按钮 */
+.btn { background: #1f6feb; color: #fff; border-radius: 12rpx; font-size: 30rpx; }
+.btn.sm { width: 160rpx; height: 72rpx; line-height: 72rpx; margin: 0; }
+.btn.pub { margin-top: 40rpx; }
+
+/* 顶部 kind 切换 */
+.bar { display: flex; align-items: center; margin-bottom: 28rpx; }
+.kind { font-size: 28rpx; padding: 12rpx 28rpx; border: 1rpx solid #30363d; border-radius: 999rpx; margin-right: 16rpx; color: #8b98a5; }
+.kind.on { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+.logout { margin-left: auto; font-size: 26rpx; color: #6e7681; }
+
+/* 定位 */
+.locate { display: flex; align-items: center; margin-bottom: 28rpx; }
+.locate .q { flex: 1; height: 72rpx; background: #161b22; border: 1rpx solid #30363d; border-radius: 12rpx; padding: 0 24rpx; margin-right: 16rpx; }
+
+/* 字段 */
+.field { margin-bottom: 24rpx; }
+.lbl { display: block; font-size: 24rpx; color: #8b98a5; margin-bottom: 10rpx; }
+.val { background: #161b22; border: 1rpx solid #30363d; border-radius: 12rpx; padding: 16rpx 24rpx; color: #e6edf3; font-size: 28rpx; width: 100%; box-sizing: border-box; }
+.area { min-height: 120rpx; }
+
+/* cmds */
+.cmds { margin-bottom: 24rpx; }
+.cmd-block { background: #161b22; border: 1rpx solid #30363d; border-radius: 12rpx; padding: 16rpx; margin-bottom: 16rpx; }
+.vendor { font-size: 24rpx; color: #58a6ff; margin-bottom: 10rpx; }
+.code { width: 100%; min-height: 200rpx; color: #e6edf3; font-size: 24rpx; font-family: monospace; box-sizing: border-box; }
+
+.id { font-size: 26rpx; color: #58a6ff; margin-bottom: 12rpx; word-break: break-all; }
+.warn { font-size: 22rpx; color: #d29922; background: rgba(210,153,34,0.12); padding: 12rpx 16rpx; border-radius: 8rpx; margin-bottom: 20rpx; }
+.ok { font-size: 26rpx; color: #3fb950; margin-top: 20rpx; text-align: center; }

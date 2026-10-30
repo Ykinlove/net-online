@@ -1,0 +1,60 @@
+<!-- pages/admin/admin.wxml —— 内容管理发布页 -->
+<view class="admin-root">
+
+  <!-- 未解锁：口令 -->
+  <view wx:if="{{!unlocked}}" class="lock">
+    <view class="lock-title">内容管理（作者）</view>
+    <view class="lock-sub">发布到云端后，用户无需更新小程序即可看到修正</view>
+    <input class="pass" placeholder="请输入管理口令" value="{{passInput}}" bindinput="onPassInput" password/>
+    <button class="btn" bindtap="unlock">进入</button>
+    <view class="hint">口令在 admin.js 的 ADMIN_PASS 配置；正式运营建议改用云函数鉴权。</view>
+  </view>
+
+  <!-- 已解锁：编辑 -->
+  <view wx:else class="panel">
+    <view class="bar">
+      <text class="kind {{kind==='book'?'on':''}}" data-kind="book" bindtap="onKindChange">命令百科</text>
+      <text class="kind {{kind==='tpl'?'on':''}}" data-kind="tpl" bindtap="onKindChange">模板</text>
+      <text class="logout" bindtap="logout">退出</text>
+    </view>
+
+    <view class="locate">
+      <input class="q" placeholder="输入条目 id 或关键词" value="{{query}}" bindinput="onQuery"/>
+      <button class="btn sm" bindtap="locate">定位</button>
+    </view>
+
+    <block wx:if="{{found}}">
+      <view class="id">ID：{{foundId}}</view>
+      <view wx:if="{{existingPatch}}" class="warn">⚠ 该条目已有云端覆盖，下方展示的是覆盖后的值。</view>
+
+      <view class="field">
+        <text class="lbl">名称</text>
+        <input class="val" value="{{editName}}" bindinput="onName"/>
+      </view>
+      <view class="field">
+        <text class="lbl">别名 kw（逗号分隔）</text>
+        <input class="val" value="{{editKw}}" bindinput="onKw"/>
+      </view>
+      <view class="field">
+        <text class="lbl">易错点 tip</text>
+        <textarea class="val area" value="{{editTip}}" bindinput="onTip"/>
+      </view>
+
+      <view class="cmds">
+        <view wx:for="{{vendors}}" wx:key="vendor" class="cmd-block">
+          <view class="vendor">{{item.vendor}}</view>
+          <textarea class="code" value="{{item.code}}" data-i="{{index}}" bindinput="onVendorCode"/>
+        </view>
+      </view>
+
+      <view class="field">
+        <text class="lbl">发布备注（可选）</text>
+        <input class="val" value="{{note}}" bindinput="onNote"/>
+      </view>
+
+      <button class="btn pub" bindtap="publish">发布更新</button>
+      <view wx:if="{{published}}" class="ok">{{published}}</view>
+    </block>
+  </view>
+
+</view>

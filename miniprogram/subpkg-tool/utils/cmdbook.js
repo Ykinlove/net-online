@@ -11,6 +11,9 @@
 
 const VENDORS = ['华为', '思科', 'H3C', '锐捷'];
 
+/* 云端内容热更新：覆盖层。分包引主包公共资源。 */
+const hotfix = require('../../utils/hotfix.js');
+
 /* 扩充库分文件维护，避免单文件过大 */
 const { BASIC_EXTRA } = require('./cmdbook-basic.js');
 const { NET_EXTRA } = require('./cmdbook-net.js');
@@ -659,20 +662,25 @@ function expand(words) {
  * 避免 298 条 × 4 组命令每次都重新拼串、重新编译正则。
  */
 let IDX = null;
+let IDX_VER = -1;
 function buildIndex() {
-  if (IDX) return IDX;
+  /* 云端热更新拉到新数据后 version 会变，这里据此失效索引。
+     没有覆盖时 applyPatch 原样返回，性能开销可忽略（且只在 version 变化时重建）。 */
+  if (IDX && IDX_VER === hotfix.version()) return IDX;
   IDX = BOOK.map(function (it) {
+    const p = hotfix.applyPatch(it, 'book');
     return {
-      it: it,
-      name: it.name.toLowerCase(),
-      kws: it.kw.join(' ').toLowerCase(),
+      it: p,
+      name: p.name.toLowerCase(),
+      kws: (p.kw || []).join(' ').toLowerCase(),
       /* 去掉空格版本：查「整句原话」时用，避免「OSPF 邻居起不来」
          因为标题里多一个空格就判不中 */
-      ns: it.name.toLowerCase().replace(/\s+/g, ''),
-      klist: it.kw.map(function (k) { return String(k).toLowerCase().replace(/\s+/g, ''); }),
-      body: it.cmds.map(function (c) { return c[1]; }).join('\n').toLowerCase()
+      ns: p.name.toLowerCase().replace(/\s+/g, ''),
+      klist: (p.kw || []).map(function (k) { return String(k).toLowerCase().replace(/\s+/g, ''); }),
+      body: (p.cmds || []).map(function (c) { return c[1]; }).join('\n').toLowerCase()
     };
   });
+  IDX_VER = hotfix.version();
   return IDX;
 }
 
@@ -1228,8 +1236,9 @@ function search(kw, dev) {
  *   3. 只命中一部分 → 弱匹配，只在没有更强结果时补位
  */
 let TPL_INDEX = null;
+let TPL_VER = -1;
 function tplIndex() {
-  if (TPL_INDEX) return TPL_INDEX;
+  if (TPL_INDEX && TPL_VER === hotfix.version()) return TPL_INDEX;
   let list = [];
   try {
     /* tplbook 在主包，分包可引用主包公共资源。
@@ -1241,12 +1250,13 @@ function tplIndex() {
     list = [];
   }
   TPL_INDEX = list.map(function (t) {
-    const name = String(t.name || '').toLowerCase();
-    const cat = String(t.cat || '').toLowerCase();
-    const note = String(t.note || '').toLowerCase();
-    const kw = (t.kw || []).map(function (x) { return String(x).toLowerCase(); });
+    const p = hotfix.applyPatch(t, 'tpl');
+    const name = String(p.name || '').toLowerCase();
+    const cat = String(p.cat || '').toLowerCase();
+    const note = String(p.note || '').toLowerCase();
+    const kw = (p.kw || []).map(function (x) { return String(x).toLowerCase(); });
     return {
-      it: t,
+      it: p,
       name: name,
       kw: kw,
       /* 四层匹配文本，命中时按层级给不同权重：
@@ -1257,6 +1267,7 @@ function tplIndex() {
       l3: name + '\n' + cat + '\n' + note
     };
   });
+  TPL_VER = hotfix.version();
   return TPL_INDEX;
 }
 

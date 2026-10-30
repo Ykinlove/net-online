@@ -22,5 +22,7 @@ App({
         this.globalData.envError = (e && e.message) || '云开发初始化失败';
       }
     }
+    /* 云端内容热更新：启动后台静默拉取补丁，不阻塞首屏 */
+    try { require('./utils/hotfix.js').refresh(); } catch (e) {}
   }
 });

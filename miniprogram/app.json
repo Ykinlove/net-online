@@ -49,7 +49,8 @@
         "pages/browse/browse",
         "pages/fav/fav",
         "pages/miss/miss",
-        "pages/templates/templates"
+        "pages/templates/templates",
+        "pages/admin/admin"
       ]
     },
     {
