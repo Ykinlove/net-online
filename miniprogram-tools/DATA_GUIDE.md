@@ -63,7 +63,7 @@ node miniprogram-tools/patch_kw.js
 python miniprogram-tools/ci.py
 ```
 
-11 项检查全绿再提交：源产物一致、源格式体检、语法检查、宽评测(690)、排序评测(56)、模板评测(29)、收藏分享(31)、基础清单(107)、页面冒烟(16)、条目数一致、体积上限。
+12 项检查全绿再提交：源产物一致、源格式体检、语法检查、宽评测(690)、排序评测(56)、模板评测(29)、收藏分享(31)、基础清单(107)、页面冒烟(17)、热更新覆盖层(16)、条目数一致、体积上限。
 
 快跑版（跳过宽评测，约省 5 秒）：`python miniprogram-tools/ci.py --fast`
 
@@ -117,7 +117,7 @@ python miniprogram-tools/ci.py
 | 脚本 | 作用 |
 |---|---|
 | `build_data.py` | 构建 / 校验 / 回灌（核心） |
-| `ci.py` | 一键回归 11 项 |
+| `ci.py` | 一键回归 12 项 |
 | `check_src_style.py` | 源排版体检 |
 | `normalize_src.py` | 长 kw 数组折行 |
 | `normalize_tpl.py` | tplbook 字段拆行 |
@@ -127,3 +127,68 @@ python miniprogram-tools/ci.py
 | `patch_kw.js` | 批量补 kw（只改源） |
 | `add_tpl_kw.js` | 补模板 kw（只改源） |
 | `fix_orphan_devs.js` | 孤儿条目补设备分类（只改源） |
+
+---
+
+## 云端内容热更新（不发版改内容）
+
+### 解决什么
+
+小程序发版要走微信审核。某条命令的厂商写法变了、某个易错点 tip 要修正——
+如果只能等发版，用户要隔几天才能看到。热更新让作者改完**立刻**生效，用户下次打开就更新。
+
+### 架构
+
+```
+本地打包数据（data-src 构建产物，真源）
+        │ 运行时叠加
+        ▼
+云端 content_patch 集合（只存「覆盖记录」，不是全量）
+        ▲
+        │ 作者发布（小程序内管理页，直连数据库）
+        │
+    content_patch：{ _id, kind, targetId, patch:{name?,kw?,cmds?,tip?,note?}, updatedAt, remark? }
+```
+
+- **数据真源仍是本地包**。云端只存「某条条目要改哪几个字段」，运行时把覆盖记录叠加到
+  本地条目的副本上，不污染包内常量，断网也能用本地缓存。
+- **裸连数据库**（和 store.js 同风格），不引入云函数，零部署门槛。
+- **只做字段修正**：覆盖已有条目的 name/kw/cmds/tip/note 等，不新增、不删除条目、不引入
+  包里没有的 id。
+
+### 三个角色
+
+| 文件 | 作用 |
+|---|---|
+| `miniprogram/utils/hotfix.js` | 消费端：拉取 / 缓存 / 覆盖层 / 失效索引 / 发布 |
+| `miniprogram/subpkg-tool/utils/cmdbook.js` | 在 `buildIndex`/`tplIndex` 构造条目时调用 `hotfix.applyPatch`，并以 `hotfix.version()` 失效缓存 |
+| `miniprogram/subpkg-tool/pages/admin/admin` | 作者发布页（口令保护） |
+| `miniprogram/app.js` | `onLaunch` 里 `hotfix.refresh()` 后台静默拉取 |
+
+### 数据流
+
+1. 作者进「我的 → 内容管理（作者）」，输入口令（默认 `net-admin-2026`，见 `admin.js` 的 `ADMIN_PASS`）
+2. 按 id / 关键词定位一条命令百科或模板，改字段 → 「发布更新」
+3. `hotfix.publishPatch` 把改动（只传被改的字段）写入 `content_patch` 集合，并**立即合并到本地内存**，作者当场就能在搜索/详情看到
+4. 用户端下次冷启动，`app.js` 的 `hotfix.refresh()` 后台拉取 `updatedAt` 之后的增量，合并进内存 + 本地缓存
+5. `cmdbook` 的索引因 `hotfix.version()` 变化而失效重建，搜索 / 列表 / 详情 / 分类**全都反映最新内容**
+
+### 首次部署（一次性）
+
+1. 云开发控制台 → 数据库 → 新建集合 `content_patch`
+2. 集合权限设为 **「所有用户可读，仅创建者可写」**（普通用户要读补丁做热更新；只有发布者能写）
+3. 用发布账号打开小程序，走一遍上面的发布流程验证
+
+### 注意事项
+
+- **口令是弱保护**，适合个人开发者。正式运营应改成云函数鉴权（校验 openid 是否在白名单），
+  否则任何拿到口令的人都能改补丁。
+- 发布用 `updatedAt` 做增量拉取；同一条目的多次发布，云端按 `kind + targetId` 唯一更新（后者覆盖前者）。
+- 改了本地包数据（`data-src`）后照常 `build_data.py build`；热更新覆盖层只在「不重新发版」的场景用。
+  两者不冲突：包内数据是基础真源，云端补丁是临时修正层。
+- `remark` 是发布备注（记录元数据），与条目自身的 `note`（模板说明）字段不同，别混淆。
+
+### 评测
+
+`node miniprogram-tools/eval_hotfix.js`：覆盖层合并、搜索反映、不污染原始数据、ingest 逻辑，16 项。
+

@@ -171,6 +171,7 @@ def main():
     run('收藏分享', ['node', os.path.join(HERE, 'eval_fav_share.js')])
     run('基础清单', ['node', os.path.join(HERE, 'basics_check.js')])
     run('页面冒烟', ['node', os.path.join(HERE, 'smoke_pages.js')])
+    run('热更新覆盖层', ['node', os.path.join(HERE, 'eval_hotfix.js')])
     run('条目数一致', ['node', os.path.join(HERE, 'sync_book_count.js'), '--check'])
 
     # 11 体积
