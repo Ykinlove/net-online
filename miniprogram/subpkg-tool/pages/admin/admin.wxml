@@ -1,60 +1,162 @@
-<!-- pages/admin/admin.wxml —— 内容管理发布页 -->
-<view class="admin-root">
+<!-- pages/admin/admin.wxml —— 内容管理（作者） -->
+<view class="page admin-page">
 
-  <!-- 未解锁：口令 -->
-  <view wx:if="{{!unlocked}}" class="lock">
-    <view class="lock-title">内容管理（作者）</view>
-    <view class="lock-sub">发布到云端后，用户无需更新小程序即可看到修正</view>
-    <input class="pass" placeholder="请输入管理口令" value="{{passInput}}" bindinput="onPassInput" password/>
-    <button class="btn" bindtap="unlock">进入</button>
-    <view class="hint">口令在 admin.js 的 ADMIN_PASS 配置；正式运营建议改用云函数鉴权。</view>
+  <!-- 未解锁：口令卡片 -->
+  <view wx:if="{{!unlocked}}" class="lock-wrap">
+    <view class="card lock-card">
+      <view class="lock-badge">🔐</view>
+      <text class="lock-title">内容管理（作者）</text>
+      <text class="lock-sub">发布到云端后，用户无需更新小程序即可看到修正</text>
+      <input class="input lock-input" placeholder="请输入管理口令" placeholder-class="input-placeholder"
+             value="{{passInput}}" bindinput="onPassInput" password/>
+      <button class="btn btn-primary btn-block lock-btn" bindtap="unlock">进入管理</button>
+      <text class="hint">口令在 admin.js 的 ADMIN_PASS 配置；正式运营建议改用云函数鉴权。</text>
+    </view>
   </view>
 
-  <!-- 已解锁：编辑 -->
-  <view wx:else class="panel">
-    <view class="bar">
-      <text class="kind {{kind==='book'?'on':''}}" data-kind="book" bindtap="onKindChange">命令百科</text>
-      <text class="kind {{kind==='tpl'?'on':''}}" data-kind="tpl" bindtap="onKindChange">模板</text>
-      <text class="logout" bindtap="logout">退出</text>
+  <!-- 已解锁：工作台 -->
+  <block wx:else>
+    <!-- 头部卡片 -->
+    <view class="card head-card">
+      <view class="head-row">
+        <text class="card-title">🛠 内容管理</text>
+        <text class="logout" bindtap="logout">退出 ›</text>
+      </view>
+      <text class="head-sub">云端热更新 · 改完即生效，无需发版审核</text>
     </view>
 
-    <view class="locate">
-      <input class="q" placeholder="输入条目 id 或关键词" value="{{query}}" bindinput="onQuery"/>
-      <button class="btn sm" bindtap="locate">定位</button>
+    <!-- 主功能切换 -->
+    <view class="seg tab-seg">
+      <text class="seg-item {{tab==='edit'?'on':''}}" data-tab="edit" bindtap="onTab">✏️ 编辑发布</text>
+      <text class="seg-item {{tab==='review'?'on':''}}" data-tab="review" bindtap="onTab">📥 待审核{{pending.length?'（'+pending.length+'）':''}}</text>
     </view>
 
+    <!-- 编辑发布区 -->
+    <block wx:if="{{tab==='edit'}}">
+    <!-- 类型切换 -->
+    <view class="seg">
+      <text class="seg-item {{kind==='book'?'on':''}}" data-kind="book" bindtap="onKindChange">命令百科</text>
+      <text class="seg-item {{kind==='tpl'?'on':''}}" data-kind="tpl" bindtap="onKindChange">配置模板</text>
+    </view>
+
+    <!-- 定位条目 -->
+    <view class="card">
+      <view class="card-title-row">
+        <text class="card-title">🔎 定位条目</text>
+      </view>
+      <view class="locate">
+        <input class="input locate-input" placeholder="输入条目 id 或关键词" placeholder-class="input-placeholder"
+               value="{{query}}" bindinput="onQuery"/>
+        <button class="btn btn-sm locate-btn" bindtap="locate">定位</button>
+      </view>
+    </view>
+
+    <!-- 定位后编辑区 -->
     <block wx:if="{{found}}">
-      <view class="id">ID：{{foundId}}</view>
-      <view wx:if="{{existingPatch}}" class="warn">⚠ 该条目已有云端覆盖，下方展示的是覆盖后的值。</view>
 
-      <view class="field">
-        <text class="lbl">名称</text>
-        <input class="val" value="{{editName}}" bindinput="onName"/>
-      </view>
-      <view class="field">
-        <text class="lbl">别名 kw（逗号分隔）</text>
-        <input class="val" value="{{editKw}}" bindinput="onKw"/>
-      </view>
-      <view class="field">
-        <text class="lbl">易错点 tip</text>
-        <textarea class="val area" value="{{editTip}}" bindinput="onTip"/>
+      <!-- 身份卡 -->
+      <view class="card id-card">
+        <view class="id-row">
+          <text class="id-badge {{foundKind==='book'?'badge-book':'badge-tpl'}}">{{foundKind==='book'?'百科':'模板'}}</text>
+          <text class="id-text">ID：{{foundId}}</text>
+        </view>
+        <view wx:if="{{existingPatch}}" class="warn">⚠ 该条目已有云端覆盖，下方展示的是覆盖后的值；发布将更新这条覆盖。</view>
       </view>
 
-      <view class="cmds">
-        <view wx:for="{{vendors}}" wx:key="vendor" class="cmd-block">
-          <view class="vendor">{{item.vendor}}</view>
-          <textarea class="code" value="{{item.code}}" data-i="{{index}}" bindinput="onVendorCode"/>
+      <!-- 命令百科编辑 -->
+      <view wx:if="{{foundKind==='book'}}" class="card">
+        <view class="card-title-row"><text class="card-title">✏️ 编辑命令百科</text></view>
+
+        <view class="field">
+          <text class="field-label">名称</text>
+          <input class="input" value="{{bName}}" bindinput="onBName" placeholder="功能点名称" placeholder-class="input-placeholder"/>
+        </view>
+        <view class="field">
+          <text class="field-label">别名 / 同义词（逗号分隔）</text>
+          <input class="input" value="{{bKw}}" bindinput="onBKw" placeholder="别名" placeholder-class="input-placeholder"/>
+        </view>
+        <view class="field">
+          <text class="field-label">易错点 tip</text>
+          <textarea class="textarea" value="{{bTip}}" bindinput="onBTip" placeholder="最容易记混的地方" placeholder-class="input-placeholder"/>
+        </view>
+
+        <text class="field-label">厂商命令（{{bVendors.length}} 家）</text>
+        <view wx:for="{{bVendors}}" wx:key="vendor" class="vendor-card">
+          <view class="vendor-head">
+            <text class="vendor-name">{{item.vendor}}</text>
+          </view>
+          <textarea class="textarea mono vendor-code" value="{{item.code}}" data-i="{{index}}"
+                    bindinput="onBCode" placeholder="命令" placeholder-class="input-placeholder"/>
         </view>
       </view>
 
-      <view class="field">
-        <text class="lbl">发布备注（可选）</text>
-        <input class="val" value="{{note}}" bindinput="onNote"/>
+      <!-- 配置模板编辑 -->
+      <view wx:else class="card">
+        <view class="card-title-row"><text class="card-title">✏️ 编辑配置模板</text></view>
+
+        <view class="field">
+          <text class="field-label">模板名称</text>
+          <input class="input" value="{{tName}}" bindinput="onTName" placeholder="模板名称" placeholder-class="input-placeholder"/>
+        </view>
+        <view class="field">
+          <text class="field-label">分类 cat</text>
+          <input class="input" value="{{tCat}}" bindinput="onTCat" placeholder="如：开局模板 / 安全模板" placeholder-class="input-placeholder"/>
+        </view>
+        <view class="field">
+          <text class="field-label">别名 / 关键词（逗号分隔）</text>
+          <input class="input" value="{{tKw}}" bindinput="onTKw" placeholder="别名" placeholder-class="input-placeholder"/>
+        </view>
+        <view class="field">
+          <text class="field-label">厂商 vendor</text>
+          <input class="input" value="{{tVendor}}" bindinput="onTVendor" placeholder="如：华为 VRP8" placeholder-class="input-placeholder"/>
+        </view>
+        <view class="field">
+          <text class="field-label">命令 code</text>
+          <textarea class="textarea mono" value="{{tCode}}" bindinput="onTCode" placeholder="模板命令" placeholder-class="input-placeholder"/>
+        </view>
+        <view class="field">
+          <text class="field-label">排障说明 note</text>
+          <textarea class="textarea" value="{{tNote}}" bindinput="onTNote" placeholder="排障说明" placeholder-class="input-placeholder"/>
+        </view>
       </view>
 
-      <button class="btn pub" bindtap="publish">发布更新</button>
-      <view wx:if="{{published}}" class="ok">{{published}}</view>
+      <!-- 发布 -->
+      <view class="card">
+        <view class="card-title-row"><text class="card-title">🚀 发布到云端</text></view>
+        <view class="field">
+          <text class="field-label">发布备注（可选）</text>
+          <input class="input" value="{{note}}" bindinput="onNote" placeholder="这次改了什么" placeholder-class="input-placeholder"/>
+        </view>
+        <button class="btn btn-primary btn-block" bindtap="publish">发布更新</button>
+        <view wx:if="{{published}}" class="ok">{{published}}</view>
+      </view>
+
     </block>
-  </view>
+    </block>
+
+    <!-- 待审核区 -->
+    <block wx:if="{{tab==='review'}}">
+      <view class="card">
+        <view class="card-title-row"><text class="card-title">📥 待审核投稿</text></view>
+        <view wx:if="{{pendingLoading}}" class="muted" style="padding:20rpx 0;">加载中…</view>
+        <view wx:if="{{pendingErr}}" class="err">{{pendingErr}}</view>
+        <view wx:if="{{!pendingLoading && !pendingErr && !pending.length}}" class="empty">暂无待审核投稿</view>
+
+        <view wx:for="{{pending}}" wx:key="_id" class="review-card">
+          <view class="review-head">
+            <text class="id-badge {{item.kind==='book'?'badge-book':'badge-tpl'}}">{{item.kind==='book'?'百科':'模板'}}</text>
+            <text class="review-type">{{item.type==='add'?'新增':'修改'}}</text>
+            <text class="review-title">{{item.title}}</text>
+          </view>
+          <view wx:if="{{item.targetId}}" class="review-target">目标 ID：{{item.targetId}}</view>
+          <text class="review-summary">{{item.summary}}</text>
+          <view class="review-actions">
+            <button class="btn btn-sm review-ok" data-id="{{item._id}}" bindtap="approve">通过</button>
+            <button class="btn btn-sm btn-danger review-no" data-id="{{item._id}}" bindtap="reject">驳回</button>
+          </view>
+        </view>
+      </view>
+    </block>
+  </block>
 
 </view>

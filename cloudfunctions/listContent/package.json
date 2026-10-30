@@ -1,0 +1,9 @@
+{
+  "name": "listContent",
+  "version": "1.0.0",
+  "description": "客户端统一拉取云端内容（覆盖记录 + 已批准新增）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -663,23 +663,44 @@ function expand(words) {
  */
 let IDX = null;
 let IDX_VER = -1;
+
+/* 单条百科条目 → 索引结构（本地条目与云端新增条目共用）。 */
+function indexBook(p) {
+  return {
+    it: p,
+    name: p.name.toLowerCase(),
+    kws: (p.kw || []).join(' ').toLowerCase(),
+    /* 去掉空格版本：查「整句原话」时用，避免「OSPF 邻居起不来」
+       因为标题里多一个空格就判不中 */
+    ns: p.name.toLowerCase().replace(/\s+/g, ''),
+    klist: (p.kw || []).map(function (k) { return String(k).toLowerCase().replace(/\s+/g, ''); }),
+    body: (p.cmds || []).map(function (c) { return c[1]; }).join('\n').toLowerCase()
+  };
+}
+
 function buildIndex() {
   /* 云端热更新拉到新数据后 version 会变，这里据此失效索引。
      没有覆盖时 applyPatch 原样返回，性能开销可忽略（且只在 version 变化时重建）。 */
   if (IDX && IDX_VER === hotfix.version()) return IDX;
-  IDX = BOOK.map(function (it) {
-    const p = hotfix.applyPatch(it, 'book');
-    return {
-      it: p,
-      name: p.name.toLowerCase(),
-      kws: (p.kw || []).join(' ').toLowerCase(),
-      /* 去掉空格版本：查「整句原话」时用，避免「OSPF 邻居起不来」
-         因为标题里多一个空格就判不中 */
-      ns: p.name.toLowerCase().replace(/\s+/g, ''),
-      klist: (p.kw || []).map(function (k) { return String(k).toLowerCase().replace(/\s+/g, ''); }),
-      body: (p.cmds || []).map(function (c) { return c[1]; }).join('\n').toLowerCase()
-    };
+
+  const base = BOOK.map(function (it) {
+    return indexBook(hotfix.applyPatch(it, 'book'));
   });
+
+  /* 合并云端「已批准新增条目」（社区投稿审核通过后、本地包还没有的新条目）。
+     本地已有同名 id 时本地优先，跳过云端新增，避免重复。 */
+  const extras = hotfix.getAllExtras('book');
+  const seen = {};
+  BOOK.forEach(function (it) { seen[it.id] = 1; });
+  extras.forEach(function (it) {
+    if (!it || !it.id || seen[it.id]) return;
+    if (!Array.isArray(it.devs) || !it.devs.length) {
+      it.devs = ['Switch', 'Router', 'AC', 'AP', '防火墙'];
+    }
+    base.push(indexBook(it));
+  });
+
+  IDX = base;
   IDX_VER = hotfix.version();
   return IDX;
 }
@@ -1249,26 +1270,42 @@ function tplIndex() {
   } catch (e) {
     list = [];
   }
-  TPL_INDEX = list.map(function (t) {
+  const base = list.map(function (t) {
     const p = hotfix.applyPatch(t, 'tpl');
-    const name = String(p.name || '').toLowerCase();
-    const cat = String(p.cat || '').toLowerCase();
-    const note = String(p.note || '').toLowerCase();
-    const kw = (p.kw || []).map(function (x) { return String(x).toLowerCase(); });
-    return {
-      it: p,
-      name: name,
-      kw: kw,
-      /* 四层匹配文本，命中时按层级给不同权重：
-         kw（用户明确搜的说法）> name > cat > note */
-      l0: kw.join('\n'),
-      l1: name,
-      l2: name + '\n' + cat,
-      l3: name + '\n' + cat + '\n' + note
-    };
+    return indexTpl(p);
   });
+
+  /* 合并云端「已批准新增模板」。本地已有同名 id 时本地优先。 */
+  const extras = hotfix.getAllExtras('tpl');
+  const seen = {};
+  list.forEach(function (t) { seen[t.id] = 1; });
+  extras.forEach(function (it) {
+    if (!it || !it.id || seen[it.id]) return;
+    base.push(indexTpl(it));
+  });
+
+  TPL_INDEX = base;
   TPL_VER = hotfix.version();
   return TPL_INDEX;
+}
+
+/* 单条模板 → 索引结构（本地条目与云端新增条目共用）。 */
+function indexTpl(p) {
+  const name = String(p.name || '').toLowerCase();
+  const cat = String(p.cat || '').toLowerCase();
+  const note = String(p.note || '').toLowerCase();
+  const kw = (p.kw || []).map(function (x) { return String(x).toLowerCase(); });
+  return {
+    it: p,
+    name: name,
+    kw: kw,
+    /* 四层匹配文本，命中时按层级给不同权重：
+       kw（用户明确搜的说法）> name > cat > note */
+    l0: kw.join('\n'),
+    l1: name,
+    l2: name + '\n' + cat,
+    l3: name + '\n' + cat + '\n' + note
+  };
 }
 
 /** 一个词组在四层文本里的命中强度：4=kw 3=名称 2=分类 1=说明 0=没中 */

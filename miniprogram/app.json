@@ -50,7 +50,8 @@
         "pages/fav/fav",
         "pages/miss/miss",
         "pages/templates/templates",
-        "pages/admin/admin"
+        "pages/admin/admin",
+        "pages/contribute/contribute"
       ]
     },
     {

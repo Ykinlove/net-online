@@ -18,6 +18,9 @@
     9. 页面冒烟            smoke_pages.js     （16 页）
     10. 条目数一致         sync_book_count.js --check
     11. 体积上限           主包 ≤ 2MB / 各分包 ≤ 2MB / 总计 ≤ 20MB
+    12. 云端新增合并       eval_extras.js    （extra_items 合并到搜索/分类/详情）
+    13. 投稿页数据链路     eval_admin.js      （定位→灌字段→增量 diff，含模板修复）
+    14. 云函数/投稿结构     cloudfunctions x4 + 投稿页 + contrib.js 齐备
 """
 import io, os, re, subprocess, sys, time
 
@@ -144,6 +147,51 @@ def check_size():
     return ok
 
 
+def check_structure():
+    """云函数 / 投稿页 / 客户端投稿模块 结构完整性检查。"""
+    import json
+    problems = []
+
+    # app.json 必须声明投稿页与管理页
+    app_json = os.path.join(MP, 'app.json')
+    with io.open(app_json, encoding='utf-8') as f:
+        app = json.load(f)
+    all_pages = list(app.get('pages', []))
+    for sp in (app.get('subpackages') or app.get('subPackages') or []):
+        root = (sp.get('root') or '').rstrip('/')
+        for p in sp.get('pages', []):
+            all_pages.append((root + '/' + p) if root else p)
+
+    def is_registered(need):
+        for p in all_pages:
+            if p == need or p.endswith('/' + need):
+                return True
+        return False
+
+    for need in ['pages/contribute/contribute', 'pages/admin/admin']:
+        if not is_registered(need):
+            problems.append('app.json 未注册页面：' + need)
+
+    # 客户端投稿模块
+    if not os.path.isfile(os.path.join(MP, 'utils', 'contrib.js')):
+        problems.append('缺少客户端模块：miniprogram/utils/contrib.js')
+
+    # 四个云函数：每个都要有 index.js + package.json
+    cf_root = os.path.join(ROOT, 'cloudfunctions')
+    for fn in ['publishContent', 'submitContribution', 'listContent', 'reviewContribution']:
+        d = os.path.join(cf_root, fn)
+        if not os.path.isfile(os.path.join(d, 'index.js')):
+            problems.append('云函数缺失 index.js：cloudfunctions/%s' % fn)
+        if not os.path.isfile(os.path.join(d, 'package.json')):
+            problems.append('云函数缺失 package.json：cloudfunctions/%s' % fn)
+
+    if problems:
+        results.append(('云函数/投稿结构', False, 1, '\n'.join('  ' + p for p in problems), 0))
+    else:
+        results.append(('云函数/投稿结构', True, 0, '  cloudfunctions x4 + 投稿页 + contrib.js 均齐备', 0))
+    return not problems
+
+
 def main():
     print('=' * 62)
     print('  Net 操作命令速记 —— 一键回归')
@@ -172,7 +220,12 @@ def main():
     run('基础清单', ['node', os.path.join(HERE, 'basics_check.js')])
     run('页面冒烟', ['node', os.path.join(HERE, 'smoke_pages.js')])
     run('热更新覆盖层', ['node', os.path.join(HERE, 'eval_hotfix.js')])
+    run('投稿页数据链路', ['node', os.path.join(HERE, 'eval_admin.js')])
+    run('云端新增合并', ['node', os.path.join(HERE, 'eval_extras.js')])
     run('条目数一致', ['node', os.path.join(HERE, 'sync_book_count.js'), '--check'])
+
+    # 12 云函数 / 投稿页结构
+    check_structure()
 
     # 11 体积
     check_size()

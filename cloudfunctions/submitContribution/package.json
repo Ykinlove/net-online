@@ -1,0 +1,9 @@
+{
+  "name": "submitContribution",
+  "version": "1.0.0",
+  "description": "普通用户提交内容投稿",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

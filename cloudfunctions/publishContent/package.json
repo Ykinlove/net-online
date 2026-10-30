@@ -1,0 +1,9 @@
+{
+  "name": "publishContent",
+  "version": "1.0.0",
+  "description": "作者发布内容覆盖记录（openid 白名单鉴权）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

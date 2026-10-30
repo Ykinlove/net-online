@@ -1,0 +1,117 @@
+<!-- pages/contribute/contribute.wxml —— 社区投稿 -->
+<view class="page contribute-page">
+
+  <!-- 头部 -->
+  <view class="card head-card">
+    <text class="card-title">📝 贡献内容</text>
+    <text class="head-sub">新增或修正命令百科 / 配置模板，提交后由作者审核，通过即生效。</text>
+  </view>
+
+  <!-- 类型 + 类别 -->
+  <view class="card">
+    <view class="field">
+      <text class="field-label">投稿类型</text>
+      <view class="seg">
+        <text class="seg-item {{type==='add'?'on':''}}" data-t="add" bindtap="onType">新增条目</text>
+        <text class="seg-item {{type==='edit'?'on':''}}" data-t="edit" bindtap="onType">修改已有</text>
+      </view>
+    </view>
+    <view class="field">
+      <text class="field-label">内容类别</text>
+      <view class="seg">
+        <text class="seg-item {{kind==='book'?'on':''}}" data-k="book" bindtap="onKind">命令百科</text>
+        <text class="seg-item {{kind==='tpl'?'on':''}}" data-k="tpl" bindtap="onKind">配置模板</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 修改类：定位 -->
+  <view wx:if="{{type==='edit'}}" class="card">
+    <view class="card-title-row"><text class="card-title">🔎 定位要修改的条目</text></view>
+    <view class="locate">
+      <input class="input locate-input" placeholder="输入 id 或关键词" placeholder-class="input-placeholder"
+             value="{{query}}" bindinput="onQuery"/>
+      <button class="btn btn-sm locate-btn" bindtap="locate">定位</button>
+    </view>
+    <view wx:if="{{locatedId}}" class="locate-ok">已定位：{{locatedId}}（改完直接提交即可）</view>
+  </view>
+
+  <!-- 命令百科表单 -->
+  <view wx:if="{{kind==='book'}}" class="card">
+    <view class="card-title-row"><text class="card-title">📘 命令百科</text></view>
+
+    <view class="field">
+      <text class="field-label">名称<text class="req"> *</text></text>
+      <input class="input" value="{{bName}}" bindinput="onBName" placeholder="功能点名称" placeholder-class="input-placeholder"/>
+    </view>
+    <view class="field">
+      <text class="field-label">别名 / 同义词（逗号分隔）</text>
+      <input class="input" value="{{bKw}}" bindinput="onBKw" placeholder="别名" placeholder-class="input-placeholder"/>
+    </view>
+    <view class="field">
+      <text class="field-label">易错点 tip</text>
+      <textarea class="textarea" value="{{bTip}}" bindinput="onBTip" placeholder="最容易记混的地方" placeholder-class="input-placeholder"/>
+    </view>
+
+    <text class="field-label">厂商命令（{{bVendors.length}}）<text wx:if="{{type==='add'}}"> · <text class="add-link" bindtap="addVendor">+ 添加厂商</text></text></text>
+    <view wx:for="{{bVendors}}" wx:key="index" class="vendor-card">
+      <view class="vendor-head">
+        <input class="input vendor-name-input" value="{{item.vendor}}" data-i="{{index}}" bindinput="onBVendor" placeholder="厂商，如：华为" placeholder-class="input-placeholder"/>
+        <text wx:if="{{type==='add' && bVendors.length>1}}" class="vendor-del" data-i="{{index}}" bindtap="delVendor">删除</text>
+      </view>
+      <textarea class="textarea mono vendor-code" value="{{item.code}}" data-i="{{index}}" bindinput="onBCode" placeholder="命令" placeholder-class="input-placeholder"/>
+    </view>
+
+    <view wx:if="{{type==='add'}}" class="field">
+      <text class="field-label">适用设备（逗号分隔，留空默认全部）</text>
+      <input class="input" value="{{bDevs}}" bindinput="onBDevs" placeholder="Switch, Router, AC, AP, 防火墙" placeholder-class="input-placeholder"/>
+    </view>
+  </view>
+
+  <!-- 配置模板表单 -->
+  <view wx:else class="card">
+    <view class="card-title-row"><text class="card-title">📋 配置模板</text></view>
+
+    <view class="field">
+      <text class="field-label">模板名称<text class="req"> *</text></text>
+      <input class="input" value="{{tName}}" bindinput="onTName" placeholder="模板名称" placeholder-class="input-placeholder"/>
+    </view>
+    <view class="field">
+      <text class="field-label">分类 cat</text>
+      <input class="input" value="{{tCat}}" bindinput="onTCat" placeholder="如：开局模板 / 安全模板" placeholder-class="input-placeholder"/>
+    </view>
+    <view class="field">
+      <text class="field-label">别名 / 关键词（逗号分隔）</text>
+      <input class="input" value="{{tKw}}" bindinput="onTKw" placeholder="别名" placeholder-class="input-placeholder"/>
+    </view>
+    <view class="field">
+      <text class="field-label">厂商 vendor</text>
+      <input class="input" value="{{tVendor}}" bindinput="onTVendor" placeholder="如：华为 VRP8" placeholder-class="input-placeholder"/>
+    </view>
+    <view class="field">
+      <text class="field-label">命令 code<text class="req"> *</text></text>
+      <textarea class="textarea mono" value="{{tCode}}" bindinput="onTCode" placeholder="模板命令" placeholder-class="input-placeholder"/>
+    </view>
+    <view class="field">
+      <text class="field-label">排障说明 note</text>
+      <textarea class="textarea" value="{{tNote}}" bindinput="onTNote" placeholder="排障说明" placeholder-class="input-placeholder"/>
+    </view>
+  </view>
+
+  <!-- 新增：可选 id -->
+  <view wx:if="{{type==='add'}}" class="card">
+    <view class="card-title-row"><text class="card-title">🆔 条目 ID（可选）</text></view>
+    <view class="field">
+      <text class="field-label">英文短名，留空自动生成</text>
+      <input class="input" value="{{newId}}" bindinput="onNewId" placeholder="如：bgp-graceful-restart" placeholder-class="input-placeholder"/>
+    </view>
+  </view>
+
+  <!-- 提交 -->
+  <view class="card">
+    <button class="btn btn-primary btn-block" bindtap="submit">提交审核</button>
+    <view wx:if="{{error}}" class="err">{{error}}</view>
+    <view wx:if="{{submitted}}" class="ok">{{submitted}}</view>
+  </view>
+
+</view>
