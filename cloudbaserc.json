@@ -1,0 +1,61 @@
+{
+  "envId": "net-online-d7g1ig4c6f07a8abb",
+  "framework": {
+    "name": "net-online-miniprogram",
+    "plugins": {
+      "client": {
+        "use": "@cloudbase/framework-plugin-website",
+        "inputs": {
+          "outputPath": "./dist",
+          "publicPath": "/"
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "name": "publishContent",
+      "timeout": 10,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "description": "作者发布内容覆盖记录（openid 白名单鉴权）",
+      "handler": "index.main",
+      "installDependency": true,
+      "envVariables": {
+        "ADMIN_OPENIDS": "__OPENID_A__,__OPENID_B__"
+      }
+    },
+    {
+      "name": "submitContribution",
+      "timeout": 10,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "description": "普通用户提交内容投稿",
+      "handler": "index.main",
+      "installDependency": true,
+      "envVariables": {}
+    },
+    {
+      "name": "listContent",
+      "timeout": 10,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "description": "客户端统一拉取云端内容（覆盖记录 + 已批准新增）",
+      "handler": "index.main",
+      "installDependency": true,
+      "envVariables": {}
+    },
+    {
+      "name": "reviewContribution",
+      "timeout": 10,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "description": "作者审核投稿（列出 / 通过 / 驳回）",
+      "handler": "index.main",
+      "installDependency": true,
+      "envVariables": {
+        "ADMIN_OPENIDS": "__OPENID_A__,__OPENID_B__"
+      }
+    }
+  ]
+}

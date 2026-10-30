@@ -5,6 +5,44 @@
 
 ---
 
+## ✅ 当前状态：已完成部署（2026-10-30）
+
+四个云函数已上线，环境变量已配好，集合权限已设好。**你不需要再手动部署了**。
+
+| 项 | 状态 |
+|---|---|
+| 四个云函数 | ✅ 全部 `Deployment completed`（Runtime: Nodejs20.19） |
+| `ADMIN_OPENIDS` | ✅ 已配置在 `publishContent` + `reviewContribution` |
+| 三个集合 | ✅ 已自动创建（`content_patch` / `extra_items` / `contributions`） |
+| 集合权限 | ✅ 三个都是 `READONLY`（所有用户可读，仅创建者可写） |
+| 端到端验证 | ✅ 写入 → `listContent` 拉取 → 数据正确返回 |
+
+**已配置的作者白名单**（两个都是本人账号）：
+
+```
+__OPENID_A__   ← "Yang" / 正元智慧集团（资料完整，主账号）
+__OPENID_B__   ← "Ykin" / 清华大学
+```
+
+> 改白名单：编辑 `cloudbaserc.json` 里的 `ADMIN_OPENIDS`，然后跑
+> `bash miniprogram-tools/deploy_cloud.sh`。
+
+### 以后改代码怎么重新部署
+
+```bash
+# 部署全部 4 个
+bash miniprogram-tools/deploy_cloud.sh
+
+# 只部署某一个
+bash miniprogram-tools/deploy_cloud.sh listContent
+```
+
+脚本会自动：部署代码 → 同步 `ADMIN_OPENIDS` 环境变量。
+
+> 需要先 `tcb login`（设备码扫码授权，一次就够，登录状态有效期约 30 天）。
+
+---
+
 ## 0. 先看这里：项目结构（重要）
 
 微信开发者工具要求 **小程序代码和云函数在同一个项目根目录下**，靠 `project.config.json`
@@ -51,7 +89,16 @@ net-online/                        ← 用开发者工具「打开这个目录�
 
 ## 2. 部署 4 个云函数
 
-**在开发者工具里操作（推荐）：**
+> ⚠️ **当前已经部署完成了**，下面这节是给「以后重新部署」或「换环境」时用的参考。
+
+**方式 0：一键脚本（推荐）**
+
+```bash
+bash miniprogram-tools/deploy_cloud.sh              # 全部 4 个
+bash miniprogram-tools/deploy_cloud.sh listContent  # 只部署某一个
+```
+
+**方式 A：在开发者工具里操作：**
 
 1. 左栏展开 `cloudfunctions` 目录。
 2. **右键 `publishContent` → 「上传并部署：云端安装依赖」**。
@@ -59,10 +106,27 @@ net-online/                        ← 用开发者工具「打开这个目录�
    - 等待 1～3 分钟，右下角会提示上传成功。
 3. 同样操作其余三个：`submitContribution`、`listContent`、`reviewContribution`。
 
-**在云开发控制台操作（备选）：**
+**方式 B：在云开发控制台操作（备选）：**
 
 1. 开发者工具顶部工具栏点「**云开发**」按钮打开控制台。
 2. 左栏「云函数」→ 「新建」，按上表逐个创建。
+
+**方式 C：命令行 tcb CLI（无需开发者工具）**
+
+```bash
+npm install -g @cloudbase/cli
+tcb login --flow device        # 扫码授权，一次就够
+tcb fn deploy listContent -e net-online-d7g1ig4c6f07a8abb \
+    --dir cloudfunctions/listContent --runtime Nodejs20.19 --force
+```
+
+> 环境变量用云 API 设（注意 `Variables` 是**数组**格式，`Namespace` 填环境 ID）：
+
+```bash
+tcb api scf UpdateFunctionConfiguration --api-version 2018-04-16 --json \
+  --body '{"Namespace":"net-online-d7g1ig4c6f07a8abb","FunctionName":"publishContent",
+           "Environment":{"Variables":[{"Key":"ADMIN_OPENIDS","Value":"oXXXX"}]}}'
+```
 
 **四个云函数的区别：**
 

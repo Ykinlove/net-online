@@ -348,4 +348,5 @@ ADMIN_OPENIDS = oxxxxxx1,oxxxxxxx2
 | `scan_dup_ids.js` | 扫描 data-src 真源里的重复 id（有重复返回退出码 1，CI 门禁） |
 | `analyze_dup.js` | 重复 id 详细分析（内容是否真的重复） |
 | `rename_dup_ids.js` | 按「保留较早批次原 id、较晚批次改名」执行去重 |
+| `deploy_cloud.sh` | 一键部署 4 个云函数 + 同步 `ADMIN_OPENIDS` 环境变量 |
 
