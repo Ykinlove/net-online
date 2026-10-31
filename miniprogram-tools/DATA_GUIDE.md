@@ -355,6 +355,60 @@ ADMIN_OPENIDS = oxxxxxx1,oxxxxxxx2
 | `verify_cloud.sh` | 云端全量自检（函数/环境变量/集合权限/鉴权/闭环，14 项） |
 | `verify_miniprogram.js` | 端侧自动化自检（入口/口令/待审核/云函数调用，22 项） |
 | `verify_contrib_flow.js` | 投稿闭环自检（发→审→生效→搜索命中→自动清理，24 项） |
+| `upload.sh` / `upload.bat` | 一键上传代码到微信后台（绕过 GUI 上传弹窗，见下节） |
+
+---
+
+## 代码上传（发布）怎么走
+
+**推荐用脚本，不点 GUI 的「上传」按钮。**
+
+```bash
+bash miniprogram-tools/upload.sh              # 自动用上一版 +1
+bash miniprogram-tools/upload.sh 1.0.2 "改了什么"
+```
+
+Windows 双击 `miniprogram-tools/upload.bat` 同样可用（会 `pause`，方便看结果）。
+
+### 为什么不点 GUI 的「上传」
+
+微信开发者工具的「上传」弹窗在提交前有一道**纯前端拦截**：
+
+```js
+// app.asar 内开发者工具源码（上传弹窗组件）
+_getUploadQuery() {
+  if (!this.state.version) {            // ← 版本号为空
+    this.versionInput.focus();
+    this.setState({ versionError: true });
+    return;                             // ← 直接返回，一次请求都不发
+  }
+  ...
+}
+```
+
+版本号输入框的初始值取自「线上版本号 / 草稿版本号」：
+
+```js
+version: x(latestVersion?.version, project.uploadInfo?.version, updateType)
+// x() 在没有线上/草稿版本号时返回 ""  →  输入框是空的
+```
+
+于是**首次发布**（后台还没有任何版本）的小程序很容易踩到：点「上传」→ 版本号框是空的 → 被前端拦下 → **一个网络请求都不会发出**，开发者工具后端日志里连一条上传记录都没有，用户只看到「点了没反应 / 上传失败」。
+
+CLI 通道没有这道拦截，版本号直接透传给后端，所以脚本上传始终能成。
+
+### 包体积参考（2026-10-31 实测）
+
+| 包 | 大小 | 限制 |
+|---|---|---|
+| main | 1.3 MB | 2 MB |
+| /subpkg-tool/ | 1.5 MB | 2 MB（单分包） |
+| /subpkg-mine/ | 41.2 KB | 2 MB（单分包） |
+| **合计** | **2.8 MB** | 20 MB |
+
+> 上传体积超限会被拦在客户端，错误码 `CODE_SIZE_EXCEED`；
+> 单分包超限是 `DEV_COMPILE_SOURCE_MAX_LIMIT_SUBPKG`。
+
 
 ---
 

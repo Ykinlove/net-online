@@ -41,3 +41,6 @@ miniprogram-tools/.tmp-verify/
 
 # 开发者工具自动生成的本机私有配置（含本机路径，不应入库）
 project.private.config.json
+
+# 一键上传脚本记录的本地版本号
+miniprogram-tools/.last_upload_version
