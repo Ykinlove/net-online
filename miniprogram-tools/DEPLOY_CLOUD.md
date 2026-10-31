@@ -41,6 +41,26 @@ bash miniprogram-tools/deploy_cloud.sh listContent
 
 > 需要先 `tcb login`（设备码扫码授权，一次就够，登录状态有效期约 30 天）。
 
+### 自动验证脚本
+
+| 脚本 | 验证什么 | 前置 |
+|---|---|---|
+| `verify_cloud.sh` | 云端全量：函数状态 / 环境变量 / 集合权限 / 容错 / 鉴权 / 写入→拉取闭环（14 项） | `tcb login` |
+| `verify_miniprogram.js` | 端侧：入口路径 / 口令保护 / 待审核无报错 / 真实调云函数（22 项） | 开发者工具开着 + `cli.bat auto --auto-port 9420` |
+| `verify_contrib_flow.js` | 投稿闭环：发投稿 → 待审核可见 → 通过 → 云端写入（端侧真实操作） | 同上 |
+
+```bash
+# 云端
+bash miniprogram-tools/verify_cloud.sh
+
+# 端侧（先在开发者工具里开启服务端口 + cli auto）
+node miniprogram-tools/verify_miniprogram.js
+node miniprogram-tools/verify_contrib_flow.js
+```
+
+> 端侧脚本需要 `miniprogram-automator`，装在 `miniprogram-tools/.tmp-verify/`（已 gitignore）：
+> `npm install miniprogram-automator --no-save --prefix miniprogram-tools/.tmp-verify`
+
 ---
 
 ## 0. 先看这里：项目结构（重要）

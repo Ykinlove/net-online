@@ -78,7 +78,11 @@ function ingestExtras(records) {
     const it = r.item;
     if (!it || !it.id) return;
     if (!EXTRAS[kind]) EXTRAS[kind] = {};
-    EXTRAS[kind][it.id] = it;
+    /* 带上 approvedAt —— 增量游标 lastExtraUpdated() 靠它判断新旧，
+       漏掉会导致每次都全量拉取。 */
+    const merged = Object.assign({}, it);
+    if (r.approvedAt && !merged.approvedAt) merged.approvedAt = r.approvedAt;
+    EXTRAS[kind][it.id] = merged;
     changed = true;
   });
   if (changed) VERSION++;

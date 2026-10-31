@@ -35,3 +35,9 @@ published_check.html
 Thumbs.db
 *.log
 node_modules/
+
+# 端侧自动化验证的临时依赖（miniprogram-automator，约 20MB）
+miniprogram-tools/.tmp-verify/
+
+# 开发者工具自动生成的本机私有配置（含本机路径，不应入库）
+project.private.config.json

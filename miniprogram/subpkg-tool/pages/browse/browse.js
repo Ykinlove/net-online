@@ -34,6 +34,25 @@ Page({
     this.rebuild();
   },
 
+  onShow() {
+    /* 与搜索页同理：进浏览页时静默拉一次云端内容，
+       让作者新发布 / 审核通过的新条目能立刻出现在列表里。
+       拉到新数据才重建列表，避免无谓的刷新闪烁。 */
+    this.syncCloud();
+  },
+
+  async syncCloud() {
+    try {
+      const hotfix = require('../../../utils/hotfix.js');
+      const before = hotfix.version();
+      await hotfix.refresh();
+      if (hotfix.version() !== before) {
+        this.initCats();
+        this.rebuild();
+      }
+    } catch (e) { /* 云端不可用就用本地内容 */ }
+  },
+
   initCats() {
     const cats = cmdbook.categoryStats();
     const cur = cats.filter(c => c.key === this.data.cat)[0];

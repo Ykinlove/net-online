@@ -694,10 +694,15 @@ function buildIndex() {
   BOOK.forEach(function (it) { seen[it.id] = 1; });
   extras.forEach(function (it) {
     if (!it || !it.id || seen[it.id]) return;
-    if (!Array.isArray(it.devs) || !it.devs.length) {
-      it.devs = ['Switch', 'Router', 'AC', 'AP', '防火墙'];
+    /* approvedAt 是云端元数据（给增量游标用），不进条目本体 */
+    const clean = {};
+    Object.keys(it).forEach(function (k) {
+      if (k !== 'approvedAt') clean[k] = it[k];
+    });
+    if (!Array.isArray(clean.devs) || !clean.devs.length) {
+      clean.devs = ['Switch', 'Router', 'AC', 'AP', '防火墙'];
     }
-    base.push(indexBook(it));
+    base.push(indexBook(clean));
   });
 
   IDX = base;
@@ -1281,7 +1286,12 @@ function tplIndex() {
   list.forEach(function (t) { seen[t.id] = 1; });
   extras.forEach(function (it) {
     if (!it || !it.id || seen[it.id]) return;
-    base.push(indexTpl(it));
+    /* approvedAt 是云端元数据（给增量游标用），不进条目本体 */
+    const clean = {};
+    Object.keys(it).forEach(function (k) {
+      if (k !== 'approvedAt') clean[k] = it[k];
+    });
+    base.push(indexTpl(clean));
   });
 
   TPL_INDEX = base;

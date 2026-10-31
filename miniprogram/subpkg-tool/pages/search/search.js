@@ -66,6 +66,23 @@ Page({
   onShow() {
     this.doSearch();
     this.loadHistory();
+    /* 进搜索页时静默拉一次云端最新内容。
+       小程序长时间运行不重启时，onLaunch 的那一次 refresh 早就过去了，
+       作者新发布 / 审核通过的内容用户看不到 —— 这里补一次。
+       拉取失败不影响本地搜索，静默忽略。 */
+    this.syncCloud();
+  },
+
+  /* 拉云端覆盖层 + 已批准新增；拉到新数据就重搜一次 */
+  async syncCloud() {
+    try {
+      const hotfix = require('../../../utils/hotfix.js');
+      const before = hotfix.version();
+      await hotfix.refresh();
+      if (hotfix.version() !== before) {
+        this.doSearch();
+      }
+    } catch (e) { /* 云端不可用就用本地内容 */ }
   },
 
   /* 读搜索历史 */

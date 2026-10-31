@@ -175,7 +175,10 @@ python miniprogram-tools/ci.py
 1. 作者进「我的 → 内容管理（作者）」，输入口令（默认 `net-admin-2026`，见 `admin.js` 的 `ADMIN_PASS`）
 2. 按 id / 关键词定位一条命令百科或模板，改字段 → 「发布更新」
 3. `hotfix.publishPatch` 优先调 `publishContent` 云函数把改动（只传被改的字段）写入 `content_patch` 集合（未部署云函数则直连数据库），并**立即合并到本地内存**，作者当场就能在搜索/详情看到
-4. 用户端下次冷启动，`app.js` 的 `hotfix.refresh()` 后台拉取 `updatedAt` 之后的增量，合并进内存 + 本地缓存
+4. 用户端拉取增量，合并进内存 + 本地缓存：
+   - **冷启动**：`app.js` 的 `onLaunch` 调 `hotfix.refresh()` 后台拉取
+   - **运行中**：进「搜索页」或「浏览页」时各自调 `syncCloud()` 静默补一次
+     （小程序长时间运行不重启时，只有 onLaunch 那一次是远远不够的）
 5. `cmdbook` 的索引因 `hotfix.version()` 变化而失效重建，搜索 / 列表 / 详情 / 分类**全都反映最新内容**
 
 ### 首次部署（一次性）
@@ -349,4 +352,7 @@ ADMIN_OPENIDS = oxxxxxx1,oxxxxxxx2
 | `analyze_dup.js` | 重复 id 详细分析（内容是否真的重复） |
 | `rename_dup_ids.js` | 按「保留较早批次原 id、较晚批次改名」执行去重 |
 | `deploy_cloud.sh` | 一键部署 4 个云函数 + 同步 `ADMIN_OPENIDS` 环境变量 |
+| `verify_cloud.sh` | 云端全量自检（函数/环境变量/集合权限/鉴权/闭环，14 项） |
+| `verify_miniprogram.js` | 端侧自动化自检（入口/口令/待审核/云函数调用，22 项） |
+| `verify_contrib_flow.js` | 投稿闭环自检（发→审→生效，端侧真实操作） |
 
