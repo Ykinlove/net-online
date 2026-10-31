@@ -138,6 +138,17 @@ function saveCache() {
   } catch (e) { /* 存不下不影响内存 */ }
 }
 
+/* 清空本地热更新缓存（覆盖记录 + 已批准新增），并让索引失效 */
+function clear() {
+  PATCH = { book: {}, tpl: {} };
+  EXTRAS = { book: {}, tpl: {} };
+  VERSION++;
+  try {
+    if (typeof wx !== 'undefined') wx.removeStorageSync(STORE_KEY);
+  } catch (e) { /* ignore */ }
+  return true;
+}
+
 function lastUpdated() {
   let max = 0;
   [KIND_BOOK, KIND_TPL].forEach(function (kind) {
@@ -330,7 +341,7 @@ function mergeLocal(kind, targetId, fields) {
 module.exports = {
   KIND_BOOK, KIND_TPL,
   mergePatch, ingest, ingestExtras, getPatch, getExtra, getAllExtras, applyPatch, version,
-  refresh, pull, pullExtras, publishPatch,
+  refresh, pull, pullExtras, publishPatch, clear,
   _dbg: {
     loadCache, saveCache, lastUpdated, lastExtraUpdated, ingest, ingestExtras,
     setPatch: function (p, v) { PATCH = p; VERSION = v || 0; },

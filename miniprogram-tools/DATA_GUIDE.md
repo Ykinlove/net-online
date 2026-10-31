@@ -354,5 +354,41 @@ ADMIN_OPENIDS = oxxxxxx1,oxxxxxxx2
 | `deploy_cloud.sh` | 一键部署 4 个云函数 + 同步 `ADMIN_OPENIDS` 环境变量 |
 | `verify_cloud.sh` | 云端全量自检（函数/环境变量/集合权限/鉴权/闭环，14 项） |
 | `verify_miniprogram.js` | 端侧自动化自检（入口/口令/待审核/云函数调用，22 项） |
-| `verify_contrib_flow.js` | 投稿闭环自检（发→审→生效，端侧真实操作） |
+| `verify_contrib_flow.js` | 投稿闭环自检（发→审→生效→搜索命中→自动清理，24 项） |
+
+---
+
+## 回归自检怎么跑
+
+三个脚本互相独立，随时可复跑（开发者工具需保持开启且**服务端口已打开**）：
+
+```bash
+# 1) 静态门禁（不需要开发者工具，秒级）
+python miniprogram-tools/ci.py              # 18 项
+
+# 2) 云端自检（需 tcb 登录态）
+bash miniprogram-tools/verify_cloud.sh      # 14 项
+
+# 3) 端侧自动化（需开发者工具 + 服务端口 9420）
+node miniprogram-tools/verify_miniprogram.js    # 22 项
+node miniprogram-tools/verify_contrib_flow.js   # 24 项，跑完自动清探针数据
+```
+
+> `verify_contrib_flow.js` 会在真实环境提交一条 `__contrib_probe__` 投稿并审核通过，
+> **脚本结束前会自动删除**云端 `extra_items` / `contributions` / `content_patch`
+> 里的探针文档并清空端侧缓存，跑完环境保持干净。
+>
+> tcb CLI 定位方式：脚本会优先直接用 `node <全局 node_modules>/@cloudbase/cli/bin/tcb`
+> （绕开 Windows 下 `npx.cmd` 的 spawn 限制），找不到再退回 `npx tcb`。
+
+---
+
+## 调试句柄
+
+| 入口 | 说明 |
+|---|---|
+| `getApp().globalData.hotfix` | 热更新模块句柄（`hotfix.clear()` 可清空覆盖层缓存并让索引失效） |
+| `hotfix.clear()` | 清空本地 `hotfix_patch_v1` 缓存（覆盖记录 + 已批准新增），并 bump version 触发索引重建 |
+| `hotfix.version()` | 当前覆盖层版本号，变化即代表索引失效需重建 |
+
 

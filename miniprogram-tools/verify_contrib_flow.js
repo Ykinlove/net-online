@@ -11,6 +11,8 @@
 // 用法：node miniprogram-tools/verify_contrib_flow.js
 
 const path = require('path');
+const fs = require('fs');
+const { execFileSync } = require('child_process');
 const automator = require(path.join(__dirname, '.tmp-verify', 'node_modules', 'miniprogram-automator'));
 
 const PORT = 9420;
@@ -90,6 +92,74 @@ async function fillTextarea(page, placeholderPart, value, idx = 0) {
     n++;
   }
   return false;
+}
+
+/* 定位 tcb CLI 的可执行入口。
+   优先直接用 node 跑 @cloudbase/cli 的 JS 入口（避免 Windows 下 .cmd 的 spawn EINVAL），
+   找不到再退回 npx。 */
+function resolveTcb() {
+  const path = require('path');
+  const candidates = [];
+  const nodeDir = path.dirname(process.execPath);
+  candidates.push(path.join(nodeDir, 'node_modules', '@cloudbase', 'cli', 'bin', 'tcb'));
+  candidates.push(path.join(nodeDir, '..', 'lib', 'node_modules', '@cloudbase', 'cli', 'bin', 'tcb'));
+  candidates.push(path.join(nodeDir, '..', 'node_modules', '@cloudbase', 'cli', 'bin', 'tcb'));
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return { cmd: process.execPath, prefix: [c] }; } catch (e) { /* ignore */ }
+  }
+  return { cmd: process.platform === 'win32' ? 'npx.cmd' : 'npx', prefix: [] };
+}
+
+/* 删除云端探针数据（extra_items + contributions），并清掉端侧缓存 */
+async function cleanupProbe(mini) {
+  const repoRoot = path.join(__dirname, '..');
+  const tcb = resolveTcb();
+
+  // 1) 先清端侧缓存，避免下次打开仍能看到探针条目
+  if (mini) {
+    try {
+      const r = await mini.evaluate(async () => {
+        try {
+          wx.removeStorageSync('hotfix_patch_v1');
+          const hf = getApp() && getApp().globalData && getApp().globalData.hotfix;
+          if (hf && hf.clear) hf.clear();
+          return { ok: true, cleared: !!(hf && hf.clear) };
+        } catch (e) { return { err: String(e && e.message || e) }; }
+      });
+      if (r && r.ok) ok('已清端侧热更新缓存（内存+存储）');
+      else bad('端侧缓存清理异常：' + JSON.stringify(r));
+    } catch (e) {
+      bad('端侧缓存清理失败：' + String((e && e.message) || e).slice(0, 120));
+    }
+  }
+
+  // 2) 再删云端探针文档
+  // 注意：MongoDB delete 的 limit 只能取 0（不限）或 1（删一条），不能取 10
+  const targets = [
+    { table: 'extra_items', q: { 'item.id': PROBE_ID } },
+    { table: 'contributions', q: { 'fields.id': PROBE_ID } },
+    { table: 'content_patch', q: { 'item.id': PROBE_ID } }
+  ];
+  for (const t of targets) {
+    const cmd = {
+      delete: t.table,
+      deletes: [{ q: t.q, limit: 0 }]
+    };
+    const payload = JSON.stringify([{
+      TableName: t.table,
+      CommandType: 'DELETE',
+      Command: JSON.stringify(cmd)
+    }]);
+    try {
+      execFileSync(tcb.cmd, tcb.prefix.concat(['db', 'nosql', 'execute', '--command', payload, '--json']), {
+        cwd: repoRoot, stdio: 'pipe', timeout: 180000, encoding: 'utf8'
+      });
+      ok('已清理 ' + t.table);
+    } catch (e) {
+      const detail = (e && (e.stderr || e.message)) || '';
+      bad('清理 ' + t.table + ' 失败：' + String(detail).replace(/\s+/g, ' ').slice(0, 160));
+    }
+  }
 }
 
 (async () => {
@@ -208,8 +278,13 @@ async function fillTextarea(page, placeholderPart, value, idx = 0) {
     page = await mini.currentPage();
 
     const afterApprove = await readText(page, 2000);
-    if (afterApprove.includes('成功') || afterApprove.includes('已通过')) ok('审核通过操作完成');
-    else bad('未确认通过结果：' + afterApprove.slice(0, 150));
+    // toast 是系统层，automator 读不到；改用实质结果判断：待审核列表已清空
+    if (afterApprove.includes('成功') || afterApprove.includes('已通过') ||
+        afterApprove.includes('暂无待审核') || afterApprove.includes('暂无投稿')) {
+      ok('审核通过操作完成（待审核列表已清空）');
+    } else {
+      bad('未确认通过结果：' + afterApprove.slice(0, 150));
+    }
 
     // ---------- 5. 搜索命中 ----------
     say('\n── 5. 搜索命中新增条目 ──');
@@ -229,16 +304,22 @@ async function fillTextarea(page, placeholderPart, value, idx = 0) {
       bad('云端 extra_items 未包含新条目（总数 ' + searchResult.total + '）');
     }
 
-    // 端侧索引是否已合并
-    const indexed = await mini.evaluate(async (kw) => {
-      try {
-        const cb = require('/utils/cmdbook.js');
-        const r = cb.search(kw, '全部');
-        return { count: r.length, first: r.length ? r[0].id : '' };
-      } catch (e) { return { err: String(e && e.message || e) }; }
-    }, PROBE_KW);
-    if (indexed.count > 0) ok('端侧搜索索引已命中新增条目（' + indexed.count + ' 条）');
-    else ok('端侧索引尚未刷新（云端已有，刷新后命中）：' + JSON.stringify(indexed));
+    // 端侧真实搜索：进搜索页输入关键词 → 结果里应出现新条目
+    page = await mini.reLaunch('/subpkg-tool/pages/search/search');
+    await new Promise(r => setTimeout(r, 2500));
+    const filledSearchKw = await fillInput(page, '搜功能', PROBE_KW);
+    if (filledSearchKw) ok('搜索页输入关键词：' + PROBE_KW);
+    else bad('未找到搜索输入框');
+    await new Promise(r => setTimeout(r, 2500));
+    page = await mini.currentPage();
+
+    const hitText = await readText(page, 2500);
+    if (hitText.indexOf(PROBE_KW) >= 0) ok('端侧搜索页已命中新条目（热更新覆盖层生效）');
+    else bad('端侧搜索页未命中新条目：' + hitText.slice(0, 200));
+
+    // ---------- 6. 清理探针数据 ----------
+    say('\n── 6. 清理云端探针数据 ──');
+    await cleanupProbe(mini);
 
     // ---------- 汇总 ----------
     say('\n════════════════════════════════════');

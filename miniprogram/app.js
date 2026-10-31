@@ -8,7 +8,9 @@ App({
     cloudReady: false,
     envError: '',
     profile: null,
-    pendingNavigate: ''
+    pendingNavigate: '',
+    /* 热更新模块句柄：便于调试 / 自动化脚本直接操作缓存与索引 */
+    hotfix: null
   },
 
   onLaunch() {
@@ -23,6 +25,10 @@ App({
       }
     }
     /* 云端内容热更新：启动后台静默拉取补丁，不阻塞首屏 */
-    try { require('./utils/hotfix.js').refresh(); } catch (e) {}
+    try {
+      const hotfix = require('./utils/hotfix.js');
+      this.globalData.hotfix = hotfix;
+      hotfix.refresh();
+    } catch (e) {}
   }
 });
