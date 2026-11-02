@@ -1,21 +1,35 @@
 <view class="browse-page">
 
-  <!-- 顶部：当前分类 -->
+  <!-- 顶部：当前资源类型 + 总量 -->
   <view class="head">
     <view class="head-main">
-      <text class="head-title">📚 命令百科</text>
-      <text class="head-num">{{total}} 条</text>
+      <text class="head-title">{{icon}} {{title}}</text>
+      <text class="head-num">{{libTotal}} {{unit}}</text>
     </view>
     <text class="head-sub">{{catName}} · {{catDesc}}</text>
   </view>
 
-  <!-- 关键词筛选：在「当前分类 + 设备」的结果里再筛一遍 -->
+  <!-- 类型切换：命令百科 / 配置模板库 -->
+  <view class="kind-seg">
+    <view
+      class="kind-seg-item {{kind === 'book' ? 'on' : ''}}"
+      bindtap="switchKind"
+      data-kind="book"
+    >📚 命令百科</view>
+    <view
+      class="kind-seg-item {{kind === 'tpl' ? 'on' : ''}}"
+      bindtap="switchKind"
+      data-kind="tpl"
+    >📋 配置模板库</view>
+  </view>
+
+  <!-- 关键词筛选：在「当前分类（+ 设备）」的结果里再筛一遍 -->
   <view class="bsearch">
     <text class="bsearch-ico">🔍</text>
     <input
       class="bsearch-input"
       value="{{kw}}"
-      placeholder="在这个分类里筛关键词，比如「vlan」"
+      placeholder="{{kwTip}}"
       placeholder-style="color:#9fb0c0;font-size:calc(23 * var(--u));"
       confirm-type="search"
       bindinput="onKwInput"
@@ -45,8 +59,8 @@
     </view>
   </scroll-view>
 
-  <!-- 设备筛选 -->
-  <scroll-view class="devs" scroll-x enable-flex>
+  <!-- 设备筛选：只有百科有 devs 维度，模板没有设备概念 -->
+  <scroll-view wx:if="{{kind === 'book'}}" class="devs" scroll-x enable-flex>
     <view
       wx:for="{{sideList}}"
       wx:key="v"
@@ -72,12 +86,13 @@
       </view>
       <view class="item-tags">
         <text
-          wx:for="{{item.cmds}}"
+          wx:for="{{item.chips}}"
           wx:for-item="c"
-          wx:key="vendor"
-          class="item-tag"
-        ><text wx:for="{{c.vendorSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
+          wx:key="text"
+          class="item-tag {{c.cls}}"
+        ><text wx:for="{{c.segs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
       </view>
+      <text wx:if="{{item.preview}}" class="item-preview">{{item.preview}}</text>
     </view>
 
     <view wx:if="{{hasMore}}" class="more" bindtap="loadMore">
@@ -86,8 +101,8 @@
 
     <view wx:if="{{!shown.length}}" class="empty">
       <text class="empty-ico">📭</text>
-      <text class="empty-txt">{{kw ? '没有匹配「' + kw + '」的条目' : '这个分类下没有「' + devText + '」的条目'}}</text>
-      <text class="empty-sub">{{kw ? '换个关键词，或把设备切回「全部」' : '把设备切回「全部」试试'}}</text>
+      <text class="empty-txt">{{emptyText}}</text>
+      <text class="empty-sub">{{emptySub}}</text>
     </view>
 
     <view class="list-foot"></view>
@@ -135,7 +150,7 @@
 
       <view class="sheet-foot">
         <view class="sheet-btn" bindtap="copyAll" hover-class="sheet-btn-hover">
-          {{detail.blocks.length > 1 ? '复制全部命令' : '复制命令'}}
+          {{detail.copyLabel}}
         </view>
       </view>
 

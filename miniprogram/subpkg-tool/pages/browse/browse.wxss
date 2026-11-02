@@ -42,6 +42,32 @@
   line-height: 1.5;
 }
 
+/* ---------- 类型切换（命令百科 / 配置模板库） ---------- */
+.kind-seg {
+  flex: none;
+  display: flex;
+  gap: calc(10 * var(--u));
+  margin: 0 calc(24 * var(--u)) calc(14 * var(--u));
+}
+.kind-seg-item {
+  flex: 1;
+  height: calc(74 * var(--u));
+  line-height: calc(74 * var(--u));
+  text-align: center;
+  font-size: calc(25 * var(--u));
+  font-weight: 800;
+  color: #6b7d8f;
+  background: #fffdf6;
+  border: calc(3 * var(--u)) solid #c2d4e3;
+  border-radius: calc(10 * var(--u));
+}
+.kind-seg-item.on {
+  color: #2c3e50;
+  background: #ffd86b;
+  border-color: #2c3e50;
+  box-shadow: 0 calc(4 * var(--u)) 0 rgba(44, 62, 80, 0.16);
+}
+
 /* ---------- 关键词筛选框 ---------- */
 .bsearch {
   flex: none;
@@ -195,6 +221,24 @@
   border: calc(2 * var(--u)) solid #b3d2ef;
   border-radius: calc(4 * var(--u));
   padding: calc(2 * var(--u)) calc(10 * var(--u));
+}
+/* 模板的「分类」标签用绿色，跟厂商标签（蓝）区分开 */
+.item-tag-c {
+  color: #2f8f6b;
+  background: #e8f7f0;
+  border-color: #a8dbc6;
+}
+/* 模板列表下的首行命令预览，让人一眼看出这模板长什么样 */
+.item-preview {
+  display: block;
+  margin-top: calc(12 * var(--u));
+  font-family: Menlo, Consolas, "Courier New", monospace;
+  font-size: calc(19 * var(--u));
+  line-height: 1.5;
+  color: #7c8fa3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 加载更多 / 空态 */

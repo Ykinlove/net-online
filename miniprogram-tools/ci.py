@@ -200,8 +200,10 @@ def check_entry_paths():
 
     守住四件事（与 2026-11-02 的入口重构对齐）：
       ① 「贡献内容」在「我的」页，且位置在「我的收藏」之下、「设置」之上
-      ② 「内容审核」入口只对作者/管理员显示 —— 入口必须带 isAdmin 条件，
-         且判定走服务端（utils/admin.js），白名单不得写进包体
+      ② 「内容审核」入口**只保留在「设置 → 制作人」一处** —— 「我的」页不得再出现
+         第二个入口（同一个功能两个入口，用户会以为搞错了）；
+         保留的那一处必须带 isAdmin 条件，且判定走服务端（utils/admin.js），
+         白名单不得写进包体
       ③ 「我的」页不得再出现（作者）/（投稿）这类后缀文案
       ④ 读集合的云函数必须有集合缺失容错（否则 -502005 会把页面炸掉）
     """
@@ -217,32 +219,31 @@ def check_entry_paths():
     mine_wxml = read(os.path.join('pages', 'mine', 'mine.wxml'))
     mine_js = read(os.path.join('pages', 'mine', 'mine.js'))
 
-    # ① 贡献内容入口在「我的」页，且顺序为 我的收藏 → 贡献内容 → 内容审核 → 设置
+    # ① 贡献内容入口在「我的」页，且顺序为 我的收藏 → 贡献内容 → 设置
     if 'goContribute' not in mine_wxml:
         problems.append('mine.wxml 缺少「贡献内容」入口（应从设置页移到「我的」页）')
     if 'goContribute' not in mine_js:
         problems.append('mine.js 缺少 goContribute')
     order = []
-    for key in ['goFav', 'goContribute', 'goAdmin', 'goSettings']:
+    for key in ['goFav', 'goContribute', 'goSettings']:
         i = mine_wxml.find(key)
         if i >= 0:
             order.append((i, key))
     order.sort()
     seq = [k for _, k in order]
-    if seq != ['goFav', 'goContribute', 'goAdmin', 'goSettings']:
-        problems.append('mine.wxml 入口顺序应为 我的收藏→贡献内容→内容审核→设置，实际：%s'
+    if seq != ['goFav', 'goContribute', 'goSettings']:
+        problems.append('mine.wxml 入口顺序应为 我的收藏→贡献内容→设置，实际：%s'
                         % ('→'.join(seq) if seq else '（未找到）'))
 
-    # ② 内容审核入口只对作者/管理员可见
-    admin_idx = mine_wxml.find('goAdmin')
-    if admin_idx >= 0:
-        # 往前找最近的 wx:if，必须包含 isAdmin
-        head = mine_wxml[:admin_idx]
-        cond = head[head.rfind('<view'):] if head.rfind('<view') >= 0 else ''
-        if 'isAdmin' not in cond:
-            problems.append('mine.wxml 的「内容审核」入口没有 isAdmin 条件（普通用户会看到）')
-    if 'isAdmin' not in mine_js:
-        problems.append('mine.js 缺少 isAdmin 判定')
+    # ②「内容审核」入口唯一，且只对作者/管理员可见
+    #   唯一入口在「设置 → 制作人」；「我的」页不得再出现第二份。
+    if 'goAdmin' in mine_wxml or 'goAdmin' in mine_js:
+        problems.append('mine 页仍带「内容审核」入口（已收敛到 设置→制作人 一处，'
+                        '不要两个入口）')
+    # 「我的」页已经没有管理入口，就不该再为此去问服务端「是不是作者」——
+    # 白白多一次云函数往返。
+    if 'isAdmin' in mine_js:
+        problems.append('mine.js 仍带 isAdmin 判定（该页已无管理入口，应删掉这次云函数请求）')
 
     # 白名单不得写进包体
     admin_util = read(os.path.join('utils', 'admin.js'))

@@ -41,22 +41,13 @@
     <text class="se-ph">搜命令，比如「划分端口」</text>
   </view>
 
-  <!-- 百科浏览入口：不知道搜什么的时候，从这里翻 -->
-  <view class="tpl-entry" bindtap="goBrowse" hover-class="tpl-entry-hover">
+  <!-- 资料库入口：命令百科 + 配置模板库合并为一个入口，
+       进页面后用顶部分段控件在两种内容之间切换 -->
+  <view class="tpl-entry" bindtap="goLibrary" hover-class="tpl-entry-hover">
     <text class="tpl-entry-ico">📚</text>
     <view class="tpl-entry-main">
-      <text class="tpl-entry-t">命令百科</text>
-      <text class="tpl-entry-s">一个功能点，华为 / 思科 / H3C / 锐捷四种写法并排对照</text>
-    </view>
-    <text class="tpl-entry-arrow">›</text>
-  </view>
-
-  <!-- 配置模板入口 -->
-  <view class="tpl-entry" bindtap="goTemplates" hover-class="tpl-entry-hover">
-    <text class="tpl-entry-ico">📋</text>
-    <view class="tpl-entry-main">
-      <text class="tpl-entry-t">配置模板库</text>
-      <text class="tpl-entry-s">成套配置直接复制粘贴，开局和排障不用现拼</text>
+      <text class="tpl-entry-t">资料库</text>
+      <text class="tpl-entry-s">命令百科 + 配置模板库，一个入口全都有</text>
     </view>
     <text class="tpl-entry-arrow">›</text>
   </view>

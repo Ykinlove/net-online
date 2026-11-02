@@ -89,12 +89,7 @@
       <text class="menu-txt">贡献内容</text>
       <text class="menu-arrow">›</text>
     </view>
-    <!-- 内容审核：只对作者 / 管理员显示，普通用户看不到这个入口 -->
-    <view wx:if="{{isAdmin}}" class="menu-row" bindtap="goAdmin" hover-class="menu-row-hover">
-      <text class="menu-ico">🛠️</text>
-      <text class="menu-txt">内容审核</text>
-      <text class="menu-arrow">›</text>
-    </view>
+    <!-- 「内容审核」只在 设置 → 制作人 一处，这里不再重复出第二个入口 -->
     <view class="menu-row" bindtap="goSettings" hover-class="menu-row-hover">
       <text class="menu-ico">⚙️</text>
       <text class="menu-txt">设置</text>

@@ -1502,6 +1502,69 @@ function categoryStats() {
 }
 
 /**
+ * 列出模板（不做搜索打分），用于分类浏览。
+ *
+ * 走 tplIndex() 而不是直接读 utils/tplbook.js 的原始数组：
+ * 索引里已经叠了云端热更新覆盖（hotfix.applyPatch）和
+ * 「作者审核通过的新增模板」（extras）。直接读原始数组会漏掉
+ * 这两部分，模板页就看不到云端发布的内容。
+ *
+ * 与 listBy 的差别：模板没有 devs（设备）字段，
+ * 也没有分类体系 key，用 cat 字符串直接分组。
+ *
+ * @param {object} opts
+ *   cat   模板分类（如 '开局模板'），不限则全部
+ *   limit 最多返回几条
+ *   offset 跳过前几条（分页）
+ * @returns {Array} 模板概要
+ */
+function listTpls(opts) {
+  const o = opts || {};
+  const idx = tplIndex();
+  const rows = [];
+
+  for (let i = 0; i < idx.length; i++) {
+    const it = idx[i].it;
+    if (o.cat && it.cat !== o.cat) continue;
+    rows.push({
+      id: it.id,
+      name: it.name,
+      tip: it.note,
+      cat: it.cat,
+      vendor: it.vendor,
+      kw: it.kw || [],
+      cmds: [{ vendor: it.vendor, code: it.code }]
+    });
+  }
+
+  const offset = o.offset || 0;
+  const limit = o.limit || rows.length;
+  return rows.slice(offset, offset + limit);
+}
+
+/**
+ * 模板分类目录：每个分类有多少条。
+ * 分类顺序按模板在库中首次出现的先后，保持稳定。
+ * @returns {Array} [{key, name, desc, count}]
+ */
+function tplCategoryStats() {
+  const idx = tplIndex();
+  const order = [];
+  const counts = {};
+  for (let i = 0; i < idx.length; i++) {
+    const c = idx[i].it.cat || '其它';
+    if (counts[c] === undefined) {
+      counts[c] = 0;
+      order.push(c);
+    }
+    counts[c]++;
+  }
+  return order.map(function (c) {
+    return { key: c, name: c, desc: '', count: counts[c] };
+  });
+}
+
+/**
  * 按 id 取一条百科条目（收藏页用）。
  * @returns {object|null}
  */
@@ -1590,7 +1653,8 @@ function lookupById(kind, id) {
 }
 
 module.exports = { VENDORS, BOOK, search, norm, expand, cleanCmd, searchTemplates,
-  listBy, categoryStats, findById, findTplById, shareCard, lookupById,
+  listBy, categoryStats, listTpls, tplCategoryStats,
+  findById, findTplById, shareCard, lookupById,
   /* 调试用：只在本地 node 脚本里调，页面不引用 */
   _dbg: { buildIndex, dropGreedy, rarity, scoreOf, intentsOf, segChinese, stripLead,
     isStrongIntent, tplIndex } };

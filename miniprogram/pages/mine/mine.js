@@ -1,5 +1,4 @@
 const store = require('../../utils/store.js');
-const admin = require('../../utils/admin.js');
 const { computeOverallLevel } = require('../../utils/skill.js');
 
 function splitKw(s) {
@@ -20,8 +19,7 @@ Page({
     lv: { level: 1, pct: 0 },
     recent: [],
     favCount: 0,
-    missList: [],
-    isAdmin: false
+    missList: []
   },
 
   onShow() {
@@ -40,15 +38,11 @@ Page({
       lv: this.buildLv(),
       recent: this.buildRecent(),
       favCount: store.getFavs().length,
-      missList: store.getSearchMiss().slice(0, 6),
-      isAdmin: admin.isAdmin()
+      missList: store.getSearchMiss().slice(0, 6)
     });
-    /* 问服务端确认是不是作者/管理员。
-       「内容审核」入口只对作者/管理员显示，普通用户看不到，
-       不会误以为这个入口是自己审稿用的。 */
-    admin.refresh().then(ok => {
-      if (ok !== this.data.isAdmin) this.setData({ isAdmin: ok });
-    });
+    /* 这里不再问服务端「是不是作者」——
+       「内容审核」入口已收敛到 设置 → 制作人 一处，本页没有管理入口，
+       少一次 isadmin 云函数往返，进「我的」更快。 */
   },
 
   /* 最近三条命令 */
@@ -99,11 +93,6 @@ Page({
   /* 投稿：提交命令百科 / 配置模板的修改建议，由作者审核 */
   goContribute() {
     wx.navigateTo({ url: '/subpkg-tool/pages/contribute/contribute' });
-  },
-
-  /* 内容审核：只对作者/管理员显示（入口可见性由服务端白名单判定） */
-  goAdmin() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/admin/admin' });
   },
 
   goSearchMiss() {
