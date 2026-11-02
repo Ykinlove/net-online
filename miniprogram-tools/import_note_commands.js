@@ -15,18 +15,22 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
+const localcfg = require('./local_config.js');
 
 const ENV_ID = 'net-online-d7g1ig4c6f07a8abb';
 const COLL = 'commands';
 const SRC = 'youdao-note-8AgaX8cm';
 const DATE = '2026-11-02';
 
-/* 目标作者：昵称 → openid（来自 profiles 集合）
-   这两位正是云函数里的 ADMIN_OPENIDS。 */
-const TARGETS = [
-  { nickname: 'Yang', openid: '__OPENID_A__' },
-  { nickname: 'Ykin', openid: '__OPENID_B__' }
-];
+/* 目标作者：昵称 → openid。
+   openid **不入库**（仓库要推远端），从本地私密配置读：
+     cloudbaserc.local.json 的 adminOpenids / authors，
+     或环境变量 ADMIN_OPENIDS。 */
+const TARGETS = localcfg.targets();
+if (!TARGETS.length) {
+  console.error('✗ 没有读到目标作者。\n' + localcfg.missingHint());
+  process.exit(1);
+}
 
 /* 笔记里的命令。device 取 seed.js 的 DEVICES 英文 key。
    title ≤ 40 字、desc ≤ 60 字（对齐小程序表单的 maxlength，改编时不会被截断）。 */
@@ -251,6 +255,32 @@ function resolveTcb() {
 const TCB = resolveTcb();
 const REPO = path.join(__dirname, '..');
 
+/* ---------------- 占位符还原 ----------------
+   仓库里不能出现真实凭据，所以命令正文用 __XXX__ 占位符。
+   导入时从本地私密配置（cloudbaserc.local.json 的 replacements）还原成真值。
+   映射键就是占位符本身，值是真实字符串。 */
+function restoreSecrets(s) {
+  const reps = localcfg.local().replacements || {};
+  let out = String(s);
+  Object.keys(reps).forEach(k => {
+    out = out.split(k).join(reps[k]);
+  });
+  return out;
+}
+
+/* 检查还有哪些占位符没被还原 */
+function unresolvedPlaceholders(list) {
+  const reps = localcfg.local().replacements || {};
+  const missing = new Set();
+  list.forEach(it => {
+    (it.lines || []).forEach(line => {
+      const m = String(line).match(/__[A-Z0-9_]+__/g);
+      if (m) m.forEach(x => { if (!reps[x]) missing.add(x); });
+    });
+  });
+  return Array.from(missing);
+}
+
 /* 跑一条 nosql 兼容层命令，返回解析后的 JSON */
 function nosql(cmdObj) {
   const payload = JSON.stringify([{
@@ -348,6 +378,16 @@ function main() {
   const seen = new Set(existing.map(d => d._openid + '|' + d.key));
   console.log('已存在同源记录 ' + existing.length + ' 条，跳过已存在的。');
 
+  /* 占位符还原前先检查：本地配置里缺哪个映射就报出来，
+     免得把 __SNMP_RO__ 这种占位符原样写进云端。 */
+  const unresolved = unresolvedPlaceholders(COMMANDS);
+  if (unresolved.length && !dry) {
+    console.error('✗ 以下占位符在本地配置里没有对应值：' + unresolved.join(', '));
+    console.error('  请在 cloudbaserc.local.json 的 replacements 里补上，');
+    console.error('  或直接改脚本里的 COMMANDS 用真实值（但那样会进仓库，别这么干）。');
+    process.exit(1);
+  }
+
   const now = Date.now();
   const pending = [];
   for (const t of TARGETS) {
@@ -357,7 +397,7 @@ function main() {
       pending.push({
         _id: newId(),
         title: c.title,
-        content: c.lines.join('\n'),
+        content: restoreSecrets(c.lines.join('\n')),
         desc: c.desc,
         tags: c.tags,
         skill: '',

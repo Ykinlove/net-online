@@ -22,7 +22,7 @@
       "handler": "index.main",
       "installDependency": true,
       "envVariables": {
-        "ADMIN_OPENIDS": "__OPENID_A__,__OPENID_B__"
+        "ADMIN_OPENIDS": "__ADMIN_OPENIDS__"
       }
     },
     {
@@ -44,7 +44,7 @@
       "handler": "index.main",
       "installDependency": true,
       "envVariables": {
-        "ADMIN_OPENIDS": "__OPENID_A__,__OPENID_B__"
+        "ADMIN_OPENIDS": "__ADMIN_OPENIDS__"
       }
     },
     {
@@ -56,7 +56,7 @@
       "handler": "index.main",
       "installDependency": true,
       "envVariables": {
-        "ADMIN_OPENIDS": "__OPENID_A__,__OPENID_B__"
+        "ADMIN_OPENIDS": "__ADMIN_OPENIDS__"
       }
     }
   ]

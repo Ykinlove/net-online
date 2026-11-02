@@ -242,7 +242,7 @@ async function tapMenu(page, text, classes = ['.menu-row', '.row', '.menu-item']
     // 正确口令
     inputEl = await page.$('input');
     if (inputEl) {
-      await inputEl.input('__ADMIN_PASS__');
+      await inputEl.input(process.env.ADMIN_PASS || 'SET_LOCAL_PASS');
       const btn = await page.$('.btn');
       if (btn) {
         await btn.tap();

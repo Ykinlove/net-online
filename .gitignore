@@ -42,5 +42,12 @@ miniprogram-tools/.tmp-verify/
 # 开发者工具自动生成的本机私有配置（含本机路径，不应入库）
 project.private.config.json
 
+# ---- 本地私密配置（含 openid 白名单 / 管理口令 / 凭据）----
+# 仓库里只留 cloudbaserc.local.example.json 模板
+cloudbaserc.local.json
+
+# 一次性 docx 导入中间产物（含真实凭据，且无人引用）
+docx_import/
+
 # 一键上传脚本记录的本地版本号
 miniprogram-tools/.last_upload_version

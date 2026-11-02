@@ -1,0 +1,22 @@
+# 本地私密配置示例 —— 复制成 cloudbaserc.local.json 后填上真实值
+#
+#   cp cloudbaserc.local.example.json cloudbaserc.local.json
+#
+# cloudbaserc.local.json 已在 .gitignore 里，不会被推到远端。
+# 也可以用环境变量覆盖：ADMIN_OPENIDS / ADMIN_PASS / LOCAL_CONFIG
+{
+  "envId": "net-online-d7g1ig4c6f07a8abb",
+
+  "adminOpenids": "填两位作者的 openid，逗号分隔",
+  "authors": {
+    "填 openid": "作者昵称"
+  },
+
+  "adminPass": "内容审核页的本地口令",
+
+  "secrets": [
+    "笔记里的 SNMP 团体名",
+    "笔记里的 local-user 密码",
+    "笔记里的真实日志服务器 IP"
+  ]
+}

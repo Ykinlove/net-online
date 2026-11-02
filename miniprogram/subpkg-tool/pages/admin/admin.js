@@ -21,7 +21,28 @@ const hotfix = require('../../../utils/hotfix.js');
 const contrib = require('../../../utils/contrib.js');
 const admin = require('../../../utils/admin.js');
 
-const ADMIN_PASS = '__ADMIN_PASS__';
+/* 本地口令。
+ *
+ * 为什么不在包里写死一个固定口令：
+ *   小程序包人人可下载可反编译，写死的口令等于没有 —— 拿到包就能看到。
+ *   真正的防线是服务端：listContent 判作者身份 + publishContent /
+ *   reviewContribution 各自校验 ADMIN_OPENIDS 白名单，前端绕过也没用。
+ *
+ * 所以这里的口令只是「多一道本地锁」，由作者首次进入时自己设，
+ * 只存在本机 Storage 里。包体里不含任何固定秘密。 */
+const PASS_KEY = 'admin_pass_hash';
+const UNLOCK_KEY = 'admin_unlocked';
+
+/* 轻量散列：只用于「本机比对」，不是加密，挡不住有心人翻 Storage。
+   目的是避免明文口令躺在本地数据里。 */
+function hash(s) {
+  let h = 5381;
+  const str = String(s || '');
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+  }
+  return String(h);
+}
 
 // 待审核卡片的字段摘要（只读预览用）
 function buildSummary(kind, f) {
@@ -42,6 +63,7 @@ function buildSummary(kind, f) {
 Page({
   data: {
     unlocked: false,
+    hasPass: false,        // 本机是否已设置过口令（决定是「设置」还是「输入」）
     passInput: '',
     kind: 'book',          // 'book' | 'tpl'
     query: '',
@@ -78,8 +100,9 @@ Page({
   },
 
   onLoad() {
-    const unlocked = wx.getStorageSync('admin_unlocked') === '1';
-    this.setData({ unlocked });
+    const unlocked = wx.getStorageSync(UNLOCK_KEY) === '1';
+    const hasPass = !!wx.getStorageSync(PASS_KEY);
+    this.setData({ unlocked, hasPass });
     this.checkPerm();
   },
 
@@ -89,21 +112,49 @@ Page({
   checkPerm() {
     admin.refresh().then(ok => {
       this.setData({ perm: ok ? 'ok' : 'denied' });
-      if (!ok) wx.removeStorageSync('admin_unlocked');
+      if (!ok) wx.removeStorageSync(UNLOCK_KEY);
     });
   },
 
   onPassInput(e) { this.setData({ passInput: e.detail.value }); },
+
+  /* 首次进入：设置本机口令。之后按已设的口令校验。 */
   unlock() {
-    if (this.data.passInput === ADMIN_PASS) {
-      wx.setStorageSync('admin_unlocked', '1');
+    const p = this.data.passInput;
+    if (!p) { wx.showToast({ title: '请输入口令', icon: 'none' }); return; }
+
+    const saved = wx.getStorageSync(PASS_KEY);
+    if (!saved) {
+      wx.setStorageSync(PASS_KEY, hash(p));
+      wx.setStorageSync(UNLOCK_KEY, '1');
+      this.setData({ unlocked: true, hasPass: true, passInput: '' });
+      return;
+    }
+    if (hash(p) === saved) {
+      wx.setStorageSync(UNLOCK_KEY, '1');
       this.setData({ unlocked: true, passInput: '' });
     } else {
       wx.showToast({ title: '口令错误', icon: 'none' });
     }
   },
+
+  /* 忘记口令：清掉本机设置，重新设一个。
+     不影响云端数据，也不影响管理员权限（那由服务端判定）。 */
+  resetPass() {
+    wx.showModal({
+      title: '重设本机口令',
+      content: '会清掉当前设备上设置的口令，之后可以重新设一个。云端数据不受影响。',
+      confirmColor: '#d9534f',
+      success: (r) => {
+        if (!r.confirm) return;
+        wx.removeStorageSync(PASS_KEY);
+        wx.removeStorageSync(UNLOCK_KEY);
+        this.setData({ unlocked: false, hasPass: false, passInput: '' });
+      }
+    });
+  },
   logout() {
-    wx.removeStorageSync('admin_unlocked');
+    wx.removeStorageSync(UNLOCK_KEY);
     this.setData({ unlocked: false });
   },
 

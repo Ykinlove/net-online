@@ -19,13 +19,19 @@
 
 **已配置的作者白名单**（两个都是本人账号）：
 
-```
-__OPENID_A__   ← "Yang" / 正元智慧集团（资料完整，主账号）
-__OPENID_B__   ← "Ykin" / 清华大学
+白名单**不入库** —— 仓库里的 `cloudbaserc.json` 只有占位符 `__ADMIN_OPENIDS__`，
+真实值在本地的 `cloudbaserc.local.json`（已 gitignore）。
+想看自己的 openid：云函数 `listContent` 云端测试，参数 `{"action":"whoami"}`。
+
+```bash
+# 首次准备
+cp cloudbaserc.local.example.json cloudbaserc.local.json
+# 然后填上 adminOpenids / authors / adminPass
 ```
 
-> 改白名单：编辑 `cloudbaserc.json` 里的 `ADMIN_OPENIDS`，然后跑
+> 改白名单：编辑 `cloudbaserc.local.json` 里的 `adminOpenids`，然后跑
 > `bash miniprogram-tools/deploy_cloud.sh`。
+> 也可以用环境变量覆盖：`ADMIN_OPENIDS=oXXX,oYYY bash miniprogram-tools/deploy_cloud.sh`
 
 ### 以后改代码怎么重新部署
 

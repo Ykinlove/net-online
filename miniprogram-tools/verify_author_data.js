@@ -12,12 +12,15 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const localcfg = require('./local_config.js');
 
 const ENV_ID = 'net-online-d7g1ig4c6f07a8abb';
-const TARGETS = [
-  { nickname: 'Yang', openid: '__OPENID_A__' },
-  { nickname: 'Ykin', openid: '__OPENID_B__' }
-];
+/* 目标作者从本地私密配置读（openid 不入库） */
+const TARGETS = localcfg.targets();
+if (!TARGETS.length) {
+  console.error('✗ 没有读到目标作者，无法做归属校验。\n' + localcfg.missingHint());
+  process.exit(1);
+}
 
 let pass = 0, fail = 0;
 function ok(msg) { pass++; console.log('  ✓ ' + msg); }
@@ -174,35 +177,43 @@ console.log('');
 console.log('══ 4. 包体无凭据残留 ══');
 {
   /* 4a. 笔记里的真实凭据 —— 任何地方都不能出现。
-        这些是作者环境里的真密码 / 真 IP，包体人人可下载，出现在包里等于公开。 */
-  const noteSecrets = ['__SECRET_1__', '__SNMP_RO__', '__SNMP_RW__', '__TELNET_USER_PASS__',
-    '__LOG_HOST__', '__TRAP_HOST__', '__SNMP_RO2__'];
+        这些是作者环境里的真密码 / 真 IP，包体人人可下载，出现在包里等于公开。
+        清单从本地私密配置读（仓库里不写明文）。 */
+  const noteSecrets = localcfg.secrets();
   /* 4b. 管理口令 —— 只允许出现在 admin.js 本身（那是它该在的地方）。 */
-  const adminSecret = '__ADMIN_PASS__';
+  const adminSecret = localcfg.adminPass();
 
-  const hits = [];
-  const adminHits = [];
-  const walk = (dir) => {
-    fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
-      const p = path.join(dir, e.name);
-      if (e.isDirectory()) return walk(p);
-      if (!/\.(js|wxml|wxss|json)$/.test(e.name)) return;
-      const s = fs.readFileSync(p, 'utf8');
-      const rel = path.relative(REPO, p);
-      noteSecrets.forEach(sec => { if (s.indexOf(sec) >= 0) hits.push(rel + ' ← ' + sec); });
-      if (s.indexOf(adminSecret) >= 0) {
-        if (/subpkg-tool[\\/]pages[\\/]admin[\\/]admin\.js$/.test(rel)) adminHits.push(rel);
-        else hits.push(rel + ' ← 管理口令泄漏到非预期位置');
-      }
-    });
-  };
-  walk(path.join(REPO, 'miniprogram'));
+  if (!noteSecrets.length) {
+    console.log('  · 跳过（本地配置里没填 secrets 清单）');
+  } else {
+    const hits = [];
+    const adminHits = [];
+    const walk = (dir) => {
+      fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) return walk(p);
+        if (!/\.(js|wxml|wxss|json)$/.test(e.name)) return;
+        const s = fs.readFileSync(p, 'utf8');
+        const rel = path.relative(REPO, p);
+        noteSecrets.forEach(sec => { if (s.indexOf(sec) >= 0) hits.push(rel + ' ← ' + sec); });
+        if (adminSecret && s.indexOf(adminSecret) >= 0) {
+          if (/subpkg-tool[\\/]pages[\\/]admin[\\/]admin\.js$/.test(rel)) adminHits.push(rel);
+          else hits.push(rel + ' ← 管理口令泄漏到非预期位置');
+        }
+      });
+    };
+    walk(path.join(REPO, 'miniprogram'));
 
-  if (!hits.length) ok('笔记凭据（SNMP 团体名 / 密码 / 真实 IP）包体内零命中');
-  else bad('包体内命中 ' + hits.length + ' 处：\n      ' + hits.join('\n      '));
+    if (!hits.length) ok('笔记凭据（SNMP 团体名 / 密码 / 真实 IP）包体内零命中');
+    else bad('包体内命中 ' + hits.length + ' 处：\n      ' + hits.join('\n      '));
 
-  if (adminHits.length === 1) ok('管理口令仅存在于 admin.js 本体（真正的写权限由云函数白名单兜底）');
-  else bad('管理口令出现位置异常：' + adminHits.length + ' 处');
+    if (adminSecret) {
+      if (adminHits.length === 1) ok('管理口令仅存在于 admin.js 本体（真正的写权限由云函数白名单兜底）');
+      else bad('管理口令出现位置异常：' + adminHits.length + ' 处');
+    } else {
+      console.log('  · 跳过管理口令检查（本地配置里没填 adminPass）');
+    }
+  }
 }
 
 console.log('');

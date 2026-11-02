@@ -12,17 +12,21 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
+const localcfg = require('./local_config.js');
 
 const ENV_ID = 'net-online-d7g1ig4c6f07a8abb';
 const COLL = 'projects';
 const SRC = 'resume-2026-projects';
 const DATE = '2026-11-02';
 
-/* 目标作者：昵称 → openid（来自 profiles 集合） */
-const TARGETS = [
-  { nickname: 'Yang', openid: '__OPENID_A__' },
-  { nickname: 'Ykin', openid: '__OPENID_B__' }
-];
+/* 目标作者：昵称 → openid。
+   openid **不入库**（仓库要推远端），从本地私密配置读：
+     cloudbaserc.local.json 的 adminOpenids / authors，或环境变量 ADMIN_OPENIDS。 */
+const TARGETS = localcfg.targets();
+if (!TARGETS.length) {
+  console.error('✗ 没有读到目标作者。\n' + localcfg.missingHint());
+  process.exit(1);
+}
 
 /* 两个项目。
    字段口径对齐小程序项目表单（pages/projects/projects.js saveForm）：

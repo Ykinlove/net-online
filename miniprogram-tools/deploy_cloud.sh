@@ -49,15 +49,33 @@ for fn in $TARGETS; do
 done
 
 # 环境变量同步（publishContent / reviewContribution / listContent 需要 ADMIN_OPENIDS）
-ADMIN_OPENIDS="$(python -c "
+#
+# 白名单**不入库**：仓库里的 cloudbaserc.json 只有占位符 __ADMIN_OPENIDS__，
+# 真实值放在本地的 cloudbaserc.local.json（已 gitignore）。
+# 优先级：环境变量 ADMIN_OPENIDS > cloudbaserc.local.json > cloudbaserc.json 里的占位符
+ADMIN_OPENIDS="${ADMIN_OPENIDS:-}"
+
+if [ -z "$ADMIN_OPENIDS" ] && [ -f "cloudbaserc.local.json" ]; then
+  ADMIN_OPENIDS="$(python -c "
+import json,io
+with io.open('cloudbaserc.local.json', encoding='utf-8') as f:
+    print(json.load(f).get('adminOpenids',''))
+" 2>/dev/null || echo '')"
+  [ -n "$ADMIN_OPENIDS" ] && echo "（白名单来自 cloudbaserc.local.json）"
+fi
+
+if [ -z "$ADMIN_OPENIDS" ]; then
+  ADMIN_OPENIDS="$(python -c "
 import json,io
 with io.open('cloudbaserc.json', encoding='utf-8') as f:
     d = json.load(f)
 for fn in d.get('functions', []):
     if fn['name'] in ('publishContent', 'reviewContribution', 'listContent'):
-        print(fn.get('envVariables', {}).get('ADMIN_OPENIDS', ''))
+        v = fn.get('envVariables', {}).get('ADMIN_OPENIDS', '')
+        print('' if v == '__ADMIN_OPENIDS__' else v)
         break
 " 2>/dev/null || echo '')"
+fi
 
 if [ -n "$ADMIN_OPENIDS" ]; then
   echo "── 同步 ADMIN_OPENIDS ──"
@@ -67,7 +85,9 @@ if [ -n "$ADMIN_OPENIDS" ]; then
       >/dev/null && echo "  ✓ $fn"
   done
 else
-  echo "! 未读到 ADMIN_OPENIDS，跳过环境变量同步（cloudbaserc.json 里检查 functions[].envVariables）"
+  echo "! 未读到 ADMIN_OPENIDS，跳过环境变量同步"
+  echo "  请建 cloudbaserc.local.json（照抄 cloudbaserc.local.example.json），"
+  echo "  或设置环境变量 ADMIN_OPENIDS 后重跑。"
 fi
 
 echo ""

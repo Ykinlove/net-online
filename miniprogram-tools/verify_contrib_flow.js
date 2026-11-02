@@ -245,7 +245,7 @@ async function cleanupProbe(mini) {
     // 解锁
     let inputEl = await page.$('input');
     if (inputEl) {
-      await inputEl.input('__ADMIN_PASS__');
+      await inputEl.input(process.env.ADMIN_PASS || 'SET_LOCAL_PASS');
       const btn = await page.$('.btn');
       if (btn) { await btn.tap(); await new Promise(r => setTimeout(r, 2200)); }
       page = await mini.currentPage();

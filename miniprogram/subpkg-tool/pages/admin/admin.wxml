@@ -23,9 +23,11 @@
       <view class="lock-badge">🔐</view>
       <text class="lock-title">内容审核（作者 / 管理员）</text>
       <text class="lock-sub">管理命令百科与配置模板库：其他用户提交的投稿在这里审核，审核通过后才会公开生效</text>
-      <input class="input lock-input" placeholder="请输入管理口令" placeholder-class="input-placeholder"
+      <input class="input lock-input" placeholder="{{hasPass ? '请输入本机口令' : '首次使用，请设置一个本机口令'}}"
+             placeholder-class="input-placeholder"
              value="{{passInput}}" bindinput="onPassInput" password/>
-      <button class="btn btn-primary btn-block lock-btn" bindtap="unlock">进入内容审核</button>
+      <button class="btn btn-primary btn-block lock-btn" bindtap="unlock">{{hasPass ? '进入内容审核' : '设置口令并进入'}}</button>
+      <text wx:if="{{hasPass}}" class="hint" bindtap="resetPass">忘记口令？点这里重设（不影响云端数据）</text>
     </view>
   </view>
 

@@ -11,13 +11,16 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const localcfg = require('./local_config.js');
 
 const COLL = 'commands';
 const SRC = 'youdao-note-8AgaX8cm';
-const TARGETS = [
-  { nickname: 'Yang', openid: '__OPENID_A__' },
-  { nickname: 'Ykin', openid: '__OPENID_B__' }
-];
+/* 目标作者从本地私密配置读（openid 不入库） */
+const TARGETS = localcfg.targets();
+if (!TARGETS.length) {
+  console.error('✗ 没有读到目标作者，无法做归属校验。\n' + localcfg.missingHint());
+  process.exit(1);
+}
 
 let pass = 0, fail = 0;
 const ok = (s) => { console.log('  ✓ ' + s); pass++; };
@@ -138,10 +141,19 @@ console.log('\n── 4. 抽查渲染效果 ──');
 console.log('\n── 5. 隔离面检查 ──');
 const other = findAll({ src: { $ne: SRC } }, 500);
 console.log('  commands 集合总记录 ' + findAll({}, 500).length + ' 条（同源 ' + all.length + ' + 既有 ' + (other.length) + '）');
-const leak = findAll({ content: { $regex: '__SECRET_1__|210\\.26\\.111\\.61|__SNMP_RO__' } }, 500);
-const leakOutside = leak.filter(d => d.src !== SRC || !TARGETS.some(t => t.openid === d._openid));
-if (leakOutside.length === 0) ok('含凭据的 ' + leak.length + ' 条记录全部归属这 2 位作者，无外溢');
-else bad('有 ' + leakOutside.length + ' 条含凭据的记录落在目标之外');
+
+/* 含凭据的记录必须全部归属目标作者。
+   凭据清单从本地私密配置读（secrets 字段），仓库里不写明文。 */
+const secList = localcfg.secrets();
+if (!secList.length) {
+  console.log('  · 跳过（本地配置里没填 secrets 清单）');
+} else {
+  const re = new RegExp(secList.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
+  const leak = findAll({ content: { $regex: re } }, 500);
+  const leakOutside = leak.filter(d => d.src !== SRC || !TARGETS.some(t => t.openid === d._openid));
+  if (leakOutside.length === 0) ok('含凭据的 ' + leak.length + ' 条记录全部归属这 2 位作者，无外溢');
+  else bad('有 ' + leakOutside.length + ' 条含凭据的记录落在目标之外');
+}
 
 console.log('\n════════════════════════════════════');
 console.log('  通过 ' + pass + ' 项，失败 ' + fail + ' 项');
