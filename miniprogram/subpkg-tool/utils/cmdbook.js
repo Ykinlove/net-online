@@ -29,7 +29,7 @@ const { HCIE_EXTRA } = require('./cmdbook-hcie.js');
 const { HCIP_EXTRA } = require('./cmdbook-hcip.js');
 const { CCIE_EXTRA } = require('./cmdbook-ccie.js');
 const { VENDOR_MAIN } = require('./cmdbook-vendor-main.js');
-const { PRACTICE } = require('./cmdbook-practice.js');
+const practice = require('./practice.js');
 const { SEC_EXTRA } = require('./cmdbook-sec.js');
 const { TROUBLE_EXTRA } = require('./cmdbook-trouble.js');
 const { SYS_EXTRA } = require('./cmdbook-sys.js');
@@ -426,7 +426,7 @@ const BASE = [
   }
 ];
 
-const BOOK = BASIC_EXTRA.concat(
+let BOOK = BASIC_EXTRA.concat(
   BASE,
   NET_EXTRA, NET2_EXTRA, L2_EXTRA,
   ROUTE_EXTRA, ROUTE2_EXTRA, L3_EXTRA,
@@ -435,7 +435,7 @@ const BOOK = BASIC_EXTRA.concat(
   HCIP_EXTRA,
   CCIE_EXTRA,
   VENDOR_MAIN,
-  PRACTICE,
+  practice.getPractice(),
   SEC_EXTRA,
   TROUBLE_EXTRA,
   SYS_EXTRA,
@@ -1594,4 +1594,11 @@ module.exports = { VENDORS, BOOK, search, norm, expand, cleanCmd, searchTemplate
   /* 调试用：只在本地 node 脚本里调，页面不引用 */
   _dbg: { buildIndex, dropGreedy, rarity, scoreOf, intentsOf, segChinese, stripLead,
     isStrongIntent, tplIndex } };
+
+/* 练习题库（原 cmdbook-practice.js，326KB）已移至 CloudBase 存储按需加载，
+   避免 subpkg-tool 超过 2MB 分包上限导致微信 errcode 80200。
+   页面只调用 search/lookupById 等函数，BOOK 重建后自动包含练习数据，无需改动页面。 */
+practice.loadPractice()
+  .then(() => { BOOK = BOOK.concat(practice.getPractice()); })
+  .catch(() => {});
 
