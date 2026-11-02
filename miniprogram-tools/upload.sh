@@ -70,20 +70,41 @@ for f in "$LOCALAPPDATA/微信开发者工具/User Data"/*/Default/.cli; do
   fi
 done
 echo "[3/3] 开始上传..."
-"$CLI_BAT" upload $UDA_ARG --project "$WIN_REPO" --version "$VER" --desc "$DESC"
+OUT="$("$CLI_BAT" upload $UDA_ARG --project "$WIN_REPO" --version "$VER" --desc "$DESC" 2>&1)"
 RC=$?
+echo "$OUT"
 
-echo
-if [ "$RC" -eq 0 ]; then
-  echo "[成功] 版本 $VER 已上传到微信后台（开发版本）。"
-  echo "       去 mp.weixin.qq.com -> 版本管理 查看，并提交审核。"
-  echo "$VER" > "$HERE/.last_upload_version"
-else
-  echo "[失败] 退出码 $RC"
+# cli.bat 失败时也会返回 0（它把错误打在输出里就退出了），
+# 所以不能只看退出码 —— 必须同时检查输出里有没有错误标记。
+# 之前踩过：输出里明明是「工具的服务端口已关闭」，脚本却报「上传成功」。
+if echo "$OUT" | grep -qE "服务端口已关闭|IDE service port disabled"; then
+  echo
+  echo "[失败] 开发者工具的服务端口未开启"
+  echo "       1) 打开微信开发者工具 → 设置 → 安全设置 → 开启「服务端口」"
+  echo "       2) 保持开发者工具处于运行状态（CLI 需要连上它）"
+  echo "       3) 然后重新运行本脚本"
+  exit 1
+fi
+if echo "$OUT" | grep -qE "^\s*×\s*|\[error\]"; then
+  echo
+  echo "[失败] 上传出错（见上方输出）"
   echo "       常见原因："
   echo "         1. 开发者工具未登录 —— 先在 IDE 里扫码登录"
   echo "         2. 该 AppID 当前账号没有上传权限 —— mp 后台把你加为开发者"
   echo "         3. 版本号与线上/草稿版本重复 —— 换一个更大的版本号"
   echo "         4. 网络/COS 临时失败 —— 直接重跑本脚本即可"
+  exit 1
 fi
-exit $RC
+# 上传成功的标志：输出里出现明确的成功提示
+if ! echo "$OUT" | grep -qE "上传成功|upload success|Upload successful|✔.*upload"; then
+  echo
+  echo "[失败] 输出里没有成功标志，无法确认上传结果（退出码 $RC）"
+  echo "       请到 mp.weixin.qq.com → 版本管理 核对版本 $VER 是否存在。"
+  exit 1
+fi
+
+echo
+echo "[成功] 版本 $VER 已上传到微信后台（开发版本）。"
+echo "       去 mp.weixin.qq.com -> 版本管理 查看，并提交审核。"
+echo "$VER" > "$HERE/.last_upload_version"
+exit 0
