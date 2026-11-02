@@ -323,6 +323,10 @@ def check_deploy_layout():
     微信开发者工具要求 project.config.json 在项目根，且同时声明
     miniprogramRoot / cloudfunctionRoot —— 否则左侧文件树看不到云函数目录，
     右键没有「上传并部署」，用户会卡在部署第一步。
+
+    另外 miniprogram/ 下也要有一份：发布通道上传的是 miniprogram/ 目录，
+    appid 必须随包走（这是 2026-11-02 发布失败排查出来的硬要求）。
+    两份配置路径声明各自自洽，appid 必须一致。
     """
     import json
     problems = []
@@ -355,10 +359,44 @@ def check_deploy_layout():
         if not cfg.get('appid'):
             problems.append('project.config.json 缺少 appid')
 
-        # 旧位置不应再留一份（开发者工具会读到旧的那份，导致云函数不可见）
-        stale = os.path.join(MP, 'project.config.json')
-        if os.path.isfile(stale):
-            problems.append('miniprogram/project.config.json 仍存在 —— 请移到项目根，否则开发者工具打开 miniprogram/ 时看不到云函数')
+    # miniprogram/ 下也要有一份 project.config.json —— 发布通道上传的是
+    # miniprogram/ 目录，appid 必须随包走，否则微信侧拿不到 appid 直接发布失败。
+    # 两份配置各服务一个场景（IDE 打开根目录看得到云函数 / 发布通道带着 appid），
+    # 所以路径声明必须自洽：
+    #   根目录那份：miniprogramRoot=miniprogram/、cloudfunctionRoot=cloudfunctions/
+    #   miniprogram/ 那份：miniprogramRoot=.（自己就是小程序根）
+    pkg_cfg_path = os.path.join(MP, 'project.config.json')
+    if not os.path.isfile(pkg_cfg_path):
+        problems.append('缺少 miniprogram/project.config.json'
+                        '（发布通道上传的是 miniprogram/ 目录，appid 必须随包走）')
+    else:
+        with io.open(pkg_cfg_path, encoding='utf-8') as f:
+            try:
+                pkg_cfg = json.load(f)
+            except Exception as e:
+                pkg_cfg = {}
+                problems.append('miniprogram/project.config.json 不是合法 JSON：%s' % e)
+
+        pmroot = (pkg_cfg.get('miniprogramRoot') or '').rstrip('/')
+        if pmroot not in ('', '.'):
+            problems.append('miniprogram/project.config.json 的 miniprogramRoot 应为 "."'
+                            '（miniprogram/ 自己就是小程序根），当前是 "%s"' % pmroot)
+        if not pkg_cfg.get('appid'):
+            problems.append('miniprogram/project.config.json 缺少 appid')
+
+        # 两份配置的 appid 必须一致，否则 IDE 与发布通道会指向不同的小程序
+        root_cfg_path = os.path.join(ROOT, 'project.config.json')
+        if os.path.isfile(root_cfg_path):
+            with io.open(root_cfg_path, encoding='utf-8') as f:
+                try:
+                    root_cfg = json.load(f)
+                except Exception:
+                    root_cfg = {}
+            if root_cfg.get('appid') and pkg_cfg.get('appid') \
+                    and root_cfg['appid'] != pkg_cfg['appid']:
+                problems.append('两份 project.config.json 的 appid 不一致'
+                                '（%s vs %s），开发者工具与发布通道会指向不同的小程序'
+                                % (root_cfg['appid'], pkg_cfg['appid']))
 
     # 四个云函数目录必须齐备，且带 package.json（否则「云端安装依赖」装不了 wx-server-sdk）
     cf_root = os.path.join(ROOT, 'cloudfunctions')
