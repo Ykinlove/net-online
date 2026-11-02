@@ -135,7 +135,7 @@ const BATCH49_EXTRA = [
   {
     id: 'case-ip-conflict-2',
     devs: ['Switch', 'Windows', '服务器'],
-    name: '案例：IP 冲突定位到具体端口',
+    name: '案例：ARP 攻击与 MAC 漂移的处置与攻击识别',
     kw: ['ip 冲突', '地址冲突', 'ip 重复', 'arp 冲突', '冲突检测', '两个设备同 ip'],
     cmds: [
       ['先确认是真的冲突',

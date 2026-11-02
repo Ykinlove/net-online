@@ -345,7 +345,7 @@ const ROUTE_EXTRA = [
     id: 'wlan-limit',
     devs: ['AC'],
     name: '基于 SSID 的限速',
-    kw: ['限速', 'wifi限速', '带宽限制', 'per-sta', '单个终端限速'],
+    kw: ['限速', 'wifi限速', '带宽限制', 'per-sta', '单个终端限速', 'ssid限速'],
     cmds: [
       ['华为', 'traffic-profile name tp1\n car inbound cir 2048\nvap-profile name vp1\n traffic-profile tp1'],
       ['思科', 'config wlan rate-limit average-data 1 2048'],

@@ -22,7 +22,7 @@
     13. 投稿页数据链路     eval_admin.js      （定位→灌字段→增量 diff，含模板修复）
     14. 云函数/投稿结构     cloudfunctions x4 + 投稿页 + 制作人页 + contrib.js 齐备
     15. 重复 id 检查       scan_dup_ids.js    （百科/模板 id 唯一，有重复返回非 0）
-    16. 入口路径/集合容错  制作人页为唯一入口 + 云函数集合缺失容错 + 自动建表
+    16. 入口路径/集合容错  贡献内容在「我的」页 + 内容审核仅作者可见 + 集合缺失容错
     17. 部署结构          project.config.json 在根 + cloudfunctionRoot + 云函数 x4 齐备
 """
 import io, os, re, subprocess, sys, time
@@ -198,10 +198,12 @@ def check_structure():
 def check_entry_paths():
     """入口路径与集合容错守卫。
 
-    守住三件事：
-      ① 内容管理 / 贡献内容 只能从「设置→关于→制作人」进，「我的」页不得再直接暴露
-      ② 「我的」页不得再出现（作者）/（投稿）这类后缀文案
-      ③ 读集合的云函数必须有集合缺失容错（否则 -502005 会把页面炸掉）
+    守住四件事（与 2026-11-02 的入口重构对齐）：
+      ① 「贡献内容」在「我的」页，且位置在「我的收藏」之下、「设置」之上
+      ② 「内容审核」入口只对作者/管理员显示 —— 入口必须带 isAdmin 条件，
+         且判定走服务端（utils/admin.js），白名单不得写进包体
+      ③ 「我的」页不得再出现（作者）/（投稿）这类后缀文案
+      ④ 读集合的云函数必须有集合缺失容错（否则 -502005 会把页面炸掉）
     """
     problems = []
 
@@ -214,10 +216,41 @@ def check_entry_paths():
 
     mine_wxml = read(os.path.join('pages', 'mine', 'mine.wxml'))
     mine_js = read(os.path.join('pages', 'mine', 'mine.js'))
-    if 'goAdmin' in mine_wxml or 'goContribute' in mine_wxml:
-        problems.append('mine.wxml 仍直接暴露「内容管理 / 贡献内容」入口（应移到制作人页）')
-    if 'goAdmin' in mine_js or 'goContribute' in mine_js:
-        problems.append('mine.js 仍保留 goAdmin/goContribute（应移到 maker.js）')
+
+    # ① 贡献内容入口在「我的」页，且顺序为 我的收藏 → 贡献内容 → 内容审核 → 设置
+    if 'goContribute' not in mine_wxml:
+        problems.append('mine.wxml 缺少「贡献内容」入口（应从设置页移到「我的」页）')
+    if 'goContribute' not in mine_js:
+        problems.append('mine.js 缺少 goContribute')
+    order = []
+    for key in ['goFav', 'goContribute', 'goAdmin', 'goSettings']:
+        i = mine_wxml.find(key)
+        if i >= 0:
+            order.append((i, key))
+    order.sort()
+    seq = [k for _, k in order]
+    if seq != ['goFav', 'goContribute', 'goAdmin', 'goSettings']:
+        problems.append('mine.wxml 入口顺序应为 我的收藏→贡献内容→内容审核→设置，实际：%s'
+                        % ('→'.join(seq) if seq else '（未找到）'))
+
+    # ② 内容审核入口只对作者/管理员可见
+    admin_idx = mine_wxml.find('goAdmin')
+    if admin_idx >= 0:
+        # 往前找最近的 wx:if，必须包含 isAdmin
+        head = mine_wxml[:admin_idx]
+        cond = head[head.rfind('<view'):] if head.rfind('<view') >= 0 else ''
+        if 'isAdmin' not in cond:
+            problems.append('mine.wxml 的「内容审核」入口没有 isAdmin 条件（普通用户会看到）')
+    if 'isAdmin' not in mine_js:
+        problems.append('mine.js 缺少 isAdmin 判定')
+
+    # 白名单不得写进包体
+    admin_util = read(os.path.join('utils', 'admin.js'))
+    if 'oVfs1' in admin_util:
+        problems.append('utils/admin.js 里出现了 openid 白名单（包体人人可下载，等于公开）')
+    if not admin_util:
+        problems.append('缺少 utils/admin.js（作者判定工具）')
+
     for word in ['（作者）', '（投稿）', '(作者)', '(投稿)']:
         if word in mine_wxml:
             problems.append('mine.wxml 仍带后缀文案：%s' % word)
@@ -228,16 +261,26 @@ def check_entry_paths():
         problems.append('mine-settings.wxml 的「制作人」行未绑定 goMaker')
     if 'goMaker' not in settings_js:
         problems.append('mine-settings.js 缺少 goMaker')
+    # 贡献内容已移出设置页
+    if 'goContribute' in settings_wxml or 'goContribute' in settings_js:
+        problems.append('mine-settings 仍保留「贡献内容」入口（已移到「我的」页）')
 
     maker_wxml = read(os.path.join('subpkg-mine', 'pages', 'maker', 'maker.wxml'))
     maker_js = read(os.path.join('subpkg-mine', 'pages', 'maker', 'maker.js'))
-    if 'goAdmin' not in maker_wxml or 'goContribute' not in maker_wxml:
-        problems.append('maker.wxml 缺少「内容管理 / 贡献内容」两个入口')
-    if 'goAdmin' not in maker_js or 'goContribute' not in maker_js:
-        problems.append('maker.js 缺少 goAdmin/goContribute')
+    if 'goAdmin' not in maker_wxml or 'goAdmin' not in maker_js:
+        problems.append('maker 页缺少「内容审核」入口')
+    if 'isAdmin' not in maker_wxml:
+        problems.append('maker.wxml 的管理入口没有 isAdmin 条件（普通用户会看到）')
+    if 'isAdmin' not in maker_js:
+        problems.append('maker.js 缺少 isAdmin 判定')
     for word in ['（作者）', '（投稿）', '(作者)', '(投稿)']:
         if word in maker_wxml:
             problems.append('maker.wxml 仍带后缀文案：%s' % word)
+
+    # admin 页自身也要有服务端权限校验（直接跳 URL 也进不去）
+    admin_page = read(os.path.join('subpkg-tool', 'pages', 'admin', 'admin.js'))
+    if 'admin.refresh' not in admin_page:
+        problems.append('admin.js 未做服务端权限校验（直接跳 URL 可绕过入口隐藏）')
 
     # 读集合的云函数：集合缺失时必须容错
     cf_root = os.path.join(ROOT, 'cloudfunctions')
@@ -249,6 +292,11 @@ def check_entry_paths():
                 src = f.read()
         if 'try' not in src:
             problems.append('cloudfunctions/%s 缺少集合缺失容错（会抛 -502005）' % fn)
+
+    # listContent 需要支持 action=isadmin（客户端据此决定入口可见性）
+    lc = read(os.path.join(cf_root, 'listContent', 'index.js'))
+    if 'isadmin' not in lc:
+        problems.append('listContent 缺少 action=isadmin（客户端无法判定作者身份）')
 
     # 写集合的云函数：应自动建表
     for fn in ['submitContribution', 'publishContent']:
@@ -263,7 +311,8 @@ def check_entry_paths():
     if problems:
         results.append(('入口路径/集合容错', False, 1, '\n'.join('  ' + p for p in problems), 0))
     else:
-        results.append(('入口路径/集合容错', True, 0, '  制作人页入口唯一 + 云函数集合容错齐备', 0))
+        results.append(('入口路径/集合容错', True, 0,
+                        '  贡献内容在「我的」页 + 内容审核仅作者可见 + 云函数集合容错齐备', 0))
     return not problems
 
 
