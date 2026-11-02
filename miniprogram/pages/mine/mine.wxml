@@ -42,28 +42,6 @@
     </view>
   </view>
 
-  <!-- 最近记录 -->
-  <view class="card">
-    <view class="card-title-row">
-      <text class="card-title">🕘 最近记录</text>
-      <text class="card-more" bindtap="goCommands">全部 ›</text>
-    </view>
-    <view wx:if="{{!recent.length}}" class="empty">还没有记录，从「记一条命令」开始吧</view>
-    <view
-      wx:for="{{recent}}"
-      wx:key="_key"
-      class="recent-item"
-      bindtap="openCmd"
-      data-idx="{{index}}"
-    >
-      <view class="recent-main">
-        <text class="recent-title">{{item.title}}</text>
-        <text class="recent-meta">{{item.device}}</text>
-      </view>
-      <text class="recent-arrow">›</text>
-    </view>
-  </view>
-
   <!-- 搜不到的：内容缺口的输入源 -->
   <view wx:if="{{missList.length}}" class="card">
     <view class="card-title-row">

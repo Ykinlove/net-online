@@ -83,27 +83,6 @@
   border-radius: calc(6 * var(--u));
 }
 
-/* 最近记录（从首页搬来） */
-.recent-item {
-  display: flex;
-  align-items: center;
-  gap: calc(10 * var(--u));
-  padding: calc(14 * var(--u)) 0;
-  border-bottom: calc(2 * var(--u)) dashed #e2ecf4;
-}
-.recent-item:last-child { border-bottom: none; }
-.recent-main { flex: 1; display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
-.recent-title {
-  font-size: calc(25 * var(--u));
-  font-weight: 700;
-  color: #2c3e50;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.recent-meta { font-size: calc(21 * var(--u)); color: #9fb0c0; }
-.recent-arrow { color: #b9cfe0; font-size: calc(30 * var(--u)); }
-
 .menu {
   background: #fffdf6;
   border: calc(4 * var(--u)) solid #2c3e50;

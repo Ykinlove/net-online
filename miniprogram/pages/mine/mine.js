@@ -17,7 +17,6 @@ Page({
     interests: [],
     careers: [],
     lv: { level: 1, pct: 0 },
-    recent: [],
     favCount: 0,
     missList: []
   },
@@ -36,28 +35,12 @@ Page({
       interests: splitKw(p.interests),
       careers: splitKw(p.careers),
       lv: this.buildLv(),
-      recent: this.buildRecent(),
       favCount: store.getFavs().length,
       missList: store.getSearchMiss().slice(0, 6)
     });
     /* 这里不再问服务端「是不是作者」——
        「内容审核」入口已收敛到 设置 → 制作人 一处，本页没有管理入口，
        少一次 isadmin 云函数往返，进「我的」更快。 */
-  },
-
-  /* 最近三条命令 */
-  buildRecent() {
-    return store
-      .getList('commands')
-      .slice()
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-      .slice(0, 3)
-      .map(c => ({
-        _key: c._id || c._localId,
-        _id: c._id || '',
-        title: c.title || '(未命名命令)',
-        device: c.device || '其他设备'
-      }));
   },
 
   /* 总等级：命令 1 点 / 项目 8 点 / 点亮技能 5 点 / 在学技能 2 点，10000 点满级 */
@@ -68,18 +51,6 @@ Page({
       store.getList('skills')
     );
     return { level: r.level, pct: r.pct };
-  },
-
-  goCommands() {
-    wx.switchTab({ url: '/pages/commands/commands' });
-  },
-
-  openCmd(e) {
-    const idx = Number(e.currentTarget.dataset.idx);
-    const item = this.data.recent[idx];
-    if (!item) return;
-    getApp().globalData.pendingAction = { type: 'open-command', id: item._id };
-    wx.switchTab({ url: '/pages/commands/commands' });
   },
 
   goSettings() {
