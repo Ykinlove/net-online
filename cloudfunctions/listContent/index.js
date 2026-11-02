@@ -7,9 +7,15 @@
 //   since      content_patch 增量游标（updatedAt > since，0 表示全量）
 //   extraSince extra_items 增量游标（approvedAt > extraSince，0 表示全量）
 //   action     传 'whoami' 时只返回调用者的 openid（用于配置 ADMIN_OPENIDS 白名单）
+//              传 'isadmin' 时返回调用者是否为作者/管理员
 // 返回：
 //   { patches:[...content_patch 文档...], extras:[...extra_items 文档...] }
 //   action=whoami 时返回 { ok:true, openid:'oXXXX...' }
+//   action=isadmin 时返回 { ok:true, isAdmin:true|false }
+//
+// 为什么要有 isadmin：客户端要判断「内容审核」入口该不该显示给当前用户。
+// 白名单只配在云函数环境变量里，不写进小程序包体（包体人人可下载）。
+// 真正的写权限也由云函数鉴权，这里只是「入口可见性」的体验判断。
 
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
@@ -19,6 +25,14 @@ const PAGE = 100;
 
 const COLL_PATCH = 'content_patch';
 const COLL_EXTRA = 'extra_items';
+
+/* 与 publishContent / reviewContribution 同一份白名单（云函数环境变量）。 */
+function isAdmin(openid) {
+  const list = (process.env.ADMIN_OPENIDS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  if (!list.length) return false;
+  return list.indexOf(openid) >= 0;
+}
 
 /* 只读拉取：集合不存在时应当视为「暂无内容」而不是报错。
    客户端启动时必调本函数，若因集合缺失直接抛 -502005 会让首页内容加载失败。 */
@@ -56,6 +70,14 @@ exports.main = async (event) => {
     if (event.action === 'whoami') {
       const { OPENID } = cloud.getWXContext();
       return { ok: true, openid: OPENID || '' };
+    }
+
+    /* isadmin：当前用户是不是作者/管理员。
+       客户端用它决定「内容审核」入口要不要显示——普通用户根本看不到这个入口，
+       不会误以为自己能审核别人的投稿。 */
+    if (event.action === 'isadmin') {
+      const { OPENID } = cloud.getWXContext();
+      return { ok: true, isAdmin: isAdmin(OPENID) };
     }
 
     const since = Number(event.since) || 0;

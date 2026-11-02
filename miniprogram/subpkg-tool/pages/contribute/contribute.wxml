@@ -4,7 +4,7 @@
   <!-- 头部 -->
   <view class="card head-card">
     <text class="card-title">📝 贡献内容</text>
-    <text class="head-sub">新增或修正命令百科 / 配置模板，提交后由作者审核，通过即生效。</text>
+    <text class="head-sub">新增或修正命令百科 / 配置模板，提交后进入待审队列，由作者审核通过后才会公开生效。你提交的是建议，不是直接发布。</text>
   </view>
 
   <!-- 类型 + 类别 -->

@@ -1,10 +1,17 @@
-// pages/admin/admin.js —— 内容管理发布页（作者入口，口令保护）
+// pages/admin/admin.js —— 内容审核页（作者 / 管理员）
 //
 // 作用：作者在这里按 id / 关键词定位一条命令百科或配置模板，修正字段后发布到
-// 云端 content_patch 集合。普通用户端启动时拉取该集合做热更新，无需发版。
+// 云端 content_patch 集合；也可以审核其他用户提交的投稿。
+// 普通用户端启动时拉取该集合做热更新，无需发版。
 //
-// 权限说明：这里用「本地口令」做轻量保护，适合个人开发者。正式运营应改为
-// 云函数鉴权（见 DATA_GUIDE.md 的热更新章节）。
+// 权限是三层：
+//   1) 入口可见性 —— 「我的」页和「制作人」页都只对作者/管理员显示这个入口
+//      （utils/admin.js 问服务端 listContent action=isadmin 判定）；
+//   2) 本页进入 —— 即使有人直接跳转 URL，服务端判定不是作者也会被拦下；
+//   3) 真正的写权限 —— publishContent / reviewContribution 云函数各自校验
+//      ADMIN_OPENIDS 白名单，前端绕过也没用。
+// 本地口令只作第三层之外的额外锁；它明文在包体里（包人人可下载），
+// 所以真正的防线在云函数白名单。
 //
 // 数据结构差异（决定两套编辑字段）：
 //   命令百科 book：{ id, devs, name, kw:[], cmds:[[厂商,命令],...], tip }
@@ -12,6 +19,7 @@
 const cmdbook = require('../../utils/cmdbook.js');
 const hotfix = require('../../../utils/hotfix.js');
 const contrib = require('../../../utils/contrib.js');
+const admin = require('../../../utils/admin.js');
 
 const ADMIN_PASS = '__ADMIN_PASS__';
 
@@ -63,12 +71,26 @@ Page({
     tab: 'edit',           // 'edit' 编辑发布 | 'review' 待审核
     pending: [],           // 待审核投稿列表
     pendingErr: '',
-    pendingLoading: false
+    pendingLoading: false,
+
+    /* 权限状态：'checking' 判定中 | 'denied' 不是作者/管理员 | 'ok' 可以进 */
+    perm: 'checking'
   },
 
   onLoad() {
     const unlocked = wx.getStorageSync('admin_unlocked') === '1';
     this.setData({ unlocked });
+    this.checkPerm();
+  },
+
+  /* 服务端判定当前用户是不是作者/管理员。
+     这一层是「入口隐藏」之外的兜底：即使有人直接跳这个页面的 URL，
+     不是作者也会看到无权限提示，而不是一个能用的审核工作台。 */
+  checkPerm() {
+    admin.refresh().then(ok => {
+      this.setData({ perm: ok ? 'ok' : 'denied' });
+      if (!ok) wx.removeStorageSync('admin_unlocked');
+    });
   },
 
   onPassInput(e) { this.setData({ passInput: e.detail.value }); },

@@ -40,10 +40,12 @@
       "timeout": 10,
       "memorySize": 256,
       "runtime": "Nodejs20.19",
-      "description": "客户端统一拉取云端内容（覆盖记录 + 已批准新增）",
+      "description": "客户端统一拉取云端内容（覆盖记录 + 已批准新增）+ 作者身份判定",
       "handler": "index.main",
       "installDependency": true,
-      "envVariables": {}
+      "envVariables": {
+        "ADMIN_OPENIDS": "__OPENID_A__,__OPENID_B__"
+      }
     },
     {
       "name": "reviewContribution",

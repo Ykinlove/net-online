@@ -23,3 +23,12 @@
   font-size: calc(22 * var(--u)); color: #8a99aa;
   text-align: center; padding: calc(22 * var(--u)) calc(28 * var(--u)); line-height: 1.6;
 }
+
+/* 管理入口下方的说明：讲清楚这个入口管的是「别人提交的投稿」 */
+.maker-tip {
+  display: block;
+  margin-top: calc(6 * var(--u));
+  font-size: calc(21 * var(--u));
+  color: #7a8a9b;
+  line-height: 1.65;
+}

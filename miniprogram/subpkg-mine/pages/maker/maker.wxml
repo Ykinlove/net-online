@@ -7,20 +7,18 @@
     <text class="maker-desc">Net 操作命令速记 · 制作人</text>
   </view>
 
-  <view class="card">
+  <!-- 管理入口：只对作者 / 管理员显示。
+       普通用户看不到这张卡，也不会误以为这个入口是自己审稿用的。 -->
+  <view wx:if="{{isAdmin}}" class="card">
     <view class="card-title-row"><text class="card-title">管理入口</text></view>
     <view class="menu-row" bindtap="goAdmin" hover-class="menu-row-hover">
       <text class="menu-ico">🛠️</text>
-      <text class="menu-txt">内容管理</text>
+      <text class="menu-txt">内容审核</text>
       <text class="menu-arrow">›</text>
     </view>
-    <view class="menu-row" bindtap="goContribute" hover-class="menu-row-hover">
-      <text class="menu-ico">📝</text>
-      <text class="menu-txt">贡献内容</text>
-      <text class="menu-arrow">›</text>
-    </view>
+    <text class="maker-tip">管理命令百科与配置模板库：其他用户提交的投稿在这里审核，审核通过后才会公开生效。</text>
   </view>
 
-  <text class="maker-foot">内容管理：作者发布云端热更新（改完即生效）。贡献内容：提交命令百科 / 模板供作者审核。</text>
+  <text wx:if="{{isAdmin}}" class="maker-foot">投稿请在「我的 → 贡献内容」提交，审核通过后所有用户都能搜到。</text>
 
 </view>

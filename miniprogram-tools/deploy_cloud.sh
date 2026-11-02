@@ -48,20 +48,20 @@ for fn in $TARGETS; do
   echo ""
 done
 
-# 环境变量同步（publishContent / reviewContribution 需要 ADMIN_OPENIDS）
+# 环境变量同步（publishContent / reviewContribution / listContent 需要 ADMIN_OPENIDS）
 ADMIN_OPENIDS="$(python -c "
 import json,io
 with io.open('cloudbaserc.json', encoding='utf-8') as f:
     d = json.load(f)
 for fn in d.get('functions', []):
-    if fn['name'] in ('publishContent', 'reviewContribution'):
+    if fn['name'] in ('publishContent', 'reviewContribution', 'listContent'):
         print(fn.get('envVariables', {}).get('ADMIN_OPENIDS', ''))
         break
 " 2>/dev/null || echo '')"
 
 if [ -n "$ADMIN_OPENIDS" ]; then
   echo "── 同步 ADMIN_OPENIDS ──"
-  for fn in publishContent reviewContribution; do
+  for fn in publishContent reviewContribution listContent; do
     tcb api scf UpdateFunctionConfiguration --api-version 2018-04-16 --json \
       --body "{\"Namespace\":\"$ENV_ID\",\"FunctionName\":\"$fn\",\"Environment\":{\"Variables\":[{\"Key\":\"ADMIN_OPENIDS\",\"Value\":\"$ADMIN_OPENIDS\"}]}}" \
       >/dev/null && echo "  ✓ $fn"
