@@ -47,23 +47,28 @@ Page({
     const all = store.getList('projects').slice();
     all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
+    /* 列表行只保留 wxml 用到的字段。content（完整项目内容）原来既进了列表 data，
+       又生成了一份 preview —— 同一份内容在 setData 载荷里存了两遍。
+       现在正文 / 设备 / 命令清单留给详情，点开时从 _rows 按 key 现取。 */
     const shown = all.map(p => {
       const raw = String(p.tags || '');
       return {
         _key: p._id || p._localId,
-        _id: p._id || '',
         name: p.name || '(未命名项目)',
         status: p.status || '进行中',
         statusClass: statusClass(p.status || '进行中'),
         role: p.role || '',
-        content: p.content || '',
-        devices: p.devices || '',
-        cmds: p.cmds || '',
         preview: String(p.content || '（没有填写项目内容）').slice(0, 90),
         dateLabel: rangeLabel(p),
         tagList: raw ? raw.split(/[,，]/).map(s => s.trim()).filter(Boolean).slice(0, 4) : []
       };
     });
+
+    /* 原文留在实例上（不进 data），详情按 key 取 */
+    this._rows = {};
+    for (let i = 0; i < all.length; i++) {
+      this._rows[all[i]._id || all[i]._localId] = all[i];
+    }
 
     const now = new Date();
     const diag = store.isReady()
@@ -85,9 +90,25 @@ Page({
 
   openDetail(e) {
     const idx = Number(e.currentTarget.dataset.idx);
-    const item = this.data.shown[idx];
-    if (!item) return;
-    this.setData({ detail: item });
+    const row = this.data.shown[idx];
+    if (!row) return;
+    /* 正文 / 设备 / 命令清单不在列表 data 里（省 setData 载荷），从实例缓存取原文 */
+    const raw = this._rows ? this._rows[row._key] : null;
+    if (!raw) return;
+    this.setData({
+      detail: {
+        _key: row._key,
+        name: row.name,
+        status: row.status,
+        statusClass: row.statusClass,
+        role: row.role,
+        dateLabel: row.dateLabel,
+        tagList: row.tagList,
+        content: raw.content || '',
+        devices: raw.devices || '',
+        cmds: raw.cmds || ''
+      }
+    });
   },
   closeDetail() {
     this.setData({ detail: null });

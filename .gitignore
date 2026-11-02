@@ -51,3 +51,6 @@ docx_import/
 
 # 一键上传脚本记录的本地版本号
 miniprogram-tools/.last_upload_version
+
+# WorkBuddy 工具自动生成的目录（自动化记忆等），不属于源码
+.workbuddy/

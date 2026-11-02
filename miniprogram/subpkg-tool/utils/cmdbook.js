@@ -662,7 +662,22 @@ function expand(words) {
  * 避免 298 条 × 4 组命令每次都重新拼串、重新编译正则。
  */
 let IDX = null;
-let IDX_VER = -1;
+let IDX_VER = '';
+
+/**
+ * 数据源版本号 —— 索引 / 词表 / 模板索引统一以它为准。
+ *
+ * 为什么不能只看 hotfix.version()：
+ * 练习题库走 CloudBase 异步加载（practice.loadPractice），
+ * 加载完成后 BOOK 被 concat，但练习题**不经 hotfix**，
+ * hotfix.version() 永远不会因它变化 → 索引永不失效 →
+ * 练习题进了 BOOK 却进不了索引 → 永久搜不到。
+ * 所以把「练习题加载代数」并进版本键，两个来源都能触发失效。
+ */
+let DATA_VER = 0;
+function dataVer() {
+  return hotfix.version() + ':' + DATA_VER;
+}
 
 /* 单条百科条目 → 索引结构（本地条目与云端新增条目共用）。 */
 function indexBook(p) {
@@ -674,14 +689,22 @@ function indexBook(p) {
        因为标题里多一个空格就判不中 */
     ns: p.name.toLowerCase().replace(/\s+/g, ''),
     klist: (p.kw || []).map(function (k) { return String(k).toLowerCase().replace(/\s+/g, ''); }),
-    body: (p.cmds || []).map(function (c) { return c[1]; }).join('\n').toLowerCase()
+    body: (p.cmds || []).map(function (c) { return c[1]; }).join('\n').toLowerCase(),
+    /* 分类结果缓存在索引记录上：classifyItem 要对每条遍历 10 分类 × 615 关键词，
+       全量 1216 条 = 74.8 万次 indexOf，而 categoryStats() 和 listBy({cat})
+       各自重跑一遍。索引整体重建时本记录一并被替换，缓存自动失效，
+       不需要额外版本号，也不会与热更新漂移。undefined = 还没算过。 */
+    cat: undefined,
+    /* 条目名是静态的，意图识别预算一次 —— 否则每次搜索都要对 1216 条
+       重算一遍 INTENT 匹配（实测占总打分开销的大头）。 */
+    intents: intentsOf(p.name)
   };
 }
 
 function buildIndex() {
   /* 云端热更新拉到新数据后 version 会变，这里据此失效索引。
      没有覆盖时 applyPatch 原样返回，性能开销可忽略（且只在 version 变化时重建）。 */
-  if (IDX && IDX_VER === hotfix.version()) return IDX;
+  if (IDX && IDX_VER === dataVer()) return IDX;
 
   const base = BOOK.map(function (it) {
     return indexBook(hotfix.applyPatch(it, 'book'));
@@ -706,7 +729,7 @@ function buildIndex() {
   });
 
   IDX = base;
-  IDX_VER = hotfix.version();
+  IDX_VER = dataVer();
   return IDX;
 }
 
@@ -716,12 +739,20 @@ function buildIndex() {
    用词表做前向最大匹配切成「交换机 / 上架」，才能命中条目。
    只收标题和别名，不收正文——正文太杂，会把词表撑成万能匹配。 */
 let VOCAB = null;
+let VOCAB_VER = '';
 function buildVocab() {
-  if (VOCAB) return VOCAB;
+  /* 词表也要跟着数据源走：原来只看 BOOK（包内原始数据），
+     不含热更新覆盖、不含云端批准的新增条目 —— 那些条目就切不出词，搜不到。
+     而且原来只建一次、永不失效，热更新改了名词表也不更新。
+     改成从索引取（索引已叠 applyPatch + extras）+ 按 dataVer() 失效。 */
+  const ver = dataVer();
+  if (VOCAB && VOCAB_VER === ver) return VOCAB;
   const set = new Set();
   const RE = /[\u4e00-\u9fa5]+/g;
-  for (let i = 0; i < BOOK.length; i++) {
-    const text = BOOK[i].name + ' ' + BOOK[i].kw.join(' ');
+  const all = buildIndex();
+  for (let i = 0; i < all.length; i++) {
+    const rec = all[i];
+    const text = rec.name + ' ' + rec.kws;
     let m;
     RE.lastIndex = 0;
     while ((m = RE.exec(text))) {
@@ -751,6 +782,7 @@ function buildVocab() {
     }
   }
   VOCAB = set;
+  VOCAB_VER = ver;
   return set;
 }
 
@@ -972,6 +1004,42 @@ function charCover(name, q) {
  * 两条修正：症状词一律压到 1；纯英文/数字词（vlan、ospf、m-lag）给到至少 2，
  * 因为用户敲英文缩写时，那个词一定是他真正要找的东西。
  */
+/**
+ * 命中面统计：某个词组能命中多少条记录。
+ *
+ * rarity（算稀有度权重）和 dropGreedy（判泛词）要的是同一个量，
+ * 之前两处各扫一遍「全部记录 × 全部词组 × body 正文」，
+ * 白做一遍 —— body 全部加起来 53 万字符，中文词走 indexOf 是线性扫。
+ * 这里算一次两边共用，结果按 key 记忆，跨搜索还能复用。
+ */
+let HCACHE = null;
+function hitCounts(all, dev, groups) {
+  const gkey = groups.map(function (g) { return g.join('\u0001'); }).join('\u0001');
+  const key = IDX_VER + '|' + (dev || '全部') + '|' + gkey;
+  if (HCACHE && HCACHE.key === key) return HCACHE.map;
+
+  const pool = [];
+  for (let i = 0; i < all.length; i++) {
+    if (dev && dev !== '全部' && all[i].it.devs.indexOf(dev) < 0) continue;
+    pool.push(all[i]);
+  }
+  const map = {};
+  for (let g = 0; g < groups.length; g++) {
+    const grp = groups[g];
+    let c = 0;
+    for (let i = 0; i < pool.length; i++) {
+      const rec = pool[i];
+      for (let j = 0; j < grp.length; j++) {
+        const w = grp[j];
+        if (hasWord(rec.name, w) || hasWord(rec.kws, w) || hasWord(rec.body, w)) { c++; break; }
+      }
+    }
+    map[grp.join('\u0001')] = c;
+  }
+  HCACHE = { key: key, map: map };
+  return map;
+}
+
 function rarity(all, dev, groups) {
   if (groups.length < 2) return null;
   const pool = [];
@@ -981,18 +1049,12 @@ function rarity(all, dev, groups) {
   }
   if (!pool.length) return null;
 
+  const hmap = hitCounts(all, dev, groups);
   return groups.map(function (g) {
     const t = g[0];
     if (SYMPTOM.indexOf(t) >= 0) return 1;
 
-    let c = 0;
-    for (let i = 0; i < pool.length; i++) {
-      const rec = pool[i];
-      for (let j = 0; j < g.length; j++) {
-        const w = g[j];
-        if (hasWord(rec.name, w) || hasWord(rec.kws, w) || hasWord(rec.body, w)) { c++; break; }
-      }
-    }
+    const c = hmap[g.join('\u0001')];
     let w0 = Math.max(1, Math.min(6, Math.round(60 / (2 + c))));
     if (/^[a-z0-9-]+$/.test(t) && w0 < 2) w0 = 2;
     return w0;
@@ -1048,7 +1110,9 @@ function scoreOf(rec, groups, wt, ctx) {
       else if (hasPhrase(rec.klist, ctx.nq)) score += PHRASE_BONUS;
     }
     if (ctx.qi && ctx.qi.length) {
-      const ni = intentsOf(name);
+      /* 用建索引时预算好的意图，不要每次搜索重算 ——
+         intentsOf 要跑一遍 INTENT 的全部意图词，对 1216 条重算是纯浪费。 */
+      const ni = rec.intents || [];
       for (let i = 0; i < ni.length; i++) {
         if (ctx.qi.indexOf(ni[i]) >= 0) { score += INTENT_BONUS; break; }
       }
@@ -1142,16 +1206,11 @@ function dropGreedy(all, dev, groups) {
   }
   if (!pool.length) return gs;
 
+  /* 命中面统计与 rarity 共用（hitCounts 内部按 key 记忆，
+     两次调用词组一致时第二次直接命中缓存）。 */
+  const hmap = hitCounts(all, dev, gs);
   const cnt = gs.map(function (g) {
-    let c = 0;
-    for (let i = 0; i < pool.length; i++) {
-      const rec = pool[i];
-      for (let j = 0; j < g.length; j++) {
-        const w = g[j];
-        if (hasWord(rec.name, w) || hasWord(rec.kws, w) || hasWord(rec.body, w)) { c++; break; }
-      }
-    }
-    return c;
+    return hmap[g.join('\u0001')];
   });
 
   const limit = pool.length * 0.35;
@@ -1212,8 +1271,10 @@ function search(kw, dev) {
     const rec = all[i];
     if (dev && dev !== '全部' && rec.it.devs.indexOf(dev) < 0) continue;
     const sc = words.length ? scoreOf(rec, words, wt, ctx) : { hit: 0, score: 0, raw: 0 };
-    cand.push({ it: rec.it, hit: sc.hit, score: sc.score, raw: sc.raw,
-      cc: nq ? charCover(rec.name, nq) : 0 });
+    /* cc 先留空：它只在「词没凑齐」的退化路径里用，
+       正常路径（全词命中）排序本来就不看它 ——
+       之前对全部 1216 条都算了一遍，结果一个都没用到。 */
+    cand.push({ it: rec.it, hit: sc.hit, score: sc.score, raw: sc.raw, cc: 0 });
   }
 
   /* cc（标题覆盖了几个查询字）只在「词没凑齐」的退化路径里用。
@@ -1224,7 +1285,16 @@ function search(kw, dev) {
   let list = cand;
   if (words.length) {
     const full = cand.filter(c => c.hit === words.length).sort(byScore);
-    list = full.length ? full : cand.filter(c => c.hit > 0).sort(byHit);
+    if (full.length) {
+      list = full;
+    } else {
+      /* 退化路径才需要标题覆盖度，且只算活下来的候选（远少于全量）。 */
+      const partial = cand.filter(c => c.hit > 0);
+      for (let i = 0; i < partial.length; i++) {
+        partial[i].cc = nq ? charCover(partial[i].it.name, nq) : 0;
+      }
+      list = partial.sort(byHit);
+    }
   }
 
   return list.map(c => {
@@ -1264,7 +1334,7 @@ function search(kw, dev) {
 let TPL_INDEX = null;
 let TPL_VER = -1;
 function tplIndex() {
-  if (TPL_INDEX && TPL_VER === hotfix.version()) return TPL_INDEX;
+  if (TPL_INDEX && TPL_VER === dataVer()) return TPL_INDEX;
   let list = [];
   try {
     /* tplbook 在主包，分包可引用主包公共资源。
@@ -1295,7 +1365,7 @@ function tplIndex() {
   });
 
   TPL_INDEX = base;
-  TPL_VER = hotfix.version();
+  TPL_VER = dataVer();
   return TPL_INDEX;
 }
 
@@ -1464,8 +1534,9 @@ function listBy(opts) {
     const it = rec.it;
     if (o.dev && o.dev !== '全部' && it.devs.indexOf(o.dev) < 0) continue;
     if (o.cat) {
-      const c = cats.classifyItem(it);
-      if (c.key !== o.cat) continue;
+      const rec = all[i];
+      if (!rec.cat) rec.cat = cats.classifyItem(it).key;
+      if (rec.cat !== o.cat) continue;
     }
     rows.push({
       id: it.id,
@@ -1492,9 +1563,14 @@ function categoryStats() {
   const counts = {};
   cats.CATEGORIES.forEach(function (c) { counts[c.key] = 0; });
   for (let i = 0; i < all.length; i++) {
-    const c = cats.classifyItem(all[i].it);
-    if (counts[c.key] === undefined) counts[c.key] = 0;
-    counts[c.key]++;
+    const rec = all[i];
+    /* 分类结果缓存在索引记录上：classifyItem 每条要遍历 10 分类 × 615 关键词，
+       全量 1216 条 = 74.8 万次 indexOf。这里和 listBy({cat}) 各跑一遍，
+       缓存后第二次几乎零成本。索引重建时记录一并替换，缓存自动失效。 */
+    if (!rec.cat) rec.cat = cats.classifyItem(rec.it).key;
+    const k = rec.cat;
+    if (counts[k] === undefined) counts[k] = 0;
+    counts[k]++;
   }
   return cats.CATEGORIES.map(function (c) {
     return { key: c.key, name: c.name, desc: c.desc, count: counts[c.key] || 0 };
@@ -1652,7 +1728,11 @@ function lookupById(kind, id) {
   };
 }
 
-module.exports = { VENDORS, BOOK, search, norm, expand, cleanCmd, searchTemplates,
+module.exports = { VENDORS,
+  /* getter 而非快照：练习题异步加载完成后 BOOK 被重新赋值，
+     快照引用会一直指着旧数组，读到 1216 条而不是最新数据。 */
+  get BOOK() { return BOOK; },
+  search, norm, expand, cleanCmd, searchTemplates,
   listBy, categoryStats, listTpls, tplCategoryStats,
   findById, findTplById, shareCard, lookupById,
   /* 调试用：只在本地 node 脚本里调，页面不引用 */
@@ -1663,6 +1743,11 @@ module.exports = { VENDORS, BOOK, search, norm, expand, cleanCmd, searchTemplate
    避免 subpkg-tool 超过 2MB 分包上限导致微信 errcode 80200。
    页面只调用 search/lookupById 等函数，BOOK 重建后自动包含练习数据，无需改动页面。 */
 practice.loadPractice()
-  .then(() => { BOOK = BOOK.concat(practice.getPractice()); })
+  .then(() => {
+    BOOK = BOOK.concat(practice.getPractice());
+    /* 推进数据版本：练习题不走 hotfix，不推进的话索引/词表永不失效，
+       练习题进了 BOOK 也进不了索引 → 永久搜不到。 */
+    DATA_VER++;
+  })
   .catch(() => {});
 

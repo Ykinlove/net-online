@@ -27,6 +27,14 @@ MP = os.path.join(ROOT, 'miniprogram')
 SRC = os.path.join(HERE, 'data-src')
 MANIFEST = os.path.join(HERE, 'data-manifest.json')
 
+# 逻辑文件：手写代码，不是数据产物，不在 manifest 里，也不需要有对应源。
+# 孤儿扫描要跳过它们，否则真正的残留产物会被噪音淹没。
+LOGIC_FILES = {
+    'admin.js', 'categories.js', 'cmdbook.js', 'config.js', 'contrib.js',
+    'hotfix.js', 'lunar.js', 'practice.js', 'seed.js', 'skill.js',
+    'store.js', 'xlsx.js',
+}
+
 # pkg -> 产物目录
 PKG_DIR = {
     'main': os.path.join(MP, 'utils'),
@@ -86,15 +94,16 @@ def do_build(files):
                         len(want.encode('utf-8'))))
 
     # 找出没有对应源文件的产物（历史遗留的多余产物）
+    # 逻辑文件（store/hotfix/cmdbook 等）本来就不在 manifest 里，
+    # 混进「孤儿」列表会把真正的残留淹没 —— 之前每次构建报 13 条噪音。
     for pkg, d in PKG_DIR.items():
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
             if not f.endswith('.js'):
                 continue
-            if f in files:
+            if f in files or f in LOGIC_FILES:
                 continue
-            # 逻辑文件不在 manifest 里，跳过
             orphan.append('%s/%s' % (os.path.relpath(d, MP).replace('\\', '/'), f))
 
     print('生成完成：更新 %d 个文件' % len(changed))

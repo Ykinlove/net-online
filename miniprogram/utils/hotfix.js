@@ -38,6 +38,10 @@ let EXTRAS = { book: {}, tpl: {} }; // kind -> { id -> 完整条目 }（已批�
 let VERSION = 0;                   // 每次数据变化 +1，供 cmdbook 失效索引缓存
 let READY = false;                 // 本地缓存或云端是否已加载过
 let PULLING = false;
+/* 上次成功拉取的时间戳 —— 加个时间窗，避免反复进页面时反复打云端。
+   search / browse 两页的 onShow 每次都调 refresh()，内容一分钟内基本不会变。 */
+let LAST_REFRESH = 0;
+const REFRESH_TTL = 60 * 1000;
 
 /* ---------------- 纯函数（node 可单测） ---------------- */
 
@@ -246,9 +250,13 @@ async function pullExtras(since) {
 
 // 启动拉取：优先走云函数 listContent（含覆盖记录 + 已批准新增），失败降级直连。
 // 不阻塞首屏——失败也不影响本地使用。
-async function refresh() {
+async function refresh(force) {
   if (PULLING) return;
+  /* TTL：一分钟内不重复拉。冷启动（app.js）传 force=true 绕过，
+     页面进出的常规调用走时间窗，能省掉大量重复往返。 */
+  if (!force && Date.now() - LAST_REFRESH < REFRESH_TTL) return;
   PULLING = true;
+  LAST_REFRESH = Date.now();
   try {
     if (!READY) loadCache();
     const since = lastUpdated();

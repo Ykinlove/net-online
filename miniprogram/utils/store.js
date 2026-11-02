@@ -6,6 +6,8 @@
 
 const CLOUD_COLL = ['profiles', 'commands', 'projects', 'skills', 'tasks'];
 const PAGE_SIZE = 20; // 小程序端单次查询上限就是 20 条
+/* 正在进行的云端拉取（共享同一个 Promise，用于并发去重） */
+let PULLING = null;
 
 const mem = {
   inited: false,
@@ -30,7 +32,17 @@ function sGet(key, def) {
   }
 }
 function sSet(key, val) {
-  try { wx.setStorageSync('no_' + key, val); } catch (e) {}
+  /* 原来这里空 catch 吞掉所有异常 —— 微信单 key 上限 1MB，
+     写不进去时抛错被吞掉，调用方以为存成功了。
+     存档功能因此会「静默失效」：用户以为有备份，实际没有。
+     改成返回成功标记，失败时留一条日志。 */
+  try {
+    wx.setStorageSync('no_' + key, val);
+    return true;
+  } catch (e) {
+    console.warn('[store] setStorageSync 失败:', key, e && e.message);
+    return false;
+  }
 }
 function sDel(key) {
   try { wx.removeStorageSync('no_' + key); } catch (e) {}
@@ -73,13 +85,12 @@ async function fetchAll(name) {
   const d = db();
   if (!d) throw new Error('云开发不可用');
   const col = d.collection(name);
-  const cnt = await col.count();
-  const total = (cnt && cnt.total) || 0;
-  if (!total) return [];
+  /* 不用 count()：count 是一次额外的网络往返，而 get 返回不满 PAGE_SIZE
+     本就说明到底了 —— 少 5 次查询（5 个集合各一次）。 */
   const out = [];
-  for (let skip = 0; skip < total; skip += PAGE_SIZE) {
-    const res = await d.collection(name).orderBy('createdAt', 'asc').skip(skip).limit(PAGE_SIZE).get();
-    const rows = res.data || [];
+  for (let skip = 0; ; skip += PAGE_SIZE) {
+    const res = await col.orderBy('createdAt', 'asc').skip(skip).limit(PAGE_SIZE).get();
+    const rows = (res && res.data) || [];
     out.push.apply(out, rows);
     if (rows.length < PAGE_SIZE) break;
   }
@@ -236,6 +247,19 @@ async function pullAll() {
     mem.cloudOk = false;
     return { ok: false, reason: 'cloud-unavailable' };
   }
+  /* 并发去重：splash 启动拉取还没完，用户又触发了下拉刷新时，
+     原来会并行跑两轮完整的 5 集合拉取，云端白挨一倍请求。
+     参照 hotfix.refresh() 的 PULLING 写法，共享同一个 Promise。 */
+  if (PULLING) return PULLING;
+  PULLING = pullAllInner();
+  try {
+    return await PULLING;
+  } finally {
+    PULLING = null;
+  }
+}
+
+async function pullAllInner() {
   let okCount = 0;
   const errors = [];
   for (let i = 0; i < CLOUD_COLL.length; i++) {
@@ -415,15 +439,28 @@ async function addUnlock(kind, id) {
 }
 
 /* ---------------- 自动存档（只存本机） ---------------- */
-const ARCHIVE_KEEP = 5;
+/* 存档份数：原来 5 份全量深拷贝，实测 798KB —— 占微信单 key 1MB 上限的 78%。
+   数据再涨一点就写不进去（而 sSet 原来还把异常吞了，静默失效）。
+   降到 3 份，并在写入前按体积淘汰最旧的，宁可少存也不要存不进去。 */
+const ARCHIVE_KEEP = 3;
 const ARCHIVE_GAP = 60 * 1000;
+/* 存档总体积上限，留出余量给微信其它存储 */
+const ARCHIVE_MAX_BYTES = 600 * 1024;
 
 function getSnapshots() {
   init();
   return sGet('snapshots', []) || [];
 }
 function setSnapshots(arr) {
-  sSet('snapshots', arr);
+  /* 写入前按体积淘汰最旧的：宁可少存几份，也不要整份写失败 */
+  let list = arr;
+  while (list.length > 1 && JSON.stringify(list).length > ARCHIVE_MAX_BYTES) {
+    list = list.slice(0, list.length - 1);
+  }
+  if (!sSet('snapshots', list)) {
+    /* 写不进去就退一步：只留最新一份，再试一次 */
+    sSet('snapshots', list.slice(0, 1));
+  }
 }
 
 function cleanRec(r) {

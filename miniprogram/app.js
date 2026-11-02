@@ -28,7 +28,9 @@ App({
     try {
       const hotfix = require('./utils/hotfix.js');
       this.globalData.hotfix = hotfix;
-      hotfix.refresh();
+      /* 冷启动强制拉一次（绕过 TTL）—— 首次进入要拿到最新的云端内容。
+         页面进出的常规调用走 TTL，不重复打云端。 */
+      hotfix.refresh(true);
     } catch (e) {}
   }
 });
