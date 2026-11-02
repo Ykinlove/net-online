@@ -36,6 +36,8 @@ if [ -z "$CLI_BAT" ]; then
   exit 1
 fi
 
+# 转成 Windows 短路径（8.3，去掉空格），避免 cmd 把 "Program Files" 截断
+CLI_BAT="$(cygpath -d "$CLI_BAT" 2>/dev/null || cygpath -w "$CLI_BAT" 2>/dev/null || echo "$CLI_BAT")"
 # 转成 Windows 路径（cli.bat 在 cmd 里跑，需要反斜杠路径）
 WIN_REPO="$(cygpath -w "$REPO" 2>/dev/null || echo "$REPO")"
 echo "[1/3] 开发者工具：$CLI_BAT"
@@ -57,8 +59,18 @@ fi
 echo "[2/3] 版本号：$VER    备注：$DESC"
 
 # ---------- 3. 上传（调用官方 cli.bat）----------
+# 自动探测正在运行的 IDE profile：含 .cli 握手文件（里面是 IDE 监听端口）的那个
+UDA_ARG=""
+for f in "$LOCALAPPDATA/微信开发者工具/User Data"/*/Default/.cli; do
+  if [ -f "$f" ]; then
+    UDA_DIR="${f%/Default/.cli}"
+    UDA_ARG="--user-data-dir $(cygpath -d "$UDA_DIR" 2>/dev/null || echo "$UDA_DIR")"
+    echo "[3/3] 使用 IDE profile：$UDA_DIR"
+    break
+  fi
+done
 echo "[3/3] 开始上传..."
-"$CLI_BAT" upload --project "$WIN_REPO" --version "$VER" --desc "$DESC"
+"$CLI_BAT" upload $UDA_ARG --project "$WIN_REPO" --version "$VER" --desc "$DESC"
 RC=$?
 
 echo
