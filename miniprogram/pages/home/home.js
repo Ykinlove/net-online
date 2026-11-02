@@ -1,6 +1,5 @@
 const store = require('../../utils/store.js');
-const { ANSWER_BOOK, BOOK_COUNT } = require('../../utils/seed.js');
-const { TPLS } = require('../../utils/tplbook.js');
+const { ANSWER_BOOK } = require('../../utils/seed.js');
 const { dayInfo, weekOfMonth, weeksInMonth } = require('../../utils/lunar.js');
 
 const WEEK_DAYS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -13,9 +12,7 @@ Page({
     weekDays: WEEK_DAYS,
     calTitle: '',
     calCells: [],
-    calFoot: '',
-    tplCount: TPLS.length,
-    bookCount: BOOK_COUNT
+    calFoot: ''
   },
 
   onLoad() {

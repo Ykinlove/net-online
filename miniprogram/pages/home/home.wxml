@@ -46,7 +46,7 @@
     <text class="tpl-entry-ico">📚</text>
     <view class="tpl-entry-main">
       <text class="tpl-entry-t">命令百科</text>
-      <text class="tpl-entry-s">{{bookCount}} 条按 10 个分类翻，不用想关键词</text>
+      <text class="tpl-entry-s">一个功能点，华为 / 思科 / H3C / 锐捷四种写法并排对照</text>
     </view>
     <text class="tpl-entry-arrow">›</text>
   </view>
@@ -56,7 +56,7 @@
     <text class="tpl-entry-ico">📋</text>
     <view class="tpl-entry-main">
       <text class="tpl-entry-t">配置模板库</text>
-      <text class="tpl-entry-s">开局 / 排障直接套，{{tplCount}} 个常用片段</text>
+      <text class="tpl-entry-s">成套配置直接复制粘贴，开局和排障不用现拼</text>
     </view>
     <text class="tpl-entry-arrow">›</text>
   </view>
