@@ -9,6 +9,21 @@
     <text class="head-sub">百科条目 / 配置模板 / 自己记的命令，都在这儿，跟着档案同步</text>
   </view>
 
+  <!-- 搜索：在收藏里按标题 / 副标题 / 类型找 -->
+  <view class="fsearch">
+    <text class="fsearch-ico">🔍</text>
+    <input
+      class="fsearch-input"
+      value="{{kw}}"
+      placeholder="在收藏里搜，比如「vlan」「开局」"
+      placeholder-style="color:#9fb0c0;font-size:calc(23 * var(--u));"
+      confirm-type="search"
+      bindinput="onKwInput"
+      bindconfirm="onKwInput"
+    />
+    <text wx:if="{{kw}}" class="fsearch-clear" bindtap="clearKw">✕</text>
+  </view>
+
   <!-- 类型切换 -->
   <view class="tabs">
     <view
@@ -36,9 +51,9 @@
       <view class="item-main">
         <view class="item-head">
           <text class="item-kind">{{item.kindName}}</text>
-          <text class="item-title">{{item.title}}</text>
+          <text class="item-title"><text wx:for="{{item.titleSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
         </view>
-        <text wx:if="{{item.sub}}" class="item-sub">{{item.sub}}</text>
+        <text wx:if="{{item.sub}}" class="item-sub"><text wx:for="{{item.subSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
       </view>
       <view class="item-ops">
         <text class="item-del" catchtap="removeFav" data-idx="{{index}}">取消</text>
@@ -48,8 +63,8 @@
 
     <view wx:if="{{!list.length}}" class="empty">
       <text class="empty-ico">⭐</text>
-      <text class="empty-txt">这里还是空的</text>
-      <text class="empty-sub">在搜索结果或百科条目里点「收藏」，就会出现在这儿</text>
+      <text class="empty-txt">{{kw ? '没找到匹配「' + kw + '」的收藏' : '这里还是空的'}}</text>
+      <text class="empty-sub">{{kw ? '换个关键词，或把上方标签切到「全部」' : '在搜索结果或百科条目里点「收藏」，就会出现在这儿'}}</text>
     </view>
 
     <view class="list-foot"></view>

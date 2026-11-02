@@ -46,6 +46,31 @@
   border-radius: calc(8 * var(--u));
   padding: calc(8 * var(--u)) calc(18 * var(--u));
 }
+
+/* 命中关键词高亮：在结果标题里把搜的词标黄，让人一眼看到为什么命中 */
+.hl {
+  color: #9a5b00;
+  background: #ffe9b0;
+  border-radius: calc(3 * var(--u));
+  padding: 0 calc(2 * var(--u));
+}
+
+/* 空态里的「换个说法」入口：点一下直接搜 */
+.hint-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(12 * var(--u));
+  margin-top: calc(18 * var(--u));
+}
+.hint-chip {
+  font-size: calc(21 * var(--u));
+  color: #2c3e50;
+  background: #fffdf6;
+  border: calc(2 * var(--u)) solid #cfe0ee;
+  border-radius: calc(8 * var(--u));
+  padding: calc(8 * var(--u)) calc(18 * var(--u));
+}
 .sb {
   display: flex;
   align-items: center;

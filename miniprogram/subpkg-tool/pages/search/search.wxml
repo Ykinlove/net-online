@@ -64,7 +64,7 @@
           hover-class="bk-item-hover"
         >
           <view class="bk-top">
-            <text class="bk-name">{{item.name}}</text>
+            <text class="bk-name"><text wx:for="{{item.titleSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
             <text class="bk-arrow">›</text>
           </view>
           <view class="bk-tags">
@@ -93,7 +93,7 @@
           hover-class="bk-item-hover"
         >
           <view class="bk-top">
-            <text class="bk-name">{{item.name}}</text>
+            <text class="bk-name"><text wx:for="{{item.titleSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
             <text class="bk-arrow">›</text>
           </view>
           <view class="bk-tags">
@@ -118,7 +118,7 @@
           hover-class="bk-item-hover"
         >
           <view class="my-main">
-            <text class="my-title">{{item.title}}</text>
+            <text class="my-title"><text wx:for="{{item.titleSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
             <text class="my-code">{{item.preview}}</text>
           </view>
           <text class="my-dev">{{item.devText}}</text>
@@ -135,7 +135,16 @@
         <text class="hint-ico">🔍</text>
         <text class="hint-txt">没找到{{kw ? '「' + kw + '」' : ''}}相关的命令</text>
         <text wx:if="{{dev !== '全部'}}" class="hint-sub">「{{devText}}」下没有，把左边切到「全部」试试</text>
-        <text wx:else class="hint-sub">换个说法试试，比如「vlan」「路由」「保存」</text>
+        <text wx:else class="hint-sub">换个说法试试：</text>
+        <view wx:if="{{!kw || dev === '全部'}}" class="hint-chips">
+          <text
+            wx:for="{{suggests}}"
+            wx:key="*this"
+            class="hint-chip"
+            bindtap="onSuggest"
+            data-kw="{{item}}"
+          >{{item}}</text>
+        </view>
       </view>
 
       <view class="main-foot"></view>

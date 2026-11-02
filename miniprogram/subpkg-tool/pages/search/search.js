@@ -10,6 +10,24 @@ const SIDE = [{ v: '全部', t: '全部' }].concat(
 /* 百科条目多（近 300 条），一次全推给视图会很卡，按页追加 */
 const PAGE = 30;
 
+/* 把一段文本按关键词切成「是否高亮」的小段，视图里逐段渲染。
+   命中关键词的部分标黄，让人一眼看到为什么这条被搜出来。
+   没命中（或没关键词）就原样返回一段 hl:false。 */
+function segText(text, kw) {
+  const t = String(text || '');
+  if (!kw) return [{ t: t, hl: false }];
+  const lower = t.toLowerCase();
+  const k = String(kw).toLowerCase();
+  const idx = lower.indexOf(k);
+  if (idx < 0) return [{ t: t, hl: false }];
+  const out = [];
+  if (idx > 0) out.push({ t: t.slice(0, idx), hl: false });
+  out.push({ t: t.slice(idx, idx + k.length), hl: true });
+  const rest = t.slice(idx + k.length);
+  if (rest) out.push({ t: rest, hl: false });
+  return out;
+}
+
 Page({
   data: {
     sideList: SIDE,
@@ -24,7 +42,9 @@ Page({
     mineHits: [],
     hitTotal: 0,
     detail: null,
-    detailCopyLabel: '复制全部'
+    detailCopyLabel: '复制全部',
+    /* 空结果时给的「换个说法」入口，点一下直接搜，降低挫败感 */
+    suggests: ['vlan', '路由', '保存配置', '端口', 'ospf', 'acl', 'dhcp', 'telnet']
   },
 
   onLoad(q) {
@@ -104,9 +124,22 @@ Page({
     wx.showToast({ title: '已清空', icon: 'none' });
   },
 
+  /* 点空态里的「换个说法」词，直接搜那个词，并记进历史 */
+  onSuggest(e) {
+    const kw = e.currentTarget.dataset.kw;
+    if (!kw) return;
+    this.setData({ kw }, () => this.doSearch());
+    this.recordHistory();
+  },
+
   /* ---------- 搜索 ---------- */
   onInput(e) {
-    this.setData({ kw: e.detail.value }, () => this.doSearch());
+    const v = e.detail.value;
+    this.setData({ kw: v });
+    /* 边打字边重搜会很卡（每次都重建索引视图），加 200ms 防抖，
+       用户停手才搜，体验更顺、也更省电 */
+    if (this._deb) clearTimeout(this._deb);
+    this._deb = setTimeout(() => this.doSearch(), 200);
   },
 
   onConfirm(e) {
@@ -139,12 +172,14 @@ Page({
     }
 
     /* 1. 内置命令百科 */
-    const bookHits = cmdbook.search(kwForSearch, dev);
+    const bookHits = cmdbook.search(kwForSearch, dev)
+      .map(it => ({ ...it, titleSegs: segText(it.name, kwForSearch) }));
 
     /* 2. 配置模板：64 个可直接复制的模板并入搜索。
        模板不属于任何设备分类，所以设备筛选时不过滤模板——
        「配个开局模板」这种事不会先想「我这是交换机还是路由器」。 */
-    const tplHits = cmdbook.searchTemplates(kwForSearch, 20);
+    const tplHits = cmdbook.searchTemplates(kwForSearch, 20)
+      .map(it => ({ ...it, titleSegs: segText(it.name, kwForSearch) }));
 
     /* 2. 自己记过的命令 */
     const words = cmdbook.expand(cmdbook.norm(kwForSearch));
@@ -177,7 +212,8 @@ Page({
       devText: DEVICE_CN[c.device || '其他设备'] || (c.device || '其他设备'),
       preview: String(c.content || '').split('\n')[0],
       content: c.content || '',
-      desc: c.desc || ''
+      desc: c.desc || '',
+      titleSegs: segText(c.title || '(未命名命令)', kwForSearch)
     }));
 
     /* 命中数为 0 的搜索词会被记进「搜不到」清单，

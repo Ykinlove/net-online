@@ -11,17 +11,36 @@ const KINDS = [
 
 const KIND_NAME = { book: '百科条目', tpl: '配置模板', mine: '我的命令' };
 
+/* 把文本按关键词切成高亮小段（与搜索页同一套逻辑） */
+function segText(text, kw) {
+  const t = String(text || '');
+  if (!kw) return [{ t: t, hl: false }];
+  const lower = t.toLowerCase();
+  const k = String(kw).toLowerCase();
+  const idx = lower.indexOf(k);
+  if (idx < 0) return [{ t: t, hl: false }];
+  const out = [];
+  if (idx > 0) out.push({ t: t.slice(0, idx), hl: false });
+  out.push({ t: t.slice(idx, idx + k.length), hl: true });
+  const rest = t.slice(idx + k.length);
+  if (rest) out.push({ t: rest, hl: false });
+  return out;
+}
+
 Page({
   data: {
     tabs: [],
     tab: 'all',
     list: [],
     total: 0,
+    kw: '',
     detail: null
   },
 
   onShow() {
     store.init();
+    /* 进收藏页时清掉上次的搜索词，避免切回来还顶着旧筛选 */
+    this.setData({ kw: '' });
     this.rebuild();
   },
 
@@ -35,9 +54,10 @@ Page({
         n: t.k === 'all' ? favs.length : n(t.k)
       }))
     });
+    this._totalAll = favs.length;
 
     const tab = this.data.tab;
-    const list = favs
+    const all = favs
       .filter(f => tab === 'all' || f.kind === tab)
       .map(f => {
         const item = {
@@ -65,8 +85,42 @@ Page({
         }
         return item;
       });
+    this._all = all;
+    this.applyFilter();
+  },
 
-    this.setData({ list, total: favs.length });
+  /* 顶部搜索：在当前 tab 的收藏里按 标题 / 副标题 / 类型 过滤 */
+  onKwInput(e) {
+    this.setData({ kw: e.detail.value });
+    if (this._deb) clearTimeout(this._deb);
+    this._deb = setTimeout(() => this.applyFilter(), 150);
+  },
+
+  clearKw() {
+    this.setData({ kw: '' }, () => this.applyFilter());
+  },
+
+  applyFilter() {
+    const kw = String(this.data.kw || '').trim().toLowerCase();
+    const all = this._all || [];
+    let list = all;
+    if (kw) {
+      list = all.filter(it => {
+        const bag = [it.title, it.sub, it.kindName]
+          .map(s => String(s || '').toLowerCase()).join('\n');
+        return bag.indexOf(kw) >= 0;
+      });
+    }
+    this.setData({
+      list: list.map(it => ({
+        ...it,
+        titleSegs: segText(it.title, kw),
+        /* 副标题里带着设备/厂商信息（模板是「分类·厂商」、其他是设备名），
+           搜厂商词时把这块也标黄，跟浏览页的厂商标签高亮一致 */
+        subSegs: segText(it.sub, kw)
+      })),
+      total: this._totalAll || all.length
+    });
   },
 
   pickTab(e) {

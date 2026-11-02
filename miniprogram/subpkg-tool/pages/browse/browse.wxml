@@ -9,6 +9,21 @@
     <text class="head-sub">{{catName}} · {{catDesc}}</text>
   </view>
 
+  <!-- 关键词筛选：在「当前分类 + 设备」的结果里再筛一遍 -->
+  <view class="bsearch">
+    <text class="bsearch-ico">🔍</text>
+    <input
+      class="bsearch-input"
+      value="{{kw}}"
+      placeholder="在这个分类里筛关键词，比如「vlan」"
+      placeholder-style="color:#9fb0c0;font-size:calc(23 * var(--u));"
+      confirm-type="search"
+      bindinput="onKwInput"
+      bindconfirm="onKwInput"
+    />
+    <text wx:if="{{kw}}" class="bsearch-clear" bindtap="clearKw">✕</text>
+  </view>
+
   <!-- 分类切换 -->
   <scroll-view class="cats" scroll-x enable-flex>
     <view
@@ -52,7 +67,7 @@
       hover-class="item-hover"
     >
       <view class="item-top">
-        <text class="item-name">{{item.name}}</text>
+        <text class="item-name"><text wx:for="{{item.titleSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
         <text class="item-arrow">›</text>
       </view>
       <view class="item-tags">
@@ -61,7 +76,7 @@
           wx:for-item="c"
           wx:key="vendor"
           class="item-tag"
-        >{{c.vendor}}</text>
+        ><text wx:for="{{c.vendorSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
       </view>
     </view>
 
@@ -71,8 +86,8 @@
 
     <view wx:if="{{!shown.length}}" class="empty">
       <text class="empty-ico">📭</text>
-      <text class="empty-txt">这个分类下没有「{{devText}}」的条目</text>
-      <text class="empty-sub">把设备切回「全部」试试</text>
+      <text class="empty-txt">{{kw ? '没有匹配「' + kw + '」的条目' : '这个分类下没有「' + devText + '」的条目'}}</text>
+      <text class="empty-sub">{{kw ? '换个关键词，或把设备切回「全部」' : '把设备切回「全部」试试'}}</text>
     </view>
 
     <view class="list-foot"></view>

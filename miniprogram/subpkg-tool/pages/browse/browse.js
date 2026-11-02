@@ -10,6 +10,22 @@ const SIDE = [{ v: '全部', t: '全部' }].concat(
 /* 一页 30 条，跟搜索页保持一致 */
 const PAGE = 30;
 
+/* 把文本按关键词切成高亮小段（与搜索页同一套逻辑，让两处高亮长得一样） */
+function segText(text, kw) {
+  const t = String(text || '');
+  if (!kw) return [{ t: t, hl: false }];
+  const lower = t.toLowerCase();
+  const k = String(kw).toLowerCase();
+  const idx = lower.indexOf(k);
+  if (idx < 0) return [{ t: t, hl: false }];
+  const out = [];
+  if (idx > 0) out.push({ t: t.slice(0, idx), hl: false });
+  out.push({ t: t.slice(idx, idx + k.length), hl: true });
+  const rest = t.slice(idx + k.length);
+  if (rest) out.push({ t: rest, hl: false });
+  return out;
+}
+
 Page({
   data: {
     cats: [],
@@ -22,6 +38,7 @@ Page({
     shown: [],
     total: 0,
     hasMore: false,
+    kw: '',
     detail: null
   },
 
@@ -77,28 +94,60 @@ Page({
     this.setData({ dev: e.currentTarget.dataset.v }, () => this.rebuild());
   },
 
+  /* 顶部关键词框：在当前分类 + 设备的结果里再筛一遍。
+     轻量防抖，避免每个字都重算一遍筛选。 */
+  onKwInput(e) {
+    const v = e.detail.value;
+    this.setData({ kw: v });
+    if (this._deb) clearTimeout(this._deb);
+    this._deb = setTimeout(() => this.applyFilter(), 150);
+  },
+
+  clearKw() {
+    this.setData({ kw: '' }, () => this.applyFilter());
+  },
+
   rebuild() {
-    const opts = {
-      cat: this.data.cat || undefined,
-      dev: this.data.dev,
-      limit: PAGE
-    };
     const all = cmdbook.listBy({
       cat: this.data.cat || undefined,
       dev: this.data.dev
     });
     this._all = all;
+    /* 分类 / 设备切换后，顺便把顶部关键词框也清掉，
+       否则「在 vlan 分类里搜 ospf」切到别的分类时残留的关键词会让人困惑 */
+    this.setData({ kw: '', devText: (SIDE.filter(s => s.v === this.data.dev)[0] || {}).t || this.data.dev });
+    this.applyFilter();
+  },
+
+  /* 在 rebuild 拿到的全集上叠加关键词过滤 + 高亮，并重排分页。
+     关键词命中 名称 / 厂商 / 命令正文 / 设备，跟搜索口径尽量一致。 */
+  applyFilter() {
+    const kw = String(this.data.kw || '').trim().toLowerCase();
+    const all = this._all || [];
+    let rows = all;
+    if (kw) {
+      rows = all.filter(it => {
+        const bag = [it.name, it.vendorText, (it.cmds || []).map(c => c.code).join(' '), (it.devs || []).join(' ')]
+          .map(s => String(s || '').toLowerCase()).join('\n');
+        return bag.indexOf(kw) >= 0;
+      });
+    }
+    this._filtered = rows.map(r => ({
+      ...r,
+      titleSegs: segText(r.name, kw),
+      /* 厂商标签也跟着高亮：搜「H3C」时命中的那个厂商 chip 会标黄 */
+      cmds: (r.cmds || []).map(c => ({ ...c, vendorSegs: segText(c.vendor, kw) }))
+    }));
     this.setData({
-      shown: all.slice(0, PAGE),
-      total: all.length,
-      hasMore: all.length > PAGE,
-      devText: (SIDE.filter(s => s.v === this.data.dev)[0] || {}).t || this.data.dev
+      shown: this._filtered.slice(0, PAGE),
+      total: rows.length,
+      hasMore: rows.length > PAGE
     });
   },
 
   loadMore() {
     if (!this.data.hasMore) return;
-    const all = this._all || [];
+    const all = this._filtered || [];
     const cur = this.data.shown.length;
     const next = all.slice(0, cur + PAGE);
     this.setData({ shown: next, hasMore: next.length < all.length });
