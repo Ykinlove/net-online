@@ -1,4 +1,5 @@
 const store = require('../../../utils/store.js');
+const admin = require('../../../utils/admin.js');
 const { PRESET_CHARS, PRESET_BGS } = require('../../../utils/seed.js');
 const { REWARDED_AD_UNIT, FREE_CHARS, FREE_BGS, ENABLE_LOCKS } = require('../../../utils/config.js');
 
@@ -30,12 +31,17 @@ Page({
       from: (options && options.from) || ''
     });
     this.build();
+
+    /* 作者（Ykin / Yang 等在 ADMIN_OPENIDS 白名单内）豁免解锁：
+       首次进入时 isAdmin 缓存可能还没 refresh，异步问一次服务端后重算，
+       避免作者第一眼看到锁。普通用户不受影响。 */
+    admin.refresh().then(() => this.build());
   },
 
   /* 重算每个格子的「是否上锁 / 是否选中」 */
   build() {
     const u = store.getUnlocks();
-    const lockOn = ENABLE_LOCKS;
+    const lockOn = ENABLE_LOCKS && !admin.isAdmin();
     const pickChar = this.data.pickChar;
     const pickBg = this.data.pickBg;
 
