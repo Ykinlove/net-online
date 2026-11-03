@@ -49,7 +49,7 @@ Module._resolveFilename = function (request, ...args) {
 const app = JSON.parse(fs.readFileSync(path.join(MP, 'app.json'), 'utf8'));
 const pages = [];
 app.pages.forEach(p => pages.push({ path: p, pkg: '主包' }));
-(app.subpackages || []).forEach(sp => sp.pages.forEach(p => pages.push({ path: sp.root + '/' + p, pkg: sp.root })));
+(app.subpackages || app.subPackages || []).forEach(sp => sp.pages.forEach(p => pages.push({ path: sp.root + '/' + p, pkg: sp.root })));
 
 /* ---- 4. 逐个加载 + 触发首屏 ---- */
 let fail = 0;
