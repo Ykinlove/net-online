@@ -40,7 +40,7 @@
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
-  "subPackages": [
+  "subpackages": [
     {
       "root": "subpkg-tool",
       "name": "tool",
@@ -69,12 +69,6 @@
     }
   ],
   "preloadRule": {
-    "pages/splash/splash": {
-      "network": "all",
-      "packages": [
-        "mine"
-      ]
-    },
     "pages/home/home": {
       "network": "all",
       "packages": [
