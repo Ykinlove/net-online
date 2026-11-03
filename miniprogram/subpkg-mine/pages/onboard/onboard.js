@@ -128,7 +128,7 @@ Page({
       return;
     }
     if (!store.getCharImage()) {
-      wx.redirectTo({ url: 'subpkg-mine/pages/chargen/chargen?from=first' });
+      wx.redirectTo({ url: '/subpkg-mine/pages/chargen/chargen?from=first' });
       return;
     }
     wx.switchTab({ url: '/pages/home/home' });

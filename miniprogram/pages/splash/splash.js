@@ -38,7 +38,7 @@ Page({
     store.init();
 
     if (!store.hasProfile()) {
-      wx.navigateTo({ url: 'subpkg-mine/pages/onboard/onboard' });
+      wx.navigateTo({ url: '/subpkg-mine/pages/onboard/onboard' });
       this.setData({ entering: false });
       return;
     }

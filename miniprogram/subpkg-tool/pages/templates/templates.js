@@ -9,7 +9,7 @@
 Page({
   onLoad() {
     wx.redirectTo({
-      url: 'subpkg-tool/pages/browse/browse?kind=tpl'
+      url: '/subpkg-tool/pages/browse/browse?kind=tpl'
     });
   }
 });
