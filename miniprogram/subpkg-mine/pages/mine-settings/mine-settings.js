@@ -25,19 +25,19 @@ Page({
   },
 
   goSkill() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/mine-skill/mine-skill' });
+    wx.navigateTo({ url: 'subpkg-mine/pages/mine-skill/mine-skill' });
   },
 
   goArchive() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/mine-archive/mine-archive' });
+    wx.navigateTo({ url: 'subpkg-mine/pages/mine-archive/mine-archive' });
   },
 
   editProfile() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/onboard/onboard' });
+    wx.navigateTo({ url: 'subpkg-mine/pages/onboard/onboard' });
   },
 
   changeChar() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/chargen/chargen' });
+    wx.navigateTo({ url: 'subpkg-mine/pages/chargen/chargen' });
   },
 
   copyWechat() {
@@ -50,7 +50,7 @@ Page({
   },
 
   goMaker() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/maker/maker' });
+    wx.navigateTo({ url: 'subpkg-mine/pages/maker/maker' });
   },
 
   /* 导出成 .xlsx：命令 / 项目 / 技能 三张表 */

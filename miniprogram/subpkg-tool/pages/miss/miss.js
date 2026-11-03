@@ -27,7 +27,7 @@ Page({
   goSearch(e) {
     const kw = e.currentTarget.dataset.kw;
     if (!kw) return;
-    wx.navigateTo({ url: '/subpkg-tool/pages/search/search?kw=' + encodeURIComponent(kw) });
+    wx.navigateTo({ url: 'subpkg-tool/pages/search/search?kw=' + encodeURIComponent(kw) });
   },
 
   /* 复制全部：方便粘到微信/邮件里反馈 */

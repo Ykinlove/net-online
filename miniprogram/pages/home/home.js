@@ -121,11 +121,11 @@ Page({
   },
 
   goSearch() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/search/search' });
+    wx.navigateTo({ url: 'subpkg-tool/pages/search/search' });
   },
 
   /* 资料库：命令百科 + 配置模板库（页内顶部可切换两种内容） */
   goLibrary() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/browse/browse' });
+    wx.navigateTo({ url: 'subpkg-tool/pages/browse/browse' });
   }
 });

@@ -20,6 +20,6 @@ Page({
   },
 
   goAdmin() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/admin/admin' });
+    wx.navigateTo({ url: 'subpkg-tool/pages/admin/admin' });
   }
 });

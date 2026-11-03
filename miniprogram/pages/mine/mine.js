@@ -54,19 +54,19 @@ Page({
   },
 
   goSettings() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/mine-settings/mine-settings' });
+    wx.navigateTo({ url: 'subpkg-mine/pages/mine-settings/mine-settings' });
   },
 
   goFav() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/fav/fav' });
+    wx.navigateTo({ url: 'subpkg-tool/pages/fav/fav' });
   },
 
   /* 投稿：提交命令百科 / 配置模板的修改建议，由作者审核 */
   goContribute() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/contribute/contribute' });
+    wx.navigateTo({ url: 'subpkg-tool/pages/contribute/contribute' });
   },
 
   goSearchMiss() {
-    wx.navigateTo({ url: '/subpkg-tool/pages/miss/miss' });
+    wx.navigateTo({ url: 'subpkg-tool/pages/miss/miss' });
   }
 });
