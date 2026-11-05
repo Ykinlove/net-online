@@ -6,6 +6,11 @@
 
 const CLOUD_COLL = ['profiles', 'commands', 'projects', 'skills', 'tasks'];
 const PAGE_SIZE = 20; // 小程序端单次查询上限就是 20 条
+/* 单人云端存储上限：防止个别用户刷爆数据库容量。
+   普通用户记命令几十~几百条足够；按 2GB 配额、单人 3KB/条估算，
+   千人 × 500 条命令 ≈ 1.5GB，仍在安全范围。profiles 每人仅 1 条档案，不在此限。 */
+const COLL_LIMIT = { commands: 500, projects: 50, skills: 200, tasks: 200 };
+const MAX_RECORD_BYTES = 12 * 1024; // 单条内容上限 12KB（约 4000 汉字），防单条超大撑爆容量
 /* 正在进行的云端拉取（共享同一个 Promise，用于并发去重） */
 let PULLING = null;
 
@@ -80,6 +85,21 @@ function errText(e) {
   return msg || ('错误码 ' + code);
 }
 
+/* 估算一个对象序列化后的字节数（UTF-8），用于单条大小限制 */
+function byteLengthOf(obj) {
+  let s = '';
+  try { s = JSON.stringify(obj); } catch (e) { s = ''; }
+  if (typeof TextEncoder !== 'undefined') {
+    try { return new TextEncoder().encode(s).length; } catch (e) {}
+  }
+  let len = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    len += c < 0x80 ? 1 : (c < 0x800 ? 2 : 3);
+  }
+  return len;
+}
+
 /* 拉取某集合的全部记录（自动分页，单页 20 条） */
 async function fetchAll(name) {
   const d = db();
@@ -99,6 +119,22 @@ async function fetchAll(name) {
 
 async function cloudAdd(name, data) {
   const d = db();
+  if (!d) throw new Error('云开发不可用');
+  const limit = COLL_LIMIT[name];
+  if (limit) {
+    const cnt = await d.collection(name).count();
+    if (cnt && cnt.total >= limit) {
+      const e = new Error('该分类已达单人上限（' + limit + ' 条），请先清理不再需要的内容');
+      e.code = 'LIMIT_REACHED';
+      throw e;
+    }
+  }
+  const size = byteLengthOf(data);
+  if (size > MAX_RECORD_BYTES) {
+    const e = new Error('单条内容过大（上限 ' + Math.round(MAX_RECORD_BYTES / 1024) + 'KB），请精简后再存');
+    e.code = 'TOO_LARGE';
+    throw e;
+  }
   const now = Date.now();
   const res = await d.collection(name).add({ data: Object.assign({}, data, { createdAt: now, updatedAt: now }) });
   return res._id;
@@ -201,6 +237,12 @@ async function addRecord(name, data) {
       return cur[cur.length - 1];
     } catch (e) {
       mem.lastError = errText(e);
+      /* 限额 / 单条过大：云端拒绝写入，本地这条临时记录也要回滚，
+         否则本地比云端多一条、下次同步还会再撞限额 */
+      if (e && (e.code === 'LIMIT_REACHED' || e.code === 'TOO_LARGE')) {
+        setListLocal(name, (mem[name] || []).filter(x => x._localId !== rec._localId));
+      }
+      return rec;
     }
   }
   return rec;
