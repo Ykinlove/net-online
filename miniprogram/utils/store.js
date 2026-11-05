@@ -1,15 +1,15 @@
 // utils/store.js —— 数据层：本地缓存（wx.storage）+ 微信云开发数据库双向同步
-// 云端集合（需在云开发控制台手动创建）：profiles / commands / projects / skills / tasks
+// 云端集合（需在云开发控制台手动创建）：profiles / commands / projects / skills
 // 权限建议：每个集合设为「仅创建者可读写」，这样每个微信用户只能读写自己的数据。
 // 说明：自动存档只存本机（wx.storage），不占云端集合。
 
 
-const CLOUD_COLL = ['profiles', 'commands', 'projects', 'skills', 'tasks'];
+const CLOUD_COLL = ['profiles', 'commands', 'projects', 'skills'];
 const PAGE_SIZE = 20; // 小程序端单次查询上限就是 20 条
 /* 单人云端存储上限：防止个别用户刷爆数据库容量。
    普通用户记命令几十~几百条足够；按 2GB 配额、单人 3KB/条估算，
    千人 × 500 条命令 ≈ 1.5GB，仍在安全范围。profiles 每人仅 1 条档案，不在此限。 */
-const COLL_LIMIT = { commands: 500, projects: 50, skills: 200, tasks: 200 };
+const COLL_LIMIT = { commands: 500, projects: 50, skills: 200 };
 const MAX_RECORD_BYTES = 12 * 1024; // 单条内容上限 12KB（约 4000 汉字），防单条超大撑爆容量
 /* 正在进行的云端拉取（共享同一个 Promise，用于并发去重） */
 let PULLING = null;
@@ -20,7 +20,6 @@ const mem = {
   commands: [],
   projects: [],
   skills: [],
-  tasks: [],
   lastError: '',
   lastPullAt: 0,
   cloudOk: false,
@@ -59,7 +58,6 @@ function init() {
   mem.commands = sGet('commands', []) || [];
   mem.projects = sGet('projects', []) || [];
   mem.skills = sGet('skills', []) || [];
-  mem.tasks = sGet('tasks', []) || [];
   mem.inited = true;
 }
 
@@ -79,7 +77,7 @@ function errText(e) {
   const code = e.errCode || e.code || '';
   const msg = e.errMsg || e.message || '';
   if (String(msg).indexOf('collection not exists') >= 0 || code === -502005) {
-    return '云数据库集合还没创建，请到「云开发 → 数据库」新建 profiles、commands、projects、skills、tasks 五个集合';
+    return '云数据库集合还没创建，请到「云开发 → 数据库」新建 profiles、commands、projects、skills 四个集合';
   }
   if (String(msg).indexOf('permission') >= 0 || code === -502003) return '没有数据库权限，请把集合权限设为「仅创建者可读写」';
   return msg || ('错误码 ' + code);
@@ -535,8 +533,7 @@ function snapshot(reason) {
       data: {
         commands: (mem.commands || []).map(cleanRec),
         projects: (mem.projects || []).map(cleanRec),
-        skills: (mem.skills || []).map(cleanRec),
-        tasks: (mem.tasks || []).map(cleanRec)
+        skills: (mem.skills || []).map(cleanRec)
       }
     }
   };
@@ -565,7 +562,7 @@ async function applySnapshot(snap) {
   if (pay.charImage) setCharImage(pay.charImage);
   if (pay.bgImage) setCharBg(pay.bgImage);
 
-  const names = ['commands', 'projects', 'skills', 'tasks'];
+  const names = ['commands', 'projects', 'skills'];
   const data = pay.data || {};
   const ready = isReady();
 
