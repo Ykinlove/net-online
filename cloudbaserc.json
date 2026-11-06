@@ -58,6 +58,16 @@
       "envVariables": {
         "ADMIN_OPENIDS": "__ADMIN_OPENIDS__"
       }
+    },
+    {
+      "name": "getCmdLib",
+      "timeout": 20,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "description": "命令库云端真相源（manifest / full / delta），Offline First 端侧拉取整库用",
+      "handler": "index.main",
+      "installDependency": true,
+      "envVariables": {}
     }
   ]
 }

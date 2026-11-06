@@ -1,0 +1,9 @@
+{
+  "name": "getCmdLib",
+  "version": "1.0.0",
+  "description": "命令库云端读取入口（manifest / full / delta）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

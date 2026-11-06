@@ -7,6 +7,11 @@ miniprogram-tools/img_backup_opt/
 miniprogram-tools/_backup_split/
 miniprogram-tools/data_snapshot_before.json
 
+# getCmdLib 云函数的内置整库快照（1.58MB）。
+# 由 miniprogram-tools/build_cmdlib.js 从 cmdbook.js 生成，部署前跑一次即可。
+# 不入库：避免每次改命令库都产生 1.6MB 巨型 diff，也避免它与 cmdbook.js 漂移。
+cloudfunctions/getCmdLib/cmdlib.json
+
 # 根目录的 clone_work（另一个小程序的完整副本，14MB）
 clone_work/
 

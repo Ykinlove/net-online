@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# 一键部署 4 个云函数 + 同步环境变量
+# 一键部署 5 个云函数 + 同步环境变量
 #
 # 用法：
-#   bash miniprogram-tools/deploy_cloud.sh              # 部署全部 4 个
+#   bash miniprogram-tools/deploy_cloud.sh              # 部署全部 5 个
 #   bash miniprogram-tools/deploy_cloud.sh listContent  # 只部署某一个
 #
 # 前置：已执行过 `tcb login`（设备码扫码即可）
@@ -28,7 +28,7 @@ if ! command -v tcb >/dev/null 2>&1; then
   exit 1
 fi
 
-ALL_FUNCS="publishContent submitContribution listContent reviewContribution"
+ALL_FUNCS="publishContent submitContribution listContent reviewContribution getCmdLib"
 
 TARGETS="${*:-}"
 [ -z "$TARGETS" ] && TARGETS="$ALL_FUNCS"
@@ -42,6 +42,13 @@ for fn in $TARGETS; do
   if [ ! -d "$DIR" ]; then
     echo "✗ 跳过 $fn —— 找不到目录 $DIR" >&2
     continue
+  fi
+  # getCmdLib 的内置整库 cmdlib.json 不入库（1.58MB，见 .gitignore），
+  # 部署前从 cmdbook.js 现场生成 —— 保证云端拿到的就是当前命令库。
+  if [ "$fn" = "getCmdLib" ]; then
+    echo "── 生成 cmdlib.json（命令库整库快照）──"
+    node miniprogram-tools/build_cmdlib.js
+    echo ""
   fi
   echo "── 部署 $fn ──"
   tcb fn deploy "$fn" -e "$ENV_ID" --dir "$DIR" --runtime "$RUNTIME" --force

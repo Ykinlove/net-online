@@ -24,6 +24,9 @@
     15. 重复 id 检查       scan_dup_ids.js    （百科/模板 id 唯一，有重复返回非 0）
     16. 入口路径/集合容错  贡献内容在「我的」页 + 内容审核仅作者可见 + 集合缺失容错
     17. 部署结构          project.config.json 在根 + cloudfunctionRoot + 云函数 x4 齐备
+    18. 暗黑图标          check_dark_icons.py   （theme.json 双主题对称 + 图标真实存在）
+    19. 离线缓存          check_offline.py      （离线层接线 + 分包隔离铁律 + 云端真相源）
+    20. 主题变量          check_theme_tokens.py （CSS 令牌闭合 + 深浅覆盖 + 三处色值一致）
 """
 import io, os, re, subprocess, sys, time
 
@@ -179,9 +182,10 @@ def check_structure():
     if not os.path.isfile(os.path.join(MP, 'utils', 'contrib.js')):
         problems.append('缺少客户端模块：miniprogram/utils/contrib.js')
 
-    # 四个云函数：每个都要有 index.js + package.json
+    # 五个云函数：每个都要有 index.js + package.json
     cf_root = os.path.join(ROOT, 'cloudfunctions')
-    for fn in ['publishContent', 'submitContribution', 'listContent', 'reviewContribution']:
+    for fn in ['publishContent', 'submitContribution', 'listContent',
+               'reviewContribution', 'getCmdLib']:
         d = os.path.join(cf_root, fn)
         if not os.path.isfile(os.path.join(d, 'index.js')):
             problems.append('云函数缺失 index.js：cloudfunctions/%s' % fn)
@@ -398,9 +402,12 @@ def check_deploy_layout():
                                 '（%s vs %s），开发者工具与发布通道会指向不同的小程序'
                                 % (root_cfg['appid'], pkg_cfg['appid']))
 
-    # 四个云函数目录必须齐备，且带 package.json（否则「云端安装依赖」装不了 wx-server-sdk）
+    # 五个云函数目录必须齐备，且带 package.json（否则「云端安装依赖」装不了 wx-server-sdk）
+    # getCmdLib 是 Offline First 的云端真相源，2026-11-06 起也在部署名单里
+    # （deploy_cloud.sh 的 ALL_FUNCS 已含它），缺目录会导致重跑部署时离线云端被跳过。
     cf_root = os.path.join(ROOT, 'cloudfunctions')
-    for fn in ['publishContent', 'submitContribution', 'listContent', 'reviewContribution']:
+    for fn in ['publishContent', 'submitContribution', 'listContent',
+               'reviewContribution', 'getCmdLib']:
         d = os.path.join(cf_root, fn)
         if not os.path.isdir(d):
             problems.append('缺少云函数目录：cloudfunctions/%s' % fn)
@@ -457,6 +464,13 @@ def main():
 
     # 15 部署结构（开发者工具能否看到并上传云函数）
     check_deploy_layout()
+
+    # 16-18 主题 / 离线 三项守卫（2026-11-06 新增）
+    #   这三项守的是「编译期静默、真机才炸」的接线问题：
+    #   暗黑图标缺失、离线层断裂、主题令牌漏覆盖 —— CI 全绿但真机表现错误。
+    run('暗黑图标', ['python', os.path.join(HERE, 'check_dark_icons.py')])
+    run('离线缓存', ['python', os.path.join(HERE, 'check_offline.py')])
+    run('主题变量', ['python', os.path.join(HERE, 'check_theme_tokens.py')])
 
     # 11 体积
     check_size()
