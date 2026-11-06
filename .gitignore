@@ -15,6 +15,9 @@ cloudfunctions/getCmdLib/cmdlib.json
 # 根目录的 clone_work（另一个小程序的完整副本，14MB）
 clone_work/
 
+# 根目录的 chargen_new（插画素材 12MB，与小程序运行无关）
+chargen_new/
+
 # chargen_preview：脚本与配置留档，生成的图片原料不留
 # （最终采用的图已经在 miniprogram/images/preset/char）
 chargen_preview/*.png
