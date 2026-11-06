@@ -9,7 +9,13 @@
     "产物形态：每个数据文件被压成 base64(deflate(JSON))，同一分包的 95 个文件合并成一个 cmdbook-data.js，各数据文件是薄壳（从数据包取自己那一份，导出名不变）。",
     "合并的理由：deflate 的 LZ77 窗口只有 32KB，95 个文件各压各的匹配不到跨文件重复，压缩率从 71% 掉到 58%；合并后省下约 176KB，直接决定分包能否过 1.5M。",
     "运行时由 subpkg-tool/utils/decompress.js 解压（纯 ES5，node 与小程序通用，有往返测试 test_decompress.js）。",
-    "新增/移动数据文件时，先改这里，再跑 build_data.py build。"
+    "新增/移动数据文件时，先改这里，再跑 build_data.py build。",
+    "【重要】开发者工具的「代码质量」面板扫的是编译缓存，不是磁盘。",
+    "文件被删除或改名（迁到分包）不会让旧缓存失效，于是磁盘上早已搬走的文件仍被计入包体，",
+    "被判成「主包内不应存在主包未使用的JS文件」——看起来像改了没用，其实是缓存陈旧。",
+    "遇到「明明改对了却还报同样的问题」，先清缓存：工具→清除缓存→全部清除，",
+    "或跑 python miniprogram-tools/check_devtools_cache.py --clean，然后重新编译再扫。",
+    "本仓库只有 E://Work buddy\\命令\\net-online 是真相源；E://Work buddy\\命令\\NetOnline_v2 是历史快照，别在它上面开发。"
   ],
   "files": {
     "cmdbook-basic.js": "tool",

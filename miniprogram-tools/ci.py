@@ -30,6 +30,11 @@
     21. 代码质量          check_code_quality.py（复刻开发者工具三条包体规则：
                                                   每包编译后 < 1.5M / 图片音频合计 < 200K /
                                                   主包无「仅分包在用」的 JS）
+    22. 主包布局          check_pkg_layout.py（已迁往分包的文件不得残留在主包 +
+                                                  无跨包反向引用 + 立绘只在分包）
+    23. 工具缓存          check_devtools_cache.py（编译缓存里的幽灵模块检查：
+                                                  缓存有、磁盘无 = 开发者工具会按旧代码
+                                                  统计包体，「代码质量」结果不可信）
 """
 import io, os, re, subprocess, sys, time
 
@@ -511,6 +516,14 @@ def main():
     #   · 主包里没有「只有分包在用」的 JS
     #   这三条在开发者工具里是 GUI 点出来的，CI 里没法用，只能自己复刻。
     run('代码质量', ['python', os.path.join(HERE, 'check_code_quality.py')])
+
+    # 23-24 主包布局 / 开发者工具缓存（2026-11-06 新增）
+    #   这两项守的是「明明改对了，开发者工具却还报旧问题」这类假红：
+    #   · 主包布局：已迁往分包的文件不得残留在主包（迁移不完整 = 冗余 JS）
+    #   · 工具缓存：编译缓存里若有磁盘上已不存在的幽灵模块，
+    #     开发者工具会按旧代码统计包体，「代码质量」面板结果不可信。
+    run('主包布局', ['python', os.path.join(HERE, 'check_pkg_layout.py')])
+    run('工具缓存', ['python', os.path.join(HERE, 'check_devtools_cache.py')])
 
     # 11 体积
     check_size()
