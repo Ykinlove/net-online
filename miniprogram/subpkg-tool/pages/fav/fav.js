@@ -1,5 +1,6 @@
 const store = require('../../../utils/store.js');
 const cmdbook = require('../../utils/cmdbook.js');
+const offline = require('../../../utils/cmd-offline.js');
 
 /* 三类收藏：百科条目 / 配置模板 / 自己记的命令 */
 const KINDS = [
@@ -34,10 +35,14 @@ Page({
     list: [],
     total: 0,
     kw: '',
+    focusKey: '',
     detail: null
   },
 
   onShow() {
+    getApp().applyTheme(this);
+    offline.registerBookSetter(function (entries) { return cmdbook.setDataset(entries); });
+    offline.ensureReady(); // 本地缓存预热（若有），离线也能查
     store.init();
     /* 进收藏页时清掉上次的搜索词，避免切回来还顶着旧筛选 */
     this.setData({ kw: '' });
@@ -184,6 +189,36 @@ Page({
   },
 
   noop() {},
+
+  /* ---------- 输入框聚焦态（纯视觉，.input-focus） ---------- */
+  onFieldFocus(e) {
+    this.setData({ focusKey: e.currentTarget.dataset.k || '' });
+  },
+
+  onFieldBlur() {
+    this.setData({ focusKey: '' });
+  },
+
+  /* ---------- 代码块复制：震动 + 剪贴板 + ✓ 反馈（只新增，不动 copyOne/copyAll） ---------- */
+  onCopyCode(e) {
+    const i = Number(e.currentTarget.dataset.i);
+    const d = this.data.detail;
+    if (!d || !d.blocks[i]) return;
+    const b = d.blocks[i];
+    const text = cmdbook.cleanCmd(b.code, b.vendor) || b.code;
+    wx.vibrateShort({ type: 'light' });
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '已复制 ' + b.vendor, icon: 'none' })
+    });
+    this.setData({ ['detail.blocks[' + i + '].copied']: true });
+    if (!this._copyTimers) this._copyTimers = {};
+    clearTimeout(this._copyTimers[i]);
+    this._copyTimers[i] = setTimeout(() => {
+      if (!this.data.detail) return;
+      this.setData({ ['detail.blocks[' + i + '].copied']: false });
+    }, 1600);
+  },
 
   async removeFav(e) {
     const idx = Number(e.currentTarget.dataset.idx);

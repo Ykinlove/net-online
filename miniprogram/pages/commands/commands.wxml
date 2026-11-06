@@ -1,9 +1,11 @@
-<view class="page cmd">
+<view class="page cmd theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
+
+  <offline-bar />
 
   <view class="cmd-head">
     <view class="cmd-title-wrap">
-      <text class="page-title">⌨️ 命令手记</text>
-      <text class="cmd-sub">共 {{total}} 条 · {{filterText}}</text>
+      <text class="page-title">命令手记</text>
+      <text class="cmd-sub roll-num">共 {{total}} 条 · {{filterText}}</text>
     </view>
     <view class="cmd-actions">
       <view class="icon-btn" bindtap="refresh" hover-class="icon-btn-hover">↻</view>
@@ -13,45 +15,39 @@
 
   <text class="cmd-diag {{diagErr ? 'is-err' : ''}}">{{diag}}</text>
 
-  <scroll-view class="dev-bar" scroll-x enable-flex>
+  <view class="dev-bar">
     <view
       wx:for="{{devices}}"
       wx:key="*this"
-      class="dev-chip {{filter === item ? 'on' : ''}}"
+      class="seg-item {{filter === item ? 'on' : ''}}"
       data-v="{{item}}"
       bindtap="setFilter"
     >
       <text>{{item}}</text>
       <text wx:if="{{devCount[item]}}" class="dev-num">{{devCount[item]}}</text>
     </view>
-  </scroll-view>
-
-  <view wx:if="{{searching}}" class="search-row">
-    <input class="input" value="{{keyword}}" placeholder="搜索标题 / 命令 / 说明" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" bindinput="onSearch" />
   </view>
-  <view class="search-toggle" bindtap="toggleSearch">{{searching ? '收起搜索' : '🔍 搜索'}}</view>
 
-  <view wx:if="{{!shown.length}}" class="empty">
-    {{total ? '这个设备下还没有命令' : '还没有命令，点右上角「+ 记命令」开始'}}
-  </view>
+  <view wx:if="{{!shown.length}}" class="empty">{{total ? '这个设备下还没有命令' : '还没有命令'}}</view>
 
   <view
     wx:for="{{shown}}"
     wx:key="_key"
-    class="cmd-card"
+    class="cmd-card {{item.vendorClass}}"
     data-idx="{{index}}"
     bindtap="openDetail"
   >
     <view class="cmd-card-top">
-      <text class="cmd-dev">{{item.device}}</text>
-      <text class="cmd-name">{{item.title}}</text>
+      <text class="cmd-dev tag-outline dev-{{item.devClass}}">{{item.device}}</text>
     </view>
+    <text class="cmd-name">{{item.title}}</text>
     <text class="cmd-code">{{item.preview}}</text>
   </view>
 
   <!-- 详情 -->
   <view wx:if="{{detail}}" class="mask" bindtap="closeDetail">
-    <view class="sheet" catchtap="noop">
+    <view class="sheet {{drawerDragging ? 'dragging' : ''}}" style="{{drawerStyle}}" catchtap="noop">
+      <view class="drawer-handle" bindtouchstart="onDrawerStart" bindtouchmove="onDrawerMove" bindtouchend="onDrawerEnd"></view>
       <view class="sheet-head">
         <text class="sheet-title">{{detail.title}}</text>
         <text class="sheet-close" bindtap="closeDetail">×</text>
@@ -60,14 +56,12 @@
         <text class="chip">{{detail.device}}</text>
         <text wx:if="{{detail.skill}}" class="chip">{{detail.skill}}</text>
       </view>
-      <view class="dt-code-wrap">
-        <view class="dt-code-bar">
-          <view class="dt-dot d1"></view>
-          <view class="dt-dot d2"></view>
-          <view class="dt-dot d3"></view>
-          <text class="dt-code-label">console</text>
+      <view class="code-block cmd-codeblock">
+        <view class="code-copy {{codeCopied ? 'done' : ''}}" catchtap="onCopyCode">
+          <text wx:if="{{!codeCopied}}">复制</text>
+          <view wx:else class="tick"><view class="tick-a"></view><view class="tick-b"></view></view>
         </view>
-        <scroll-view class="dt-code-scroll" scroll-y>
+        <scroll-view class="code-scroll" scroll-x enable-flex>
           <text class="dt-code">{{detail.content}}</text>
         </scroll-view>
       </view>
@@ -82,7 +76,8 @@
 
   <!-- 新增 / 编辑 -->
   <view wx:if="{{formOpen}}" class="mask" bindtap="closeForm">
-    <view class="sheet" catchtap="noop">
+    <view class="sheet {{drawerDragging ? 'dragging' : ''}}" style="{{drawerStyle}}" catchtap="noop">
+      <view class="drawer-handle" bindtouchstart="onDrawerStart" bindtouchmove="onDrawerMove" bindtouchend="onDrawerEnd"></view>
       <view class="sheet-head">
         <text class="sheet-title">{{editingId ? '编辑命令' : '记一条命令'}}</text>
         <text class="sheet-close" bindtap="closeForm">×</text>
@@ -103,22 +98,22 @@
 
       <view class="field">
         <text class="field-label">标题 <text class="req">*</text></text>
-        <input class="input" value="{{form.title}}" maxlength="40" placeholder="比如：查看端口隔离组" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="title" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'title' ? 'input-focus' : ''}}" value="{{form.title}}" maxlength="40" placeholder="比如：查看端口隔离组" placeholder-class="input-placeholder" data-k="title" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
 
       <view class="field">
         <text class="field-label">命令内容 <text class="req">*</text></text>
-        <textarea class="textarea cmd-term" value="{{form.content}}" placeholder="原样粘贴命令，支持多行" placeholder-class="input-placeholder" placeholder-style="color:#6b7f92;font-size:calc(27 * var(--u));" data-k="content" bindinput="onFormInput" auto-height />
+        <textarea class="textarea mono {{focusKey === 'content' ? 'input-focus' : ''}}" value="{{form.content}}" placeholder="原样粘贴命令，支持多行" placeholder-class="input-placeholder" data-k="content" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" auto-height />
       </view>
 
       <view class="field">
         <text class="field-label">说明 / 用途</text>
-        <input class="input" value="{{form.desc}}" maxlength="60" placeholder="这条命令干什么用的" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="desc" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'desc' ? 'input-focus' : ''}}" value="{{form.desc}}" maxlength="60" placeholder="这条命令干什么用的" placeholder-class="input-placeholder" data-k="desc" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
 
       <view class="field">
         <text class="field-label">标签（逗号分隔）</text>
-        <input class="input" value="{{form.tags}}" maxlength="60" placeholder="比如：排障,VLAN" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="tags" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'tags' ? 'input-focus' : ''}}" value="{{form.tags}}" maxlength="60" placeholder="比如：排障,VLAN" placeholder-class="input-placeholder" data-k="tags" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
 
       <view wx:if="{{editingId}}" class="form-actions">

@@ -4,23 +4,64 @@
   position: relative;
   overflow: hidden;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #5fb4f2;
+  background: var(--bg-page);
 }
-.splash-bg {
+
+/* 网络节点：纯 CSS 圆点 + 连线，颜色全部 var() */
+.net-graphic {
+  position: relative;
+  width: calc(420 * var(--u));
+  height: calc(420 * var(--u));
+  margin-bottom: calc(50 * var(--u));
+}
+.net-node {
   position: absolute;
-  left: 0; top: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
+  width: calc(28 * var(--u));
+  height: calc(28 * var(--u));
+  border: calc(3 * var(--u)) solid var(--primary);
+  border-radius: 50%;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
 }
-.splash-mask {
+.net-node-a { left: calc(30 * var(--u)); top: calc(60 * var(--u)); }
+.net-node-b { right: calc(40 * var(--u)); top: calc(40 * var(--u)); }
+.net-node-c { left: calc(50 * var(--u)); bottom: calc(50 * var(--u)); }
+.net-node-d { right: calc(50 * var(--u)); bottom: calc(30 * var(--u)); }
+.net-core {
   position: absolute;
-  left: 0; top: 0; right: 0; bottom: 0;
-  background: linear-gradient(180deg, rgba(20, 45, 70, 0.15) 0%, rgba(20, 45, 70, 0.5) 100%);
-  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: calc(140 * var(--u));
+  height: calc(140 * var(--u));
+  margin-left: calc(-70 * var(--u));
+  margin-top: calc(-70 * var(--u));
+  border: 1px solid var(--primary);
+  border-radius: 50%;
+  background: var(--primary-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.net-core-t {
+  font-size: calc(40 * var(--u));
+  font-weight: 600;
+  color: var(--primary);
+}
+.net-line {
+  position: absolute;
+  height: calc(2 * var(--u));
+  background: var(--border-strong);
+  transform-origin: left center;
+}
+.net-line-a { left: calc(44 * var(--u)); top: calc(74 * var(--u)); width: calc(160 * var(--u)); transform: rotate(20deg); }
+.net-line-b { right: calc(54 * var(--u)); top: calc(54 * var(--u)); width: calc(160 * var(--u)); transform: rotate(150deg); }
+.net-line-c { left: calc(64 * var(--u)); bottom: calc(64 * var(--u)); width: calc(150 * var(--u)); transform: rotate(-30deg); }
+.net-line-d { right: calc(64 * var(--u)); bottom: calc(44 * var(--u)); width: calc(150 * var(--u)); transform: rotate(-150deg); }
+
 .splash-content {
   position: relative;
   z-index: 2;
@@ -30,51 +71,59 @@
   flex-direction: column;
   align-items: center;
 }
-/* logo 尺寸与 H5 启动页保持一致：H5 里 logo 宽 412px / 按钮 385px（logo 比按钮宽），
-   画布 750rpx 下等比换算 → 600×400rpx（600:400 = 图片原始宽高比，aspectFit 满格不变形）。
-   之前是 520×200rpx 盒子配 aspectFit，实际只渲染 300rpx 宽——比下面 520rpx 的按钮窄一半，
-   层级反过来才显得「图片变小、画面不协调」。 */
-.splash-logo {
-  width: calc(600 * var(--u));
-  height: calc(400 * var(--u));
-  margin-bottom: calc(70 * var(--u));
-  filter: drop-shadow(0 calc(10 * var(--u)) calc(20 * var(--u)) rgba(0, 0, 0, 0.35));
+.splash-title {
+  text-align: center;
+  margin-bottom: calc(30 * var(--u));
 }
 .splash-cta {
   width: 100%;
   max-width: calc(520 * var(--u));
-  padding: calc(30 * var(--u)) 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffd86b;
-  border: calc(6 * var(--u)) solid #2c3e50;
-  border-radius: calc(12 * var(--u));
-  box-shadow: 0 calc(10 * var(--u)) 0 rgba(0, 0, 0, 0.35);
+  margin-top: calc(40 * var(--u));
+  padding: calc(28 * var(--u)) 0;
+  border-radius: var(--radius-sm);
 }
-.splash-cta-hover {
-  transform: translateY(calc(6 * var(--u)));
-  box-shadow: 0 calc(4 * var(--u)) 0 rgba(0, 0, 0, 0.35);
-}
+.splash-cta-hover { transform: translateY(calc(6 * var(--u))); }
 .splash-cta-text {
-  font-size: calc(36 * var(--u));
-  font-weight: 800;
-  color: #2c3e50;
+  font-size: calc(30 * var(--u));
+  font-weight: 600;
+  color: var(--text-on-primary);
   letter-spacing: calc(2 * var(--u));
 }
 .splash-tagline {
-  margin-top: calc(34 * var(--u));
+  margin-top: calc(28 * var(--u));
   font-size: calc(24 * var(--u));
-  color: #f2f8ff;
-  text-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.5);
+  color: var(--text-secondary);
+  text-align: center;
 }
 .splash-foot {
   position: absolute;
-  left: 0; right: 0;
+  left: 0;
+  right: 0;
   bottom: calc(calc(40 * var(--u)) + env(safe-area-inset-bottom));
   z-index: 2;
   text-align: center;
   font-size: calc(21 * var(--u));
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-tertiary);
   padding: 0 calc(40 * var(--u));
+}
+
+/* ---------- v4：品牌插画 / 网络节点退为水印 / 同步骨架屏 ---------- */
+/* 装饰网络图回到正常文档流：作为居中 Logo 排在标题上方，与标题/按钮/标语组成
+   一个垂直居中的连贯列，不再浮在顶部造成头重脚轻，也不压到按钮 */
+.net-graphic {
+  position: relative;
+  width: calc(420 * var(--u));
+  height: calc(420 * var(--u));
+  margin: 0 auto calc(44 * var(--u));
+  opacity: 0.5;
+  pointer-events: none;
+}
+.splash-sync {
+  width: 100%;
+  max-width: calc(520 * var(--u));
+  margin-top: calc(34 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(14 * var(--u));
 }

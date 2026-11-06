@@ -1,5 +1,21 @@
+const themeColors = require('../../utils/theme-colors.js');
 const store = require('../../utils/store.js');
+const motion = require('../../utils/motion.js');
 const { DEVICES } = require('../../utils/seed.js');
+const offline = require('../../utils/cmd-offline.js');
+
+/* 设备门类：卡片左侧竖条 + 设备标签共用一套语义色，
+   扫描列表时不用读文字也能分辨这是哪一类设备的命令。 */
+function devKind(d) {
+  if (d === 'Windows' || d === 'Linux' || d === '服务器') return 'windows';
+  if (d === 'Switch' || d === 'AC' || d === 'AP') return 'switch';
+  if (d === 'Router' || d === '防火墙') return 'router';
+  return 'other';
+}
+function vendorClass(d) {
+  const k = devKind(d);
+  return k === 'other' ? '' : 'vendor-' + k;
+}
 
 Page({
   data: {
@@ -10,17 +26,22 @@ Page({
     devCount: {},
     shown: [],
     total: 0,
+    drawerY: 0,
+    drawerDragging: false,
+    drawerStyle: '',
     diag: '',
     diagErr: false,
     detail: null,
     formOpen: false,
     editingId: '',
     form: { device: 'Switch', title: '', content: '', desc: '', tags: '', date: '' },
-    keyword: '',
-    searching: false
+    focusKey: '',
+    codeCopied: false
   },
 
   onShow() {
+    getApp().applyTheme(this);
+    offline.ensureReady(); // 本地缓存预热（若有），离线也能查
     store.init();
     this.rebuild();
     const app = getApp();
@@ -50,27 +71,24 @@ Page({
       devCount[d] = (devCount[d] || 0) + 1;
     });
 
-    const kw = (this.data.keyword || '').trim().toLowerCase();
     let list = all;
     if (this.data.filter !== '全部') list = list.filter(c => (c.device || '其他设备') === this.data.filter);
-    if (kw) {
-      list = list.filter(c =>
-        String(c.title || '').toLowerCase().indexOf(kw) >= 0 ||
-        String(c.content || '').toLowerCase().indexOf(kw) >= 0 ||
-        String(c.desc || '').toLowerCase().indexOf(kw) >= 0
-      );
-    }
 
-    /* 列表行只保留 wxml 真正用到的三个字段（device / title / preview）。
+    /* 列表行只保留 wxml 真正用到的字段。
        setData 是跨线程 JSON 序列化，整条记录（含命令正文 content）一起塞进去，
        实测 58% 的序列化开销花在 wxml 从不读取的字段上。
        正文、说明、技能标签留给详情 —— 点开时从 _rows 按 key 现取。 */
-    const shown = list.map(c => ({
-      _key: c._id || c._localId,
-      device: c.device || '其他设备',
-      title: c.title || '(未命名命令)',
-      preview: String(c.content || '').split('\n').slice(0, 2).join('\n')
-    }));
+    const shown = list.map(c => {
+      const d = c.device || '其他设备';
+      return {
+        _key: c._id || c._localId,
+        device: d,
+        devClass: devKind(d),
+        title: c.title || '(未命名命令)',
+        preview: String(c.content || '').split('\n').slice(0, 2).join('\n'),
+        vendorClass: vendorClass(d)
+      };
+    });
 
     /* 原文留在实例上（不进 data），详情按 key 取 */
     this._rows = {};
@@ -85,29 +103,26 @@ Page({
 
     this.setData({
       shown,
-      total: all.length,
       devCount,
       diag,
       diagErr: !!store.mem.lastError,
       filterText: this.data.filter === '全部' ? '全部设备' : this.data.filter
     });
+    motion.roll(this, 'total', Number(this.data.total) || 0, all.length);
+  },
+
+  /* 底部抽屉：把手跟手下拉，超过 90px 关闭当前这一层 */
+  onDrawerStart(e) { motion.drawerStart(this, e); },
+  onDrawerMove(e) { motion.drawerMove(this, e); },
+  onDrawerEnd() {
+    motion.drawerEnd(this, () => {
+      if (this.data.detail) this.closeDetail();
+      else if (this.data.formOpen) this.closeForm();
+    });
   },
 
   setFilter(e) {
     this.setData({ filter: e.currentTarget.dataset.v }, () => this.rebuild());
-  },
-
-  toggleSearch() {
-    this.setData({ searching: !this.data.searching, keyword: '' }, () => this.rebuild());
-  },
-
-  onSearch(e) {
-    /* 防抖：每个按键都同步触发一次全量 sort + filter + map + setData。
-       同类的 search / browse / fav 三处都有 150~200ms 防抖，这里补上。 */
-    const v = e.detail.value;
-    this.setData({ keyword: v });
-    if (this._deb) clearTimeout(this._deb);
-    this._deb = setTimeout(() => this.rebuild(), 200);
   },
 
   async refresh() {
@@ -246,7 +261,7 @@ Page({
     wx.showModal({
       title: '确认删除',
       content: '删错了可以在「我的 → 存档库」恢复，确定删除？',
-      confirmColor: '#d9534f',
+      confirmColor: themeColors.get('danger'),
       success: async r => {
         if (!r.confirm) return;
         wx.showLoading({ title: '删除中', mask: true });
@@ -281,8 +296,28 @@ Page({
     wx.showModal({
       title: '确认删除',
       content: '删错了可以在「我的 → 存档库」恢复，确定删除？',
-      confirmColor: '#d9534f',
+      confirmColor: themeColors.get('danger'),
       success: r => { if (r.confirm) doDelete(); }
     });
+  },
+
+  /* ---------- 输入框聚焦态（纯视觉） ---------- */
+  onFieldFocus(e) {
+    this.setData({ focusKey: e.currentTarget.dataset.k || '' });
+  },
+
+  onFieldBlur() {
+    this.setData({ focusKey: '' });
+  },
+
+  /* ---------- 代码块复制：震动 + 剪贴板 + ✓ 反馈 ---------- */
+  onCopyCode() {
+    const d = this.data.detail;
+    if (!d) return;
+    wx.vibrateShort({ type: 'light' });
+    wx.setClipboardData({ data: d.content || '' });
+    this.setData({ codeCopied: true });
+    clearTimeout(this._copyTimer);
+    this._copyTimer = setTimeout(() => this.setData({ codeCopied: false }), 1600);
   }
 });

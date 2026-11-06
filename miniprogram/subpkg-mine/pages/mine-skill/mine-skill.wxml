@@ -1,30 +1,48 @@
-<view class="page sk">
+<view class="page sk theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
-  <view class="card">
-    <view class="card-title-row">
-      <text class="card-title">🌳 分类技能等级</text>
-      <text class="card-more">由命令/项目自动推断</text>
-    </view>
-    <view wx:if="{{!cats.length}}" class="empty">记几条命令，这里会出现分类等级</view>
-    <view wx:for="{{cats}}" wx:key="key" class="cat-row">
-      <text class="cat-name">{{item.name}}</text>
-      <view class="bar"><view class="bar-fill" style="width:{{item.pct}}%"></view></view>
-      <text class="cat-lv">Lv.{{item.level}}</text>
-      <text class="cat-n">{{item.count}}</text>
+  <view class="sk-head">
+    <view class="sk-head-txt">
+      <text class="doc-h1 sk-h1">技能树</text>
+      <text class="doc-sub sk-sub">记录你点亮的网络技能，等级由命令与项目自动推断</text>
     </view>
   </view>
 
+    <text class="section-title">分类技能等级</text>
+
   <view class="card">
     <view class="card-title-row">
-      <text class="card-title">🎯 我的技能</text>
+      <text class="card-title">分类技能等级</text>
+      <text class="card-more">由命令/项目自动推断</text>
+    </view>
+    <view wx:if="{{!cats.length}}" class="empty">技能树还没发芽</view>
+    <view class="stagger">
+    <view wx:for="{{cats}}" wx:key="key" class="cat-row list-item stagger-item sd-{{index}}">
+    <view class="skill-node {{item.level > 0 ? 'on' : ''}}">{{item.level}}</view>
+      <view class="skill-line cat-link"></view>
+      <view class="cat-body">
+        <view class="cat-top">
+          <text class="cat-name">{{item.name}}</text>
+          <text class="cat-n">{{item.count}} 点</text>
+        </view>
+        <view class="bar"><view class="bar-fill" style="width:{{item.pct}}%"></view></view>
+      </view>
+      <text class="cat-lv">Lv.{{item.level}}</text>
+    </view>
+    </view>
+  </view>
+
+  <text class="section-title">我的技能</text>
+  <view class="card">
+    <view class="card-title-row">
+      <text class="card-title">技能清单</text>
       <text class="card-more" bindtap="openAdd">+ 新增</text>
     </view>
 
-    <view class="tabs">
+    <view class="seg sk-seg">
       <view
         wx:for="{{tabs}}"
         wx:key="key"
-        class="tab {{tab === item.key ? 'on' : ''}}"
+        class="seg-item {{tab === item.key ? 'on' : ''}}"
         data-v="{{item.key}}"
         bindtap="setTab"
       >{{item.name}} {{item.n}}</view>
@@ -32,16 +50,18 @@
 
     <view wx:if="{{!list.length}}" class="empty">这里还没有技能</view>
 
-    <view wx:for="{{list}}" wx:key="_key" class="skill-item">
-      <view class="skill-main">
+    <view class="sk-list stagger">
+    <view wx:for="{{list}}" wx:key="_key" class="skill-item list-item stagger-item sd-{{index}}">
+    <view class="skill-main">
         <text class="skill-name">{{item.name}}</text>
         <text wx:if="{{item.goalText}}" class="skill-goal">{{item.goalText}}</text>
-        <text class="skill-status {{item.statusClass}}">{{item.statusText}}</text>
+        <text class="tag-outline {{item.statusClass}}">{{item.statusText}}</text>
       </view>
       <view class="skill-ops">
         <text class="op" data-idx="{{index}}" catchtap="cycleStatus">切换</text>
         <text class="op op-danger" data-idx="{{index}}" catchtap="askDelete">删除</text>
       </view>
+    </view>
     </view>
   </view>
 
@@ -54,7 +74,7 @@
       </view>
       <view class="field">
         <text class="field-label">技能名 <text class="req">*</text></text>
-        <input class="input" value="{{form.name}}" maxlength="20" placeholder="比如：HCIE / OSPF 排障" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="name" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'name' ? 'input-focus' : ''}}" value="{{form.name}}" maxlength="20" placeholder="比如：HCIE / OSPF 排障" placeholder-class="input-placeholder" placeholder-style="color:var(--text-tertiary);font-size:calc(27 * var(--u));" data-k="name" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
       <view class="field">
         <text class="field-label">状态</text>
@@ -70,7 +90,7 @@
       </view>
       <view class="field">
         <text class="field-label">目标（可选）</text>
-        <input class="input" value="{{form.goalText}}" maxlength="40" placeholder="比如：半年内拿下 HCIE" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="goalText" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'goal' ? 'input-focus' : ''}}" value="{{form.goalText}}" maxlength="40" placeholder="比如：半年内拿下 HCIE" placeholder-class="input-placeholder" placeholder-style="color:var(--text-tertiary);font-size:calc(27 * var(--u));" data-k="goal" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
       <view class="btn btn-primary btn-block" bindtap="saveForm">保存</view>
     </view>

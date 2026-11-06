@@ -1,11 +1,13 @@
-/* 搜不到的说法：沿用像素风 */
+/* 搜不到的说法（错漏清单）：知识库文档风 —— 列表分割线式、
+   技术/状态标签描边风、待反馈清单用代码块展示。
+   颜色一律 var(--token)，尺寸一律 calc(N * var(--u))（1px 细边框除外）。 */
 
 .miss-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  background: linear-gradient(180deg, #eaf4fb 0%, #f7fbfe 40%, #eef7fd 100%);
+  background: var(--bg-page);
 }
 
 /* ---------- 顶部 ---------- */
@@ -20,122 +22,119 @@
 }
 .head-title {
   font-size: calc(32 * var(--u));
-  font-weight: 800;
-  color: #2c3e50;
+  font-weight: 600;
+  color: var(--text-primary);
   letter-spacing: calc(1 * var(--u));
 }
 .head-num {
   font-size: calc(20 * var(--u));
-  font-weight: 800;
-  color: #a35b3f;
-  background: #fdeee7;
-  border: calc(2 * var(--u)) solid #f0c4ac;
-  border-radius: calc(16 * var(--u));
-  padding: calc(2 * var(--u)) calc(14 * var(--u));
+  font-weight: 600;
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
 }
 .head-sub {
   display: block;
   margin-top: calc(10 * var(--u));
   font-size: calc(21 * var(--u));
-  color: #7c8fa3;
+  color: var(--text-tertiary);
   line-height: 1.5;
 }
 
-/* ---------- 列表 ---------- */
+/* ---------- 列表：去外框改底部分割线（全局 .list-item） ---------- */
 .list {
   flex: 1;
   min-height: 0;
   box-sizing: border-box;
   padding: 0 calc(24 * var(--u));
 }
-
 .item {
   display: flex;
   align-items: center;
   gap: calc(12 * var(--u));
-  background: #fffdf6;
-  border: calc(3 * var(--u)) solid #2c3e50;
-  border-radius: calc(8 * var(--u));
-  padding: calc(16 * var(--u)) calc(20 * var(--u));
-  margin-bottom: calc(14 * var(--u));
-  box-shadow: 0 calc(5 * var(--u)) 0 rgba(44, 62, 80, 0.14);
 }
-.item-hover {
-  transform: translateY(calc(3 * var(--u)));
-  box-shadow: 0 calc(2 * var(--u)) 0 rgba(44, 62, 80, 0.14);
-}
+.item-hover { background: var(--bg-subtle); }
 .item-main { flex: 1; min-width: 0; }
+/* 技术标签：.tag-outline 描边 + .tag-tech 蓝底 */
 .item-kw {
-  display: block;
   font-size: calc(26 * var(--u));
-  font-weight: 800;
-  color: #2c3e50;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 600;
+}
+.item-meta-row {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  margin-top: calc(10 * var(--u));
 }
 .item-meta {
-  display: block;
-  margin-top: calc(6 * var(--u));
   font-size: calc(19 * var(--u));
-  color: #9fb0c0;
+  color: var(--text-tertiary);
 }
+/* 状态标签：.tag-outline 描边 + .tag-doing 进行态 */
+.item-count { font-size: calc(19 * var(--u)); }
 .item-arrow {
   flex: none;
   font-size: calc(30 * var(--u));
-  color: #b9cfe0;
+  color: var(--text-tertiary);
 }
 
-/* 空态 */
+/* 空态：纯色几何图形替代 emoji 插画 */
 .empty {
   padding: calc(90 * var(--u)) calc(40 * var(--u));
   text-align: center;
 }
-.empty-ico { font-size: calc(56 * var(--u)); }
 .empty-txt {
   display: block;
-  margin-top: calc(16 * var(--u));
   font-size: calc(24 * var(--u));
-  color: #7c8fa3;
+  color: var(--text-secondary);
 }
 .empty-sub {
   display: block;
   margin-top: calc(8 * var(--u));
   font-size: calc(21 * var(--u));
-  color: #9fb0c0;
+  color: var(--text-tertiary);
   line-height: 1.6;
 }
-
 .list-foot { height: calc(40 * var(--u)); }
 
-/* ---------- 底部操作 ---------- */
+/* ---------- 待反馈清单：代码块（横向滚动 + 右上角固定复制按钮） ---------- */
+.preview { padding: calc(10 * var(--u)) 0 calc(20 * var(--u)); }
+.code-block {
+  overflow: hidden;
+  padding-top: calc(52 * var(--u));
+}
+.code-scroll { width: 100%; }
+.code-inner {
+  display: inline-block;
+  min-width: 100%;
+  white-space: pre;
+}
+.vd-line {
+  display: block;
+  font-family: var(--font-code);
+  font-size: calc(22 * var(--u));
+  line-height: 1.7;
+  color: var(--code-text);
+  white-space: pre;
+}
+
+/* ---------- 底部操作：次要按钮描边 / 危险按钮 --danger 描边 / 主按钮 .btn-primary ---------- */
 .foot {
   flex: none;
   display: flex;
   gap: calc(14 * var(--u));
   padding: calc(14 * var(--u)) calc(24 * var(--u)) calc(28 * var(--u));
-  border-top: calc(3 * var(--u)) dashed #d9e4ee;
-  background: #f4f9fd;
+  border-top: 1px solid var(--border);
+  background: var(--bg-page);
 }
 .foot-btn {
   flex: 1;
   height: calc(80 * var(--u));
-  line-height: calc(80 * var(--u));
-  text-align: center;
-  font-size: calc(26 * var(--u));
-  font-weight: 800;
-  border-radius: calc(10 * var(--u));
-}
-.foot-btn-main {
-  color: #2c3e50;
-  background: #ffd86b;
-  border: calc(4 * var(--u)) solid #2c3e50;
-  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.25);
+  border-radius: var(--radius-md);
 }
 .foot-btn-ghost {
   flex: none;
   width: calc(180 * var(--u));
-  color: #7c8fa3;
-  background: #eef4f9;
-  border: calc(3 * var(--u)) solid #cfe0ee;
+  color: var(--danger);
+  border-color: var(--danger);
 }

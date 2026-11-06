@@ -1,44 +1,59 @@
-<view class="miss-page">
+<view class="miss-page theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
   <!-- 顶部 -->
   <view class="head">
     <view class="head-main">
-      <text class="head-title">🔍 搜不到的说法</text>
-      <text class="head-num">{{total}} 条</text>
+    <text class="head-title">搜不到的说法</text>
+      <text class="head-num tag-outline">{{total}} 条</text>
     </view>
     <text class="head-sub">搜了但一条都没搜到的词，说明库里还缺这个说法</text>
   </view>
 
-  <!-- 列表 -->
+  <!-- 列表：去外框改底部分割线（.list-item） -->
   <scroll-view class="list" scroll-y>
     <view
       wx:for="{{list}}"
       wx:key="kw"
-      class="item"
+      class="item list-item"
       bindtap="goSearch"
       data-kw="{{item.kw}}"
       hover-class="item-hover"
     >
       <view class="item-main">
-        <text class="item-kw">{{item.kw}}</text>
-        <text class="item-meta">{{item.time}}<text wx:if="{{item.count > 1}}"> · 搜了 {{item.count}} 次</text></text>
+        <text class="item-kw tag-outline tag-tech">{{item.kw}}</text>
+        <view class="item-meta-row">
+          <text class="item-meta">{{item.time}}</text>
+          <text wx:if="{{item.count > 1}}" class="item-count tag-outline tag-doing">搜了 {{item.count}} 次</text>
+        </view>
       </view>
       <text class="item-arrow">›</text>
     </view>
 
     <view wx:if="{{!list.length}}" class="empty">
-      <text class="empty-ico">🎉</text>
-      <text class="empty-txt">没有搜不到的说法</text>
+    <text class="empty-txt">没有搜不到的说法</text>
       <text class="empty-sub">说明你搜的东西库里都有，这是好事</text>
+    </view>
+
+    <!-- 待反馈清单：代码块展示 + 右上角复制（✓ + 震动） -->
+    <view wx:if="{{list.length}}" class="preview">
+      <text class="section-title">待反馈清单</text>
+      <view class="code-block">
+        <view class="code-copy {{codeCopied ? 'done' : ''}}" catchtap="onCopyCode">{{codeCopied ? '✓' : '复制'}}</view>
+        <scroll-view class="code-scroll" scroll-x enable-flex>
+          <view class="code-inner">
+            <text wx:for="{{list}}" wx:key="kw" class="vd-line">{{item.kw}}</text>
+          </view>
+        </scroll-view>
+      </view>
     </view>
 
     <view class="list-foot"></view>
   </scroll-view>
 
-  <!-- 底部操作 -->
+  <!-- 底部操作：次要按钮描边 / 危险按钮 --danger 描边 / 主按钮 .btn-primary -->
   <view wx:if="{{list.length}}" class="foot">
-    <view class="foot-btn foot-btn-ghost" bindtap="clearAll">清空</view>
-    <view class="foot-btn foot-btn-main" bindtap="copyAll">复制全部</view>
+    <view class="btn foot-btn foot-btn-ghost" bindtap="clearAll">清空</view>
+    <view class="btn btn-primary foot-btn foot-btn-main" bindtap="copyAll">复制全部</view>
   </view>
 
 </view>

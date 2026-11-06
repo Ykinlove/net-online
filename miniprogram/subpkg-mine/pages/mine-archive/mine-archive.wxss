@@ -1,31 +1,26 @@
 .arc { padding-bottom: calc(60 * var(--u)); }
-.arc-tip { display: block; font-size: calc(22 * var(--u)); color: #8a99aa; line-height: 1.6; }
-.arc-tip-d {
-  display: block;
-  margin-top: calc(10 * var(--u));
-  font-size: calc(21 * var(--u));
-  color: #a9bccd;
-  line-height: 1.7;
-}
 
+.arc-head { padding: calc(8 * var(--u)) calc(8 * var(--u)) calc(10 * var(--u)); }
+.arc-head .doc-h1 { display: block; }
+.arc-head .doc-sub { display: block; margin-top: calc(8 * var(--u)); }
+
+/* 列表项：去外框改底部分割线（全局 .list-item），这里只做内部纵向排布 */
 .arc-card {
-  background: #fffdf6;
-  border: calc(4 * var(--u)) solid #2c3e50;
-  border-radius: calc(8 * var(--u));
-  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.16);
-  padding: calc(18 * var(--u)) calc(20 * var(--u));
-  margin-bottom: calc(16 * var(--u));
+  display: flex;
+  flex-direction: column;
+  gap: calc(14 * var(--u));
 }
-.arc-top { display: flex; align-items: center; margin-bottom: calc(12 * var(--u)); }
-.arc-name { flex: 1; font-size: calc(26 * var(--u)); font-weight: 800; color: #2c3e50; }
-.arc-time { font-size: calc(20 * var(--u)); color: #a9bccd; }
-.arc-stats { display: flex; flex-wrap: wrap; gap: calc(10 * var(--u)); margin-bottom: calc(16 * var(--u)); }
+.arc-top { display: flex; align-items: center; }
+.arc-name { flex: 1; font-size: calc(28 * var(--u)); font-weight: 600; color: var(--text-primary); }
+.arc-time { font-size: calc(20 * var(--u)); color: var(--text-tertiary); }
+.arc-stats { display: flex; flex-wrap: wrap; gap: calc(10 * var(--u)); }
 .arc-stat {
   padding: calc(4 * var(--u)) calc(12 * var(--u));
   font-size: calc(20 * var(--u));
-  font-weight: 700;
-  color: #4a7fa8;
-  background: #eef6ff;
-  border-radius: calc(4 * var(--u));
+  font-weight: 500;
+  color: var(--primary);
+  background: var(--primary-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
 }
 .arc-ops { display: flex; gap: calc(12 * var(--u)); }

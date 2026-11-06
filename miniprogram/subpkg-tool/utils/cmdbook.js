@@ -1728,6 +1728,30 @@ function lookupById(kind, id) {
   };
 }
 
+/**
+ * Offline First 入口：用一份外部数据集（本地缓存 / 云端下载）替换当前内存 BOOK。
+ * 搜索页、收藏页等所有消费方都 require 本模块（单例），数据集被替换后它们自动读到新数据，
+ * 无需逐个改引用。
+ *
+ * 为什么用「替换 + 推进版本」而不是暴露 setter 让外面直接改：
+ *   - buildIndex/buildVocab 都按 dataVer() 做缓存失效，这里 bump DATA_VER 后，
+ *     下一次 search() 会自动重建索引，索引/词表不会停留在旧数据集上。
+ *   - 练习题走 CloudBase 异步加载，可能在 setDataset 之后才就绪，
+ *     所以这里把已加载的练习数据重新并回新 BOOK，避免替换时把练习弄丢。
+ *   - 云端条目本身已是完整 book（含 bundled 全部内容）；hotfix 的覆盖/新增会在
+ *     buildIndex 时按 targetId 重新叠加，因此替换不会丢失热更新内容。
+ *
+ * @param {Array} entries 与内置 BOOK 同 schema 的条目数组（id/devs/name/kw/cmds/tip…）
+ * @returns {boolean} 是否真的替换了（入参非法时返回 false，保持原 BOOK 不变）
+ */
+function setDataset(entries) {
+  if (!Array.isArray(entries) || !entries.length) return false;
+  const practiceNow = (practice && practice.getPractice && practice.getPractice()) || [];
+  BOOK = entries.concat(practiceNow);
+  DATA_VER++;
+  return true;
+}
+
 module.exports = { VENDORS,
   /* getter 而非快照：练习题异步加载完成后 BOOK 被重新赋值，
      快照引用会一直指着旧数组，读到 1216 条而不是最新数据。 */
@@ -1735,6 +1759,7 @@ module.exports = { VENDORS,
   search, norm, expand, cleanCmd, searchTemplates,
   listBy, categoryStats, listTpls, tplCategoryStats,
   findById, findTplById, shareCard, lookupById,
+  setDataset,
   /* 调试用：只在本地 node 脚本里调，页面不引用 */
   _dbg: { buildIndex, dropGreedy, rarity, scoreOf, intentsOf, segChinese, stripLead,
     isStrongIntent, tplIndex } };

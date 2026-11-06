@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "我的收藏",
-  "enablePullDownRefresh": false
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "offline-bar": "../../../components/offline-bar/offline-bar"
+  }
 }

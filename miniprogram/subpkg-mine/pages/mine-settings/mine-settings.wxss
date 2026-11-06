@@ -1,63 +1,57 @@
-.st { padding-bottom: calc(60 * var(--u)); }
+.st { padding-bottom: calc(40 * var(--u)); }
 
-.group {
-  background: #fffdf6;
-  border: calc(4 * var(--u)) solid #2c3e50;
-  border-radius: calc(8 * var(--u));
-  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.16);
-  margin-bottom: calc(22 * var(--u));
+.st-head { padding: calc(4 * var(--u)) calc(4 * var(--u)) calc(10 * var(--u)); }
+.st-head .doc-h1 { display: block; }
+.st-head .doc-sub { display: block; margin-top: calc(8 * var(--u)); }
+
+/* 每组收进一张 iOS 分组玻璃卡，行不再散在光晕背景上 */
+.st-list {
+  margin-bottom: calc(20 * var(--u));
+  padding: 0 calc(22 * var(--u));
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-sheen), var(--shadow-glass);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
   overflow: hidden;
 }
-.group-title {
-  display: block;
-  padding: calc(16 * var(--u)) calc(22 * var(--u)) calc(10 * var(--u));
-  font-size: calc(21 * var(--u));
-  font-weight: 800;
-  color: #8a99aa;
+.st-list .list-item { padding-left: 0; padding-right: 0; }
+
+/* 分组标题贴近卡片，字距收到正常阅读值 */
+.st .section-title {
+  padding: calc(16 * var(--u)) calc(4 * var(--u)) calc(9 * var(--u));
   letter-spacing: calc(1 * var(--u));
+  font-weight: 600;
+  color: var(--text-secondary);
 }
-.group-tip {
-  display: block;
-  padding: calc(10 * var(--u)) calc(22 * var(--u)) calc(18 * var(--u));
-  font-size: calc(20 * var(--u));
-  color: #a9bccd;
-  line-height: 1.6;
-}
-.row {
-  display: flex;
-  align-items: center;
-  gap: calc(12 * var(--u));
-  padding: calc(22 * var(--u)) calc(22 * var(--u));
-  border-top: calc(2 * var(--u)) dashed #e2ecf4;
-}
-.row-hover { background: #f4f9fd; }
-/* 标签占满剩余宽度，值/箭头自然靠右；没有 .row-value 的行箭头也贴在右边 */
-.row-label { flex: 1; font-size: calc(26 * var(--u)); font-weight: 700; color: #2c3e50; }
-.row-label.danger { color: #a32e2a; }
+
+/* 行：复用全局 .list-item 做底部分割线，这里只负责横向布局 */
+.row { display: flex; align-items: center; gap: calc(12 * var(--u)); }
+.row-hover { background: var(--bg-subtle); }
+.row-label { flex: 1; font-size: calc(26 * var(--u)); font-weight: 600; color: var(--text-primary); }
 .row-value {
   flex: none;
   font-size: calc(22 * var(--u));
-  color: #8a99aa;
+  color: var(--text-tertiary);
   max-width: calc(300 * var(--u));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
 }
-.row-arrow { flex: none; font-size: calc(28 * var(--u)); color: #c2d4e3; }
+.row-arrow { flex: none; font-size: calc(28 * var(--u)); color: var(--text-tertiary); }
 
-/* 意见反馈：button 直接充当一行。
-   微信 button 内置样式优先级很高（padding-left/14px、text-align:center 等），
-   必须逐条 !important 压掉，否则整行会被推开或只覆盖到一半，出现「点字有反应、点箭头没反应」。 */
+/* 意见反馈：button 充当一行，逐条 !important 压掉微信内置样式 */
+.st-list .row-fb { padding-left: 0 !important; padding-right: 0 !important; }
 .row-fb {
   display: flex !important;
   align-items: center !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: calc(22 * var(--u)) !important;
+  padding: calc(22 * var(--u)) calc(8 * var(--u)) !important;
   background: transparent !important;
   border: none !important;
-  border-top: calc(2 * var(--u)) dashed #e2ecf4 !important;
   border-radius: 0 !important;
   line-height: 1.5 !important;
   font-size: calc(26 * var(--u)) !important;
@@ -67,4 +61,13 @@
   box-sizing: border-box !important;
 }
 .row-fb::after { border: none !important; }
-.row-fb-hover { background: #f4f9fd !important; }
+.row-fb-hover { background: var(--bg-subtle) !important; }
+
+.st-tip {
+  display: block;
+  padding: calc(16 * var(--u)) calc(8 * var(--u)) calc(8 * var(--u));
+  font-size: calc(21 * var(--u));
+  color: var(--text-tertiary);
+  line-height: 1.6;
+}
+.st-tip-tight { padding-top: 0; padding-bottom: calc(14 * var(--u)); }

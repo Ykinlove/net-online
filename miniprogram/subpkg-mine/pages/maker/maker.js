@@ -13,6 +13,7 @@ Page({
   },
 
   onShow() {
+    getApp().applyTheme(this);
     this.setData({ isAdmin: admin.isAdmin() });
     admin.refresh().then(ok => {
       if (ok !== this.data.isAdmin) this.setData({ isAdmin: ok });

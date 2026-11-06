@@ -6,8 +6,8 @@
   margin-bottom: calc(6 * var(--u));
 }
 .cmd-title-wrap { display: flex; flex-direction: column; }
-.page-title { font-size: calc(36 * var(--u)); font-weight: 800; color: #2c3e50; }
-.cmd-sub { font-size: calc(21 * var(--u)); color: #8a99aa; margin-top: calc(4 * var(--u)); }
+.page-title { font-size: calc(36 * var(--u)); font-weight: 600; color: var(--text-primary); }
+.cmd-sub { font-size: calc(21 * var(--u)); color: var(--text-secondary); margin-top: calc(4 * var(--u)); }
 .cmd-actions {
   margin-left: auto;
   display: flex;
@@ -21,152 +21,112 @@
   align-items: center;
   justify-content: center;
   font-size: calc(30 * var(--u));
-  color: #2c3e50;
-  background: #fff;
-  border: calc(3 * var(--u)) solid #2c3e50;
-  border-radius: calc(8 * var(--u));
+  color: var(--text-secondary);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
 }
-.icon-btn-hover { background: #eaf3fb; }
+.icon-btn-hover { background: var(--bg-subtle); }
 
 .cmd-diag {
   display: block;
   font-size: calc(20 * var(--u));
-  color: #a9bccd;
+  color: var(--text-tertiary);
   margin-bottom: calc(14 * var(--u));
   line-height: 1.5;
 }
-.cmd-diag.is-err { color: #d9534f; }
+.cmd-diag.is-err { color: var(--danger); }
 
+/* 分类标签：普通 flex + 允许换行，保证全部设备按钮始终完整可见，不再被滚动容器裁掉 */
 .dev-bar {
-  white-space: nowrap;
-  margin-bottom: calc(8 * var(--u));
-}
-.dev-chip {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: calc(6 * var(--u));
-  padding: calc(10 * var(--u)) calc(20 * var(--u));
-  margin-right: calc(12 * var(--u));
-  font-size: calc(23 * var(--u));
-  font-weight: 700;
-  color: #6b7d8f;
-  background: #fff;
-  border: calc(3 * var(--u)) solid #c2d4e3;
-  border-radius: calc(40 * var(--u));
+  gap: calc(12 * var(--u));
+  margin-bottom: calc(14 * var(--u));
 }
-.dev-chip.on {
-  color: #2c3e50;
-  background: #ffd86b;
-  border-color: #2c3e50;
+.dev-bar .seg-item {
+  flex: none;
+  gap: calc(6 * var(--u));
+  height: calc(60 * var(--u));
 }
 .dev-num {
+  margin-left: calc(6 * var(--u));
   font-size: calc(19 * var(--u));
-  color: #a08a5e;
+  color: var(--primary);
 }
-.dev-chip.on .dev-num { color: #7a5a20; }
+.dev-bar .seg-item.on .dev-num { color: var(--text-on-primary); }
 
-.search-toggle {
-  font-size: calc(21 * var(--u));
-  color: #7a8a9b;
-  padding: calc(8 * var(--u)) calc(2 * var(--u)) calc(12 * var(--u));
-}
-.search-row { padding: calc(6 * var(--u)) 0 calc(4 * var(--u)); }
-
+/* 命令卡：白底细边 + 左侧设备语义色竖条（全局 .cmd-card / .vendor-*） */
 .cmd-card {
-  background: #fffdf6;
-  border: calc(4 * var(--u)) solid #2c3e50;
-  border-radius: calc(8 * var(--u));
-  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.16);
   padding: calc(18 * var(--u)) calc(20 * var(--u));
   margin-bottom: calc(16 * var(--u));
 }
+/* 三层阅读结构：设备标签 → 命令标题 → 命令代码块，
+   不再把设备和标题挤在同一行（长标题会被截断、层级也分不清） */
 .cmd-card-top {
   display: flex;
   align-items: center;
-  gap: calc(10 * var(--u));
-  margin-bottom: calc(10 * var(--u));
+  margin-bottom: calc(12 * var(--u));
 }
-.cmd-dev {
-  flex: none;
-  padding: calc(2 * var(--u)) calc(10 * var(--u));
-  font-size: calc(19 * var(--u));
-  font-weight: 800;
-  color: #fff;
-  background: #2c3e50;
-  border-radius: calc(4 * var(--u));
-}
+.cmd-dev { flex: none; font-size: calc(19 * var(--u)); font-weight: 600; }
 .cmd-name {
-  flex: 1;
-  font-size: calc(26 * var(--u));
-  font-weight: 800;
-  color: #2c3e50;
+  display: block;
+  font-size: calc(28 * var(--u));
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+  margin-bottom: calc(12 * var(--u));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 命令块：深蓝终端底 + 薄荷绿等宽字，沿用 H5 版的命令行配色 */
+/* 列表命令预览：浅色等宽代码块 */
 .cmd-code {
   display: block;
-  font-family: Menlo, Consolas, "Courier New", monospace;
-  font-size: calc(21 * var(--u));
-  line-height: 1.62;
-  letter-spacing: calc(0.4 * var(--u));
-  color: #a8e6bf;
-  background: #22303d;
-  border-left: calc(6 * var(--u)) solid #7fd6a0;
+  font-family: var(--font-code);
+  font-size: calc(23 * var(--u));
+  line-height: 1.55;
+  color: var(--code-text);
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius-sm);
   padding: calc(13 * var(--u)) calc(15 * var(--u));
-  border-radius: 0 calc(6 * var(--u)) calc(6 * var(--u)) 0;
-  /* 刚好装下 3 行（21rpx × 1.62 ≈ 34rpx/行 + 上下 13rpx），避免第 3 行被切一半 */
   max-height: calc(128 * var(--u));
   overflow: hidden;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
-/* 详情 */
-.dt-meta { display: flex; gap: calc(10 * var(--u)); margin-bottom: calc(16 * var(--u)); flex-wrap: wrap; }
-.dt-code-wrap {
-  background: #22303d;
-  border: calc(3 * var(--u)) solid #2c3e50;
-  border-radius: calc(8 * var(--u));
+/* 详情代码块：等宽、横向滚动、右上角固定复制按钮 */
+.cmd-codeblock {
+  overflow: visible;
+  padding-top: calc(52 * var(--u));
   margin-bottom: calc(14 * var(--u));
-  overflow: hidden;
 }
-/* 终端标题条：三个小圆点 + 窗口名 */
-.dt-code-bar {
-  display: flex;
-  align-items: center;
-  gap: calc(9 * var(--u));
-  padding: calc(9 * var(--u)) calc(14 * var(--u));
-  background: #17202a;
-  border-bottom: calc(2 * var(--u)) solid #2f3f4f;
-}
-.dt-dot { width: calc(13 * var(--u)); height: calc(13 * var(--u)); border-radius: 50%; flex: none; }
-.dt-dot.d1 { background: #ff5f57; }
-.dt-dot.d2 { background: #febc2e; }
-.dt-dot.d3 { background: #28c840; }
-.dt-code-label {
-  margin-left: calc(6 * var(--u));
-  font-family: Menlo, Consolas, "Courier New", monospace;
-  font-size: calc(18 * var(--u));
-  color: #64778a;
-  letter-spacing: calc(0.5 * var(--u));
-}
-.dt-code-scroll {
-  max-height: 42vh;
-  padding: calc(15 * var(--u)) calc(16 * var(--u));
-  box-sizing: border-box;
-}
-.dt-code {
-  font-family: Menlo, Consolas, "Courier New", monospace;
+.cmd-codeblock .code-scroll { width: 100%; }
+.cmd-codeblock .dt-code {
+  display: inline-block;
+  font-family: var(--font-code);
   font-size: calc(23 * var(--u));
   line-height: 1.7;
-  letter-spacing: calc(0.4 * var(--u));
-  color: #a8e6bf;
-  white-space: pre-wrap;
-  word-break: break-all;
+  color: var(--code-text);
+  white-space: pre;
 }
-.dt-desc { display: block; font-size: calc(22 * var(--u)); color: #6b7d8f; margin-bottom: calc(16 * var(--u)); }
+
+/* 详情共用 */
+.dt-meta { display: flex; gap: calc(10 * var(--u)); margin-bottom: calc(16 * var(--u)); flex-wrap: wrap; }
+.dt-code-wrap {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius-md);
+  padding: calc(16 * var(--u)) calc(18 * var(--u));
+  margin-bottom: calc(14 * var(--u));
+  box-sizing: border-box;
+}
+.dt-desc { display: block; font-size: calc(22 * var(--u)); color: var(--text-secondary); margin-bottom: calc(16 * var(--u)); }
 .dt-actions { display: flex; gap: calc(12 * var(--u)); }
 .dt-actions .btn { flex: 1; }
 
@@ -178,26 +138,25 @@
 }
 .form-actions .btn { flex: 1; }
 
-/* 录入命令时的输入框也用终端配色，跟展示一致 */
-.cmd-term {
-  font-family: Menlo, Consolas, "Courier New", monospace;
-  font-size: calc(25 * var(--u));
-  line-height: 1.65;
-  letter-spacing: calc(0.4 * var(--u));
-  color: #a8e6bf;
-  background-color: #22303d;
-  border-color: #2c3e50;
-}
-
+/* 选择器框（projects 共用） */
 .picker-box {
   display: flex;
   align-items: center;
   height: calc(92 * var(--u));
   padding: 0 calc(24 * var(--u));
-  background-color: #ffffff;
-  border: calc(4 * var(--u)) solid #b9cfe0;
-  border-radius: calc(8 * var(--u));
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
   font-size: calc(29 * var(--u));
-  color: #2c3e50;
+  color: var(--text-primary);
 }
-.picker-caret { margin-left: auto; color: #8a99aa; font-size: calc(22 * var(--u)); }
+.picker-caret { margin-left: auto; color: var(--text-tertiary); font-size: calc(22 * var(--u)); }
+
+/* v6：复制勾；设备标签按门类上色（复用已有语义色，深浅主题自动跟随） */
+.code-copy .tick { margin: calc(4 * var(--u)) auto 0; }
+.cmd-dev.dev-windows { color: var(--primary); background: var(--primary-bg); border-color: var(--primary); }
+.cmd-dev.dev-switch  { color: var(--success); background: var(--success-bg); border-color: var(--success); }
+.cmd-dev.dev-router  { color: var(--warning); background: var(--warning-bg); border-color: var(--warning); }
+.cmd-dev.dev-other   { color: var(--text-secondary); background: var(--bg-subtle); border-color: var(--border); }

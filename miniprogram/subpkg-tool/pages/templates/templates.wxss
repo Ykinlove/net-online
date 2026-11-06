@@ -1,8 +1,7 @@
 /* 配置模板页已并入「资料库」页（browse），这里只是重定向跳板。
-   保留 .tpl-page 基础背景，避免跳过去的瞬间出现纯白闪烁。 */
-
+   保留纯色页面底，避免跳过去的瞬间出现白闪；根节点主题绑定不动。 */
 .tpl-page {
   height: 100vh;
   box-sizing: border-box;
-  background: linear-gradient(180deg, #eaf4fb 0%, #f7fbfe 40%, #eef7fd 100%);
+  background: var(--bg-page);
 }

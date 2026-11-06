@@ -1,15 +1,33 @@
-<view class="splash">
-  <image class="splash-bg" src="/images/ui/splash-bg.jpg" mode="aspectFill"></image>
-  <view class="splash-mask"></view>
+<view class="splash theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
+
+  <!-- CSS 线性几何：网络节点（圆点 + 连线），颜色全部 var() -->
+  <text class="splash-title doc-h1">Net 操作命令速记</text>
+
+  <view class="net-graphic">
+    <view class="net-line net-line-a"></view>
+    <view class="net-line net-line-b"></view>
+    <view class="net-line net-line-c"></view>
+    <view class="net-line net-line-d"></view>
+    <view class="net-node net-node-a"></view>
+    <view class="net-node net-node-b"></view>
+    <view class="net-node net-node-c"></view>
+    <view class="net-node net-node-d"></view>
+    <view class="net-core"><text class="net-core-t">Net</text></view>
+  </view>
 
   <view class="splash-content">
-    <image class="splash-logo" src="/images/ui/logo.png" mode="aspectFit"></image>
-
-    <view class="splash-cta" bindtap="enter" hover-class="splash-cta-hover">
-      <text class="splash-cta-text">🌐 点击进入</text>
+    <view class="btn btn-primary splash-cta" bindtap="enter" hover-class="splash-cta-hover">
+      <text class="splash-cta-text">点击进入</text>
     </view>
 
     <text class="splash-tagline">记录每一条命令，攒成你的网络手感</text>
+
+    <!-- 云端同步中的骨架屏（syncing 为真实加载态） -->
+    <view wx:if="{{syncing}}" class="splash-sync">
+      <view class="sk-line w-lg"></view>
+      <view class="sk-line w-md"></view>
+      <view class="sk-line w-sm"></view>
+    </view>
   </view>
 
   <view class="splash-foot">

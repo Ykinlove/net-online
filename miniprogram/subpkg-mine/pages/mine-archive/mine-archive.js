@@ -1,3 +1,4 @@
+const themeColors = require('../../../utils/theme-colors.js');
 const store = require('../../../utils/store.js');
 
 function two(n) { return String(n).padStart(2, '0'); }
@@ -6,6 +7,7 @@ Page({
   data: { list: [] },
 
   onShow() {
+    getApp().applyTheme(this);
     store.init();
     this.rebuild();
   },
@@ -52,7 +54,7 @@ Page({
     wx.showModal({
       title: '删除存档',
       content: '删除这份存档？删除后无法恢复。',
-      confirmColor: '#d9534f',
+      confirmColor: themeColors.get('danger'),
       success: r => {
         if (!r.confirm) return;
         store.removeSnapshot(at);

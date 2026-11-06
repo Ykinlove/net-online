@@ -15,6 +15,7 @@
 const store = require('../../../utils/store.js');
 const cmdbook = require('../../utils/cmdbook.js');
 const { DEVICES, DEVICE_CN } = require('../../../utils/seed.js');
+const offline = require('../../../utils/cmd-offline.js');
 
 /* 设备栏：跟搜索页一致，中文显示、英文 key */
 const SIDE = [{ v: '全部', t: '全部' }].concat(
@@ -28,14 +29,14 @@ const PAGE = 30;
    百科的具体分类说明来自 categories.js，比这里的更细。 */
 const META = {
   book: {
-    icon: '📚',
+    icon: '',
     title: '命令百科',
     unit: '条',
     desc: '按分类翻，不是靠搜',
     kwTip: '在这个分类里筛关键词，比如「vlan」'
   },
   tpl: {
-    icon: '📋',
+    icon: '',
     title: '配置模板库',
     unit: '个',
     desc: '复制后把尖括号占位符换成你的参数',
@@ -57,6 +58,16 @@ function segText(text, kw) {
   const rest = t.slice(idx + k.length);
   if (rest) out.push({ t: rest, hl: false });
   return out;
+}
+
+/* 设备类型 → 命令卡左侧彩色竖条：
+   Windows 蓝(--primary) / Switch 绿(--success) / Router 橙(--warning)，
+   与全局 .cmd-card / .vendor-* 对应；其余用默认灰竖条。 */
+function vendorClass(d) {
+  if (d === 'Windows' || d === 'Linux' || d === '服务器') return 'vendor-windows';
+  if (d === 'Switch' || d === 'AC' || d === 'AP') return 'vendor-switch';
+  if (d === 'Router' || d === '防火墙') return 'vendor-router';
+  return '';
 }
 
 Page({
@@ -83,10 +94,14 @@ Page({
     kw: '',
     emptyText: '',
     emptySub: '',
+    focusKey: '',
     detail: null
   },
 
   onLoad(q) {
+    getApp().applyTheme(this);
+    offline.registerBookSetter(function (entries) { return cmdbook.setDataset(entries); });
+    offline.ensureReady(); // 本地缓存预热（若有），离线也能查
     const patch = {};
     if (q && q.dev) patch.dev = q.dev;
     if (q && q.cat) patch.cat = q.cat;
@@ -98,6 +113,7 @@ Page({
   },
 
   onShow() {
+    getApp().applyTheme(this);
     /* 与搜索页同理：进资料库时静默拉一次云端内容，
        让作者新发布 / 审核通过的新条目能立刻出现在列表里。
        拉到新数据才重建列表，避免无谓的刷新闪烁。 */
@@ -239,7 +255,8 @@ Page({
         segs: segText(c.vendor, kw),
         cls: ''
       })),
-      preview: ''
+      preview: '',
+      vendorClass: vendorClass((r.devs || [])[0] || '其他设备')
     };
   },
 
@@ -254,7 +271,8 @@ Page({
         { text: r.cat, segs: segText(r.cat, kw), cls: 'item-tag-c' }
       ],
       /* 首行有效命令，给列表一个「这模板大概长什么样」的预览 */
-      preview: code.split('\n').filter(s => s.trim() && s.trim()[0] !== '!')[0] || ''
+      preview: code.split('\n').filter(s => s.trim() && s.trim()[0] !== '!')[0] || '',
+      vendorClass: ''
     };
   },
 
@@ -294,6 +312,12 @@ Page({
       code: c.code,
       lines: this.buildLines(c.code)
     }));
+    /* 详情顶部明确写出资源类型：命令百科和配置模板点进去后
+       页面结构几乎一样，不说清楚用户分不出自己在看哪一种 */
+    const devText = (raw.devs || []).map(d => DEVICE_CN[d] || d).join(' / ') || '通用';
+    const subParts = isTpl
+      ? ['配置模板', raw.vendor, raw.cat]
+      : ['命令百科', devText];
 
     this.setData({
       detail: {
@@ -301,9 +325,7 @@ Page({
         favId: raw.id,
         faved: store.isFav(kind, raw.id),
         title: raw.name,
-        sub: isTpl
-          ? raw.vendor + ' · ' + raw.cat
-          : (raw.devs || []).map(d => DEVICE_CN[d] || d).join(' / '),
+        sub: subParts.filter(Boolean).join(' · '),
         tip: raw.tip || '',
         blocks: blocks,
         copyLabel: isTpl
@@ -367,6 +389,36 @@ Page({
   },
 
   noop() {},
+
+  /* ---------- 输入框聚焦态（纯视觉，.input-focus） ---------- */
+  onFieldFocus(e) {
+    this.setData({ focusKey: e.currentTarget.dataset.k || '' });
+  },
+
+  onFieldBlur() {
+    this.setData({ focusKey: '' });
+  },
+
+  /* ---------- 代码块复制：震动 + 剪贴板 + ✓ 反馈（只新增，不动 copyOne/copyAll） ---------- */
+  onCopyCode(e) {
+    const i = Number(e.currentTarget.dataset.i);
+    const d = this.data.detail;
+    if (!d || !d.blocks[i]) return;
+    const b = d.blocks[i];
+    const text = cmdbook.cleanCmd(b.code, b.vendor) || b.code;
+    wx.vibrateShort({ type: 'light' });
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '已复制 ' + b.vendor, icon: 'none' })
+    });
+    this.setData({ ['detail.blocks[' + i + '].copied']: true });
+    if (!this._copyTimers) this._copyTimers = {};
+    clearTimeout(this._copyTimers[i]);
+    this._copyTimers[i] = setTimeout(() => {
+      if (!this.data.detail) return;
+      this.setData({ ['detail.blocks[' + i + '].copied']: false });
+    }, 1600);
+  },
 
   /* 单块复制：多厂商时复制其中一家，单模板时复制整个模板 */
   copyOne(e) {

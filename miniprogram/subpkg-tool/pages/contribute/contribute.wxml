@@ -1,112 +1,126 @@
 <!-- pages/contribute/contribute.wxml —— 社区投稿 -->
-<view class="page contribute-page">
+    <view class="page contribute-page theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
-  <!-- 头部 -->
-  <view class="card head-card">
-    <text class="card-title">📝 贡献内容</text>
-    <text class="head-sub">新增或修正命令百科 / 配置模板，提交后进入待审队列，由作者审核通过后才会公开生效。你提交的是建议，不是直接发布。</text>
+  <view class="ct-head">
+    <view class="hd-txt">
+      <text class="doc-h1 ct-h1">贡献内容</text>
+      <text class="doc-sub ct-sub">新增或修正命令百科 / 配置模板，提交后进入待审队列，由作者审核通过后才会公开生效。你提交的是建议，不是直接发布。</text>
+    </view>
   </view>
 
+  <text class="section-title">投稿设置</text>
   <!-- 类型 + 类别 -->
   <view class="card">
     <view class="field">
       <text class="field-label">投稿类型</text>
       <view class="seg">
-        <text class="seg-item {{type==='add'?'on':''}}" data-t="add" bindtap="onType">新增条目</text>
-        <text class="seg-item {{type==='edit'?'on':''}}" data-t="edit" bindtap="onType">修改已有</text>
+        <view class="seg-item {{type==='add'?'on':''}}" data-t="add" bindtap="onType">新增条目</view>
+        <view class="seg-item {{type==='edit'?'on':''}}" data-t="edit" bindtap="onType">修改已有</view>
       </view>
     </view>
     <view class="field">
       <text class="field-label">内容类别</text>
       <view class="seg">
-        <text class="seg-item {{kind==='book'?'on':''}}" data-k="book" bindtap="onKind">命令百科</text>
-        <text class="seg-item {{kind==='tpl'?'on':''}}" data-k="tpl" bindtap="onKind">配置模板</text>
+        <view class="seg-item {{kind==='book'?'on':''}}" data-k="book" bindtap="onKind">命令百科</view>
+        <view class="seg-item {{kind==='tpl'?'on':''}}" data-k="tpl" bindtap="onKind">配置模板</view>
       </view>
     </view>
   </view>
 
   <!-- 修改类：定位 -->
   <view wx:if="{{type==='edit'}}" class="card">
-    <view class="card-title-row"><text class="card-title">🔎 定位要修改的条目</text></view>
+    <view class="card-title-row"><text class="card-title">定位要修改的条目</text></view>
     <view class="locate">
-      <input class="input locate-input" placeholder="输入 id 或关键词" placeholder-class="input-placeholder"
-             value="{{query}}" bindinput="onQuery"/>
+      <input class="input locate-input {{focusKey === 'query' ? 'input-focus' : ''}}" placeholder="输入 id 或关键词" placeholder-class="input-placeholder"
+             value="{{query}}" bindinput="onQuery" data-k="query" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
       <button class="btn btn-sm locate-btn" bindtap="locate">定位</button>
     </view>
     <view wx:if="{{locatedId}}" class="locate-ok">已定位：{{locatedId}}（改完直接提交即可）</view>
   </view>
 
+  <text class="section-title">内容表单</text>
   <!-- 命令百科表单 -->
   <view wx:if="{{kind==='book'}}" class="card">
-    <view class="card-title-row"><text class="card-title">📘 命令百科</text></view>
+    <view class="card-title-row"><text class="card-title">命令百科</text></view>
 
     <view class="field">
       <text class="field-label">名称<text class="req"> *</text></text>
-      <input class="input" value="{{bName}}" bindinput="onBName" placeholder="功能点名称" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'bName' ? 'input-focus' : ''}}" value="{{bName}}" bindinput="onBName" placeholder="功能点名称" placeholder-class="input-placeholder" data-k="bName" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
     <view class="field">
       <text class="field-label">别名 / 同义词（逗号分隔）</text>
-      <input class="input" value="{{bKw}}" bindinput="onBKw" placeholder="别名" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'bKw' ? 'input-focus' : ''}}" value="{{bKw}}" bindinput="onBKw" placeholder="别名" placeholder-class="input-placeholder" data-k="bKw" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
     <view class="field">
       <text class="field-label">易错点 tip</text>
-      <textarea class="textarea" value="{{bTip}}" bindinput="onBTip" placeholder="最容易记混的地方" placeholder-class="input-placeholder"/>
+      <textarea class="textarea {{focusKey === 'bTip' ? 'input-focus' : ''}}" value="{{bTip}}" bindinput="onBTip" placeholder="最容易记混的地方" placeholder-class="input-placeholder" data-k="bTip" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
 
     <text class="field-label">厂商命令（{{bVendors.length}}）<text wx:if="{{type==='add'}}"> · <text class="add-link" bindtap="addVendor">+ 添加厂商</text></text></text>
-    <view wx:for="{{bVendors}}" wx:key="index" class="vendor-card">
+    <view wx:for="{{bVendors}}" wx:key="index" class="vendor-card list-item">
       <view class="vendor-head">
         <input class="input vendor-name-input" value="{{item.vendor}}" data-i="{{index}}" bindinput="onBVendor" placeholder="厂商，如：华为" placeholder-class="input-placeholder"/>
         <text wx:if="{{type==='add' && bVendors.length>1}}" class="vendor-del" data-i="{{index}}" bindtap="delVendor">删除</text>
       </view>
       <textarea class="textarea mono vendor-code" value="{{item.code}}" data-i="{{index}}" bindinput="onBCode" placeholder="命令" placeholder-class="input-placeholder"/>
+      <text wx:if="{{item.code}}" class="code-cap">命令预览</text>
+      <view wx:if="{{item.code}}" class="code-block cmd-codeblock">
+        <view class="code-copy {{copiedCode && copiedCode === item.code ? 'done' : ''}}" data-code="{{item.code}}" catchtap="onCopyCode">{{copiedCode && copiedCode === item.code ? '✓' : '复制'}}</view>
+        <scroll-view class="code-scroll" scroll-x enable-flex><text class="dt-code">{{item.code}}</text></scroll-view>
+      </view>
     </view>
 
     <view wx:if="{{type==='add'}}" class="field">
       <text class="field-label">适用设备（逗号分隔，留空默认全部）</text>
-      <input class="input" value="{{bDevs}}" bindinput="onBDevs" placeholder="Switch, Router, AC, AP, 防火墙" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'bDevs' ? 'input-focus' : ''}}" value="{{bDevs}}" bindinput="onBDevs" placeholder="Switch, Router, AC, AP, 防火墙" placeholder-class="input-placeholder" data-k="bDevs" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
   </view>
 
   <!-- 配置模板表单 -->
   <view wx:else class="card">
-    <view class="card-title-row"><text class="card-title">📋 配置模板</text></view>
+    <view class="card-title-row"><text class="card-title">配置模板</text></view>
 
     <view class="field">
       <text class="field-label">模板名称<text class="req"> *</text></text>
-      <input class="input" value="{{tName}}" bindinput="onTName" placeholder="模板名称" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'tName' ? 'input-focus' : ''}}" value="{{tName}}" bindinput="onTName" placeholder="模板名称" placeholder-class="input-placeholder" data-k="tName" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
     <view class="field">
       <text class="field-label">分类 cat</text>
-      <input class="input" value="{{tCat}}" bindinput="onTCat" placeholder="如：开局模板 / 安全模板" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'tCat' ? 'input-focus' : ''}}" value="{{tCat}}" bindinput="onTCat" placeholder="如：开局模板 / 安全模板" placeholder-class="input-placeholder" data-k="tCat" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
     <view class="field">
       <text class="field-label">别名 / 关键词（逗号分隔）</text>
-      <input class="input" value="{{tKw}}" bindinput="onTKw" placeholder="别名" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'tKw' ? 'input-focus' : ''}}" value="{{tKw}}" bindinput="onTKw" placeholder="别名" placeholder-class="input-placeholder" data-k="tKw" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
     <view class="field">
       <text class="field-label">厂商 vendor</text>
-      <input class="input" value="{{tVendor}}" bindinput="onTVendor" placeholder="如：华为 VRP8" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'tVendor' ? 'input-focus' : ''}}" value="{{tVendor}}" bindinput="onTVendor" placeholder="如：华为 VRP8" placeholder-class="input-placeholder" data-k="tVendor" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
     <view class="field">
       <text class="field-label">命令 code<text class="req"> *</text></text>
-      <textarea class="textarea mono" value="{{tCode}}" bindinput="onTCode" placeholder="模板命令" placeholder-class="input-placeholder"/>
+      <textarea class="textarea mono {{focusKey === 'tCode' ? 'input-focus' : ''}}" value="{{tCode}}" bindinput="onTCode" placeholder="模板命令" placeholder-class="input-placeholder" data-k="tCode" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
+      <text wx:if="{{tCode}}" class="code-cap">命令预览</text>
+      <view wx:if="{{tCode}}" class="code-block cmd-codeblock">
+        <view class="code-copy {{copiedCode && copiedCode === tCode ? 'done' : ''}}" data-code="{{tCode}}" catchtap="onCopyCode">{{copiedCode && copiedCode === tCode ? '✓' : '复制'}}</view>
+        <scroll-view class="code-scroll" scroll-x enable-flex><text class="dt-code">{{tCode}}</text></scroll-view>
+      </view>
     </view>
     <view class="field">
       <text class="field-label">排障说明 note</text>
-      <textarea class="textarea" value="{{tNote}}" bindinput="onTNote" placeholder="排障说明" placeholder-class="input-placeholder"/>
+      <textarea class="textarea {{focusKey === 'tNote' ? 'input-focus' : ''}}" value="{{tNote}}" bindinput="onTNote" placeholder="排障说明" placeholder-class="input-placeholder" data-k="tNote" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
   </view>
 
   <!-- 新增：可选 id -->
   <view wx:if="{{type==='add'}}" class="card">
-    <view class="card-title-row"><text class="card-title">🆔 条目 ID（可选）</text></view>
+    <view class="card-title-row"><text class="card-title">条目 ID（可选）</text></view>
     <view class="field">
       <text class="field-label">英文短名，留空自动生成</text>
-      <input class="input" value="{{newId}}" bindinput="onNewId" placeholder="如：bgp-graceful-restart" placeholder-class="input-placeholder"/>
+      <input class="input {{focusKey === 'newId' ? 'input-focus' : ''}}" value="{{newId}}" bindinput="onNewId" placeholder="如：bgp-graceful-restart" placeholder-class="input-placeholder" data-k="newId" bindfocus="onFieldFocus" bindblur="onFieldBlur"/>
     </view>
   </view>
 
+  <text class="section-title">提交</text>
   <!-- 提交 -->
   <view class="card">
     <button class="btn btn-primary btn-block" bindtap="submit">提交审核</button>

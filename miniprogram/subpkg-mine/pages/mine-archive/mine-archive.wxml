@@ -1,16 +1,17 @@
-<view class="page arc">
+<view class="page arc theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
-  <view class="card">
-    <view class="card-title-row">
-      <text class="card-title">🗄 存档库</text>
-      <text class="arc-tip">{{list.length}} / 5 份</text>
+  <view class="arc-head">
+    <view class="hd-txt">
+      <text class="doc-h1">存档库</text>
+      <text class="doc-sub">删除命令、项目、技能之前会自动存一份，保留最近 5 份。删错了就挑一份恢复。</text>
     </view>
-    <text class="arc-tip-d">删除命令、项目、技能之前会自动存一份，保留最近 5 份。删错了就挑一份恢复。</text>
   </view>
+
+  <text class="section-title">存档记录 · {{list.length}} / 5 份</text>
 
   <view wx:if="{{!list.length}}" class="empty">还没有自动存档。等你第一次删除东西时会自动生成。</view>
 
-  <view wx:for="{{list}}" wx:key="at" class="arc-card">
+  <view wx:for="{{list}}" wx:key="at" class="list-item arc-card stack-item sd-{{index}}">
     <view class="arc-top">
       <text class="arc-name">{{item.reason}}</text>
       <text class="arc-time">{{item.timeLabel}}</text>

@@ -8,6 +8,7 @@ Page({
   },
 
   onLoad() {
+    getApp().applyTheme(this);
     this.bootstrap();
   },
 

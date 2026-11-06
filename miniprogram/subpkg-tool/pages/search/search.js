@@ -1,6 +1,7 @@
 const store = require('../../../utils/store.js');
 const { DEVICES, DEVICE_CN } = require('../../../utils/seed.js');
 const cmdbook = require('../../utils/cmdbook.js');
+const offline = require('../../../utils/cmd-offline.js');
 
 /* 左侧设备栏：显示中文，值仍用英文 key（与 commands 表一致） */
 const SIDE = [{ v: '全部', t: '全部' }].concat(
@@ -42,18 +43,25 @@ Page({
     mineHits: [],
     hitTotal: 0,
     detail: null,
+    focusKey: '',
     detailCopyLabel: '复制全部',
     /* 空结果时给的「换个说法」入口，点一下直接搜，降低挫败感 */
     suggests: ['vlan', '路由', '保存配置', '端口', 'ospf', 'acl', 'dhcp', 'telnet']
   },
 
   onLoad(q) {
+    getApp().applyTheme(this);
+    // 把「条目写进内存 BOOK」的实现注入离线层（分包→主包依赖允许；解耦主包对分包 cmdbook 的 require）
+    offline.registerBookSetter(function (entries) { return cmdbook.setDataset(entries); });
+    offline.ensureReady(); // 本地缓存预热（若有），离线也能搜
     store.init();
     const patch = {};
     if (q && q.dev) patch.dev = q.dev;
     if (q && q.kw) patch.kw = q.kw;
     if (Object.keys(patch).length) this.setData(patch);
     this.doSearch();
+    /* onLoad 已经搜过一次，紧跟的首次 onShow 不再重复搜，减少首屏卡顿 */
+    this._firstShow = true;
     /* 分享落地：别人点进来的卡片带了 kind + id，直接打开那一条 */
     if (q && q.kind && q.id) this.openShared(q.kind, q.id);
   },
@@ -84,7 +92,11 @@ Page({
   },
 
   onShow() {
-    this.doSearch();
+    getApp().applyTheme(this);
+    /* 首次进入由 onLoad 负责搜索；之后从别的页面返回才重搜，
+       这样「我的命令」有新增时结果能刷新，又不会在打开时白算两遍 */
+    if (this._firstShow) this._firstShow = false;
+    else this.doSearch();
     this.loadHistory();
     /* 进搜索页时静默拉一次云端最新内容。
        小程序长时间运行不重启时，onLaunch 的那一次 refresh 早就过去了，
@@ -171,8 +183,13 @@ Page({
       }
     }
 
-    /* 1. 内置命令百科 */
-    const bookHits = cmdbook.search(kwForSearch, dev)
+    /* 1. 内置命令百科：先分页再切高亮段。
+       原先是给全部近 300 条都生成 titleSegs 后才 slice(0,30)，
+       空关键词时等于白算 270 条，这正是打开搜索页发闷的主因。 */
+    const bookRaw = cmdbook.search(kwForSearch, dev);
+    this._bookAll = bookRaw;
+    this._kwForSearch = kwForSearch;
+    const bookHits = bookRaw.slice(0, PAGE)
       .map(it => ({ ...it, titleSegs: segText(it.name, kwForSearch) }));
 
     /* 2. 配置模板：64 个可直接复制的模板并入搜索。
@@ -218,26 +235,27 @@ Page({
 
     /* 命中数为 0 的搜索词会被记进「搜不到」清单，
        那是内容建设的输入源——说明库里缺这个说法 */
-    this._lastHit = bookHits.length + tplHits.length + mineHits.length;
+    this._lastHit = bookRaw.length + tplHits.length + mineHits.length;
 
-    this._bookAll = bookHits;
     this.setData({
-      bookHits: bookHits.slice(0, PAGE),
-      bookTotal: bookHits.length,
-      hasMore: bookHits.length > PAGE,
+      bookHits,
+      bookTotal: bookRaw.length,
+      hasMore: bookRaw.length > PAGE,
       tplHits,
       mineHits,
-      hitTotal: bookHits.length + tplHits.length + mineHits.length,
+      hitTotal: bookRaw.length + tplHits.length + mineHits.length,
       devText: (SIDE.filter(s => s.v === dev)[0] || {}).t || dev
     });
   },
 
-  /* 结果多的时候滚动到底部再追加，避免首屏一次渲染几百条 */
+  /* 结果多的时候滚动到底部再追加，新增那一批才做高亮切段 */
   loadMore() {
     if (!this.data.hasMore) return;
     const all = this._bookAll || [];
     const cur = this.data.bookHits.length;
-    const next = all.slice(0, cur + PAGE);
+    const more = all.slice(cur, cur + PAGE)
+      .map(it => ({ ...it, titleSegs: segText(it.name, this._kwForSearch || '') }));
+    const next = this.data.bookHits.concat(more);
     this.setData({ bookHits: next, hasMore: next.length < all.length });
   },
 
@@ -385,6 +403,36 @@ Page({
   },
 
   noop() {},
+
+  /* ---------- 输入框聚焦态（纯视觉，.input-focus） ---------- */
+  onFieldFocus(e) {
+    this.setData({ focusKey: e.currentTarget.dataset.k || '' });
+  },
+
+  onFieldBlur() {
+    this.setData({ focusKey: '' });
+  },
+
+  /* ---------- 代码块复制：震动 + 剪贴板 + ✓ 反馈（只新增，不动 copyOne/copyAll） ---------- */
+  onCopyCode(e) {
+    const i = Number(e.currentTarget.dataset.i);
+    const d = this.data.detail;
+    if (!d || !d.blocks[i]) return;
+    const b = d.blocks[i];
+    const text = cmdbook.cleanCmd(b.code, b.vendor) || b.code;
+    wx.vibrateShort({ type: 'light' });
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '已复制 ' + b.vendor, icon: 'none' })
+    });
+    this.setData({ ['detail.blocks[' + i + '].copied']: true });
+    if (!this._copyTimers) this._copyTimers = {};
+    clearTimeout(this._copyTimers[i]);
+    this._copyTimers[i] = setTimeout(() => {
+      if (!this.data.detail) return;
+      this.setData({ ['detail.blocks[' + i + '].copied']: false });
+    }, 1600);
+  },
 
   copyOne(e) {
     const i = Number(e.currentTarget.dataset.i);

@@ -1,93 +1,114 @@
+/* 选择角色：插画回归 + 玻璃卡片（色值一律 var(--token)） */
 .cg { padding-bottom: calc(60 * var(--u)); }
+
+/* ---------- 页头 ---------- */
+.cg-head {
+  display: flex;
+  align-items: center;
+  gap: calc(18 * var(--u));
+  margin-bottom: calc(26 * var(--u));
+}
+.cg-head-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--u));
+}
+.cg-h1 { display: block; }
+.cg-sub { display: block; }
+
+/* ---------- 预览：像素场景 + 立绘 + 玻璃姓名条 ---------- */
 .cg-preview {
   position: relative;
   width: 100%;
-  height: calc(520 * var(--u));
-  border: calc(5 * var(--u)) solid #2c3e50;
-  border-radius: calc(10 * var(--u));
+  height: calc(460 * var(--u));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 calc(8 * var(--u)) 0 rgba(44, 62, 80, 0.2);
-  margin-bottom: calc(24 * var(--u));
-  background: #dceaf6;
+  box-shadow: inset 0 1px 0 var(--glass-sheen), var(--shadow-glass);
+  margin-bottom: calc(10 * var(--u));
+  background: var(--bg-subtle);
+  animation: fadeIn 0.42s var(--ease) backwards;
 }
-.cg-bg {
+.cg-preview-bg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.cg-preview-char {
   position: absolute;
-  left: 0; top: 0;
-  width: 100%; height: 100%;
+  left: 50%;
+  bottom: calc(34 * var(--u));
+  width: calc(300 * var(--u));
+  height: calc(360 * var(--u));
+  margin-left: calc(-150 * var(--u));
 }
-.cg-char {
-  position: absolute;
-  left: 0; right: 0;
-  bottom: calc(40 * var(--u));
-  width: 100%;
-  height: calc(420 * var(--u));
-}
+/* 预览里渐隐收窄，别把立绘吃掉 */
+.cg-preview .illus-veil { height: 24%; }
 .cg-name {
   position: absolute;
-  left: 0; right: 0;
-  bottom: 0;
-  padding: calc(10 * var(--u)) 0;
+  left: 0; right: 0; bottom: 0;
+  padding: calc(16 * var(--u)) 0;
   text-align: center;
-  font-size: calc(24 * var(--u));
-  font-weight: 800;
-  color: #fff;
-  background: rgba(44, 62, 80, 0.72);
+  font-size: calc(25 * var(--u));
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-top: 1px solid var(--glass-border);
   letter-spacing: calc(2 * var(--u));
+  z-index: 1;
 }
 
-.cg-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(12 * var(--u));
-}
+/* ---------- 形象 / 场景缩略格 ---------- */
+/* 固定 5 列网格：10 个形象正好排成 2 排 × 5 个，不再按宽度自动换行 */
+.cg-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(14 * var(--u)); }
 .cg-cell {
-  position: relative;
-  width: calc((100% - calc(48 * var(--u))) / 5);
-  height: calc(128 * var(--u));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f2f8fd;
-  border: calc(3 * var(--u)) solid #c2d4e3;
-  border-radius: calc(8 * var(--u));
-  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--primary-bg);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
 }
-.cg-cell.on {
-  border-color: #2c3e50;
-  background: #fff3d6;
-  box-shadow: inset 0 0 0 calc(3 * var(--u)) #f5a623;
-}
-.cg-cell-img { width: calc(106 * var(--u)); height: calc(114 * var(--u)); }
-
-.cg-bg-row {
-  display: flex;
-  gap: calc(12 * var(--u));
-}
+.cg-bg-row { display: flex; gap: calc(12 * var(--u)); }
 .cg-bg-cell {
-  position: relative;
   flex: 1;
+  min-width: 0;
   height: calc(120 * var(--u));
-  border: calc(3 * var(--u)) solid #c2d4e3;
-  border-radius: calc(8 * var(--u));
-  overflow: hidden;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
 }
-.cg-bg-cell.on {
-  border-color: #2c3e50;
-  box-shadow: inset 0 0 0 calc(3 * var(--u)) #f5a623;
+.cg-cell.on, .cg-bg-cell.on {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 calc(3 * var(--u)) var(--ring),
+              inset 0 1px 0 var(--glass-sheen), var(--shadow-btn);
+  transform: translateY(calc(-3 * var(--u)));
 }
-.cg-bg-img { width: 100%; height: 100%; }
-
-.cg-submit { margin-top: calc(8 * var(--u)); }
-
-/* 未解锁 */
-.cg-cell.is-lock,
-.cg-bg-cell.is-lock { border-style: dashed; border-color: #b9cfe0; }
+.cg-cell.is-lock, .cg-bg-cell.is-lock {
+  border-style: dashed;
+  border-color: var(--border);
+}
 .cg-lock {
   position: absolute;
   left: 0; top: 0; right: 0; bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(44, 62, 80, 0.50);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
-.cg-lock-ico { font-size: calc(30 * var(--u)); line-height: 1; }
+.cg-check {
+  position: absolute;
+  right: calc(6 * var(--u));
+  top: calc(6 * var(--u));
+  width: calc(30 * var(--u));
+  height: calc(30 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--primary);
+  box-shadow: var(--shadow-soft);
+}
+.card-title-row .icon-badge { margin-right: calc(12 * var(--u)); }
+.cg-submit { margin-top: calc(8 * var(--u)); }

@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "资料库",
-  "enablePullDownRefresh": false
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "offline-bar": "../../../components/offline-bar/offline-bar"
+  }
 }

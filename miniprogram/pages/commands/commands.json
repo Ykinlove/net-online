@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "命令手记",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "offline-bar": "../../components/offline-bar/offline-bar"
+  }
 }

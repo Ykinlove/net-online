@@ -3,10 +3,12 @@ const store = require('../../../utils/store.js');
 Page({
   data: {
     list: [],
-    total: 0
+    total: 0,
+    codeCopied: false
   },
 
   onShow() {
+    getApp().applyTheme(this);
     store.init();
     const list = store.getSearchMiss().map(m => ({
       kw: m.kw,
@@ -42,6 +44,18 @@ Page({
       data: text,
       success: () => wx.showToast({ title: '已复制 ' + list.length + ' 条', icon: 'none' })
     });
+  },
+
+  /* ---------- 代码块复制：震动 + 剪贴板 + ✓ 反馈（只新增，不动 copyAll/clearAll） ---------- */
+  onCopyCode() {
+    const list = this.data.list;
+    if (!list.length) return;
+    const text = list.map(m => m.kw + (m.count > 1 ? '（搜了' + m.count + '次）' : '')).join('\n');
+    wx.vibrateShort({ type: 'light' });
+    wx.setClipboardData({ data: text });
+    this.setData({ codeCopied: true });
+    clearTimeout(this._copyTimer);
+    this._copyTimer = setTimeout(() => this.setData({ codeCopied: false }), 1600);
   },
 
   clearAll() {

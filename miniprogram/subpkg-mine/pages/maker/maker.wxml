@@ -1,24 +1,29 @@
-<!-- pages/maker/maker.wxml —— 制作人页 -->
-<view class="page maker-page">
+<view class="page maker-page theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
+    <view class="mk-head">
+    <view class="hd-txt"><text class="doc-h1 maker-h1">制作人</text></view>
+  </view>
+
+  <text class="section-title">关于作者</text>
   <view class="card head-card">
-    <view class="maker-avatar">👤</view>
+    <view class="maker-avatar avatar-circle avatar-grad">杨</view>
     <text class="maker-name">杨雷鹏</text>
     <text class="maker-desc">Net 操作命令速记 · 制作人</text>
   </view>
 
   <!-- 管理入口：只对作者 / 管理员显示。
        普通用户看不到这张卡，也不会误以为这个入口是自己审稿用的。 -->
+  <text class="section-title" wx:if="{{isAdmin}}">内容管理</text>
   <view wx:if="{{isAdmin}}" class="card">
     <view class="card-title-row"><text class="card-title">管理入口</text></view>
-    <view class="menu-row" bindtap="goAdmin" hover-class="menu-row-hover">
-      <text class="menu-ico">🛠️</text>
+    <view class="menu-row list-item" bindtap="goAdmin" hover-class="menu-row-hover">
+      <view class="menu-ico"></view>
       <text class="menu-txt">内容审核</text>
       <text class="menu-arrow">›</text>
     </view>
-    <text class="maker-tip">管理命令百科与配置模板库：其他用户提交的投稿在这里审核，审核通过后才会公开生效。</text>
+    <view class="quote maker-tip">管理命令百科与配置模板库：其他用户提交的投稿在这里审核，审核通过后才会公开生效。</view>
   </view>
 
-  <text wx:if="{{isAdmin}}" class="maker-foot">投稿请在「我的 → 贡献内容」提交，审核通过后所有用户都能搜到。</text>
+  <text wx:if="{{isAdmin}}" class="maker-foot">投稿请在「我的 → 其他」提交，审核通过后所有用户都能搜到。</text>
 
 </view>

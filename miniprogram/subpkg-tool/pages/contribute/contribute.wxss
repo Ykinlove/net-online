@@ -1,37 +1,55 @@
-/* pages/contribute/contribute.wxss —— 复用全局卡片系统，仅补充专属样式 */
-.head-card { padding: calc(20 * var(--u)) calc(24 * var(--u)); }
-.head-card .card-title { margin: 0; }
-.head-sub { display: block; font-size: calc(23 * var(--u)); color: #6b7d8f; margin-top: calc(10 * var(--u)); line-height: 1.5; }
+/* pages/contribute/contribute.wxss
+   复用全局卡片 / 表单 / 代码块系统，仅补充专属布局。
+   全部颜色走 var(--token)，1px 细边，无字面色值。 */
+
+.ct-h1 { display: block; margin-bottom: calc(8 * var(--u)); }
+.ct-sub { display: block; margin-bottom: calc(12 * var(--u)); }
 
 .locate { display: flex; align-items: center; gap: calc(16 * var(--u)); }
 .locate-input { flex: 1; }
 .locate-btn { flex-shrink: 0; }
-.locate-ok { margin-top: calc(16 * var(--u)); font-size: calc(23 * var(--u)); color: #1a7f4b; font-weight: 700; }
+.locate-ok { margin-top: calc(16 * var(--u)); font-size: calc(23 * var(--u)); color: var(--success); font-weight: 500; }
 
-/* 厂商命令卡片 */
-.vendor-card {
-  background: #fff;
-  border: calc(3 * var(--u)) solid #cfe0ee;
-  border-radius: calc(10 * var(--u));
-  padding: calc(16 * var(--u)) calc(18 * var(--u));
-  margin-bottom: calc(16 * var(--u));
-}
+/* 厂商命令：分割线式列表项 */
+.vendor-card { display: flex; flex-direction: column; }
 .vendor-head { display: flex; align-items: center; gap: calc(12 * var(--u)); margin-bottom: calc(10 * var(--u)); }
 .vendor-name-input { flex: 1; }
-.vendor-del { font-size: calc(23 * var(--u)); color: #a32e2a; font-weight: 700; flex-shrink: 0; }
+.vendor-del { font-size: calc(23 * var(--u)); color: var(--danger); font-weight: 500; flex-shrink: 0; }
 .vendor-code { min-height: calc(200 * var(--u)); }
-.add-link { color: #c97a14; font-weight: 700; }
+.add-link { color: var(--primary); font-weight: 500; }
+
+/* 代码块：等宽 / 横滚 / 右上角复制 */
+.code-cap {
+  display: block;
+  font-size: calc(21 * var(--u));
+  color: var(--text-tertiary);
+  margin: calc(14 * var(--u)) 0 calc(8 * var(--u));
+}
+.cmd-codeblock {
+  overflow: visible;
+  padding-top: calc(52 * var(--u));
+  margin-bottom: calc(8 * var(--u));
+}
+.cmd-codeblock .code-scroll { width: 100%; }
+.cmd-codeblock .dt-code {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: calc(23 * var(--u));
+  line-height: 1.7;
+  color: var(--code-text);
+  white-space: pre;
+}
 
 /* 结果提示 */
 .err {
   margin-top: calc(18 * var(--u));
-  font-size: calc(24 * var(--u)); color: #a32e2a; font-weight: 700;
-  background: #ffe9e7; border: calc(3 * var(--u)) solid #e08a86;
-  border-radius: calc(8 * var(--u)); padding: calc(14 * var(--u)) calc(18 * var(--u));
+  font-size: calc(24 * var(--u)); color: var(--danger); font-weight: 500;
+  background: var(--danger-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: calc(14 * var(--u)) calc(18 * var(--u));
 }
 .ok {
   margin-top: calc(18 * var(--u));
-  font-size: calc(24 * var(--u)); color: #1a7f4b; font-weight: 700;
-  background: #e8f8ee; border: calc(3 * var(--u)) solid #6fc79a;
-  border-radius: calc(8 * var(--u)); padding: calc(14 * var(--u)) calc(18 * var(--u));
+  font-size: calc(24 * var(--u)); color: var(--success); font-weight: 500;
+  background: var(--success-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: calc(14 * var(--u)) calc(18 * var(--u));
 }

@@ -1,34 +1,48 @@
-/* pages/maker/maker.wxss —— 复用全局卡片系统，仅补充专属样式 */
+/* 制作人页：文档风 / 全局 token —— 无字面色值 */
+.maker-h1 { display: block; margin-bottom: calc(20 * var(--u)); }
+
 .head-card {
   display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: calc(44 * var(--u)) calc(24 * var(--u));
 }
-.maker-avatar { font-size: calc(84 * var(--u)); }
-.maker-name { font-size: calc(34 * var(--u)); font-weight: 800; color: #2c3e50; margin-top: calc(12 * var(--u)); }
-.maker-desc { font-size: calc(23 * var(--u)); color: #6b7d8f; margin-top: calc(8 * var(--u)); }
-
-.menu-row {
-  display: flex; align-items: center;
-  padding: calc(24 * var(--u)) 0;
-  border-bottom: calc(2 * var(--u)) dashed #e2ebf2;
+/* 头像：纯 CSS 微渐变圆形 + 文字编号，替代位图 / emoji */
+.maker-avatar {
+  width: calc(120 * var(--u));
+  height: calc(120 * var(--u));
+  font-size: calc(52 * var(--u));
+  font-weight: 600;
+  color: var(--primary);
+  border: 1px solid var(--glass-border);
 }
-.menu-row:last-child { border-bottom: none; }
-.menu-row-hover { background: #f3f8fc; }
-.menu-ico { font-size: calc(34 * var(--u)); margin-right: calc(16 * var(--u)); }
-.menu-txt { font-size: calc(28 * var(--u)); font-weight: 700; color: #2c3e50; }
-.menu-arrow { margin-left: auto; color: #9fb0c0; font-size: calc(34 * var(--u)); }
+.maker-name { font-size: calc(34 * var(--u)); font-weight: 600; color: var(--text-primary); margin-top: calc(18 * var(--u)); }
+.maker-desc { font-size: calc(23 * var(--u)); color: var(--text-secondary); margin-top: calc(8 * var(--u)); }
 
+/* 列表项：去外框，改底部分割线 */
+.menu-row { display: flex; align-items: center; gap: calc(16 * var(--u)); }
+.menu-row-hover { background: var(--bg-subtle); }
+/* 单色线性 icon（纯 CSS，无 emoji / 位图） */
+.menu-ico {
+  flex: none;
+  width: calc(34 * var(--u)); height: calc(34 * var(--u));
+  border: calc(2 * var(--u)) solid var(--primary);
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+.menu-ico::before {
+  content: "";
+  position: absolute;
+  left: calc(6 * var(--u)); right: calc(6 * var(--u));
+  top: 50%;
+  height: calc(2 * var(--u));
+  margin-top: calc(-1 * var(--u));
+  background: var(--primary);
+}
+.menu-txt { flex: 1; font-size: calc(28 * var(--u)); font-weight: 500; color: var(--text-primary); }
+.menu-arrow { margin-left: auto; color: var(--text-tertiary); font-size: calc(34 * var(--u)); }
+
+.maker-tip { margin-top: calc(20 * var(--u)); }
 .maker-foot {
   display: block;
-  font-size: calc(22 * var(--u)); color: #8a99aa;
+  font-size: calc(22 * var(--u)); color: var(--text-tertiary);
   text-align: center; padding: calc(22 * var(--u)) calc(28 * var(--u)); line-height: 1.6;
-}
-
-/* 管理入口下方的说明：讲清楚这个入口管的是「别人提交的投稿」 */
-.maker-tip {
-  display: block;
-  margin-top: calc(6 * var(--u));
-  font-size: calc(21 * var(--u));
-  color: #7a8a9b;
-  line-height: 1.65;
 }

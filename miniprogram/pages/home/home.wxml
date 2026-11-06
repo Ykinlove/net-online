@@ -1,66 +1,105 @@
-<view class="page home">
+<view class="page home theme-{{theme}} {{themePulse ? 'theme-pulse' : ''}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
-  <!-- 每日答案之书 -->
-  <view class="card answer-card" bindtap="drawAnswer">
-    <view class="answer-head">
-      <text class="answer-label">📖 每日答案之书</text>
-      <text class="answer-refresh">换一句 ↻</text>
+  <!-- 页头：问候 + 头肩小头像 + 浅/深一键切换 -->
+  <view class="home-greet">
+    <image class="greet-avatar" src="{{portraitImage}}" mode="aspectFill" />
+    <view class="greet-txt">
+      <text class="greet-hi">{{nickname ? 'Hi, ' + nickname : 'Net 操作命令速记'}}</text>
+      <text class="greet-sub">把命令、排障和项目，攒成自己的知识库</text>
     </view>
-    <text class="answer-text">「{{answer}}」</text>
-  </view>
-
-  <!-- 日历 -->
-  <view class="card cal-card">
-    <view class="card-title-row">
-      <text class="card-title">📅 {{calTitle}}</text>
-      <text class="cal-nav" bindtap="calPrev">‹</text>
-      <text class="cal-nav" bindtap="calNext">›</text>
-    </view>
-    <view class="cal-week">
-      <text class="cal-wd" wx:for="{{weekDays}}" wx:key="*this">{{item}}</text>
-    </view>
-    <view class="cal-grid">
-      <view
-        wx:for="{{calCells}}"
-        wx:key="key"
-        class="cal-cell {{item.day ? '' : 'cal-empty'}} {{item.isToday ? 'cal-today' : ''}} {{item.hasRec ? 'cal-has' : ''}}"
-      >
-        <view wx:if="{{item.hasRec}}" class="cal-dot"></view>
-        <text class="cal-day">{{item.day}}</text>
-        <text class="cal-sub {{item.subKind}}">{{item.sub}}</text>
+    <view class="theme-switch">
+      <view class="theme-btn {{theme === 'light' ? 'on' : ''}}" data-mode="light" bindtap="onThemeSwitch" hover-class="theme-btn-hover">
+        <image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/sun.png" mode="aspectFit" />
       </view>
-    </view>
-    <view class="cal-foot">
-      <text class="cal-foot-txt">🗓 {{calFoot}}</text>
+      <view class="theme-btn {{theme === 'dark' ? 'on' : ''}}" data-mode="dark" bindtap="onThemeSwitch" hover-class="theme-btn-hover">
+        <image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/moon.png" mode="aspectFit" />
+      </view>
     </view>
   </view>
 
   <!-- 搜索入口 -->
-  <view class="search-entry" bindtap="goSearch" hover-class="search-entry-hover">
-    <text class="se-ico">🔍</text>
+  <view class="search-entry ripple-host" data-r="0" bindtouchstart="onRipple" bindtap="goSearch" hover-class="search-entry-hover">
+    <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 0}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+    <image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/search.png" mode="aspectFit" />
     <text class="se-ph">搜命令，比如「划分端口」</text>
+    <text class="se-go">›</text>
   </view>
 
-  <!-- 资料库入口：命令百科 + 配置模板库合并为一个入口，
-       进页面后用顶部分段控件在两种内容之间切换 -->
-  <view class="tpl-entry" bindtap="goLibrary" hover-class="tpl-entry-hover">
-    <text class="tpl-entry-ico">📚</text>
-    <view class="tpl-entry-main">
-      <text class="tpl-entry-t">资料库</text>
-      <text class="tpl-entry-s">命令百科 + 配置模板库，一个入口全都有</text>
+  <!-- 快捷入口 -->
+  <text class="section-title">快捷入口</text>
+  <view class="grid-2 home-grid three stagger">
+    <view class="grid-cell ent-cell ripple-host stagger-item sd-0" data-r="1" bindtouchstart="onRipple" bindtap="goLibrary" hover-class="ent-cell-hover">
+      <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 1}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+      <view class="icon-badge sm"><image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/book.png" mode="aspectFit" /></view>
+      <text class="ent-t">资料库</text>
+      <text class="ent-s">命令百科 / 模板</text>
     </view>
-    <text class="tpl-entry-arrow">›</text>
+    <view class="grid-cell ent-cell ripple-host stagger-item sd-1" data-r="2" bindtouchstart="onRipple" bindtap="goAddCmd" hover-class="ent-cell-hover">
+      <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 2}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+      <view class="icon-badge sm"><image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/terminal.png" mode="aspectFit" /></view>
+      <text class="ent-t">记命令</text>
+      <text class="ent-s">常用命令用法</text>
+    </view>
+    <view class="grid-cell ent-cell ripple-host stagger-item sd-2" data-r="3" bindtouchstart="onRipple" bindtap="goAddProj" hover-class="ent-cell-hover">
+      <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 3}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+      <view class="icon-badge sm"><image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/folder.png" mode="aspectFit" /></view>
+      <text class="ent-t">记项目</text>
+      <text class="ent-s">实施 / 排障过程</text>
+    </view>
   </view>
 
-  <!-- 两个主操作 -->
-  <view class="hero-actions">
-    <view class="hero-btn" bindtap="goAddCmd" hover-class="hero-btn-hover">
-      <text class="hero-ico">⌨️</text>
-      <text class="hero-txt">记一条命令</text>
+  <!-- 最近手记：真实数据，不占装饰位 -->
+  <view class="sec-row">
+    <text class="section-title">最近手记</text>
+    <text class="sec-more" bindtap="goRecords">全部 ›</text>
+  </view>
+  <view class="recent-card">
+    <view class="recent-sum">
+      <text class="recent-sum-t">{{cmdCount}} 条命令 · {{projCount}} 个项目</text>
+      <text class="recent-sum-s">你攒下来的排障经验</text>
     </view>
-    <view class="hero-btn hero-btn-2" bindtap="goAddProj" hover-class="hero-btn-hover">
-      <text class="hero-ico">📁</text>
-      <text class="hero-txt">记一个项目</text>
+    <block wx:if="{{recent.length}}">
+      <view
+        wx:for="{{recent}}"
+        wx:key="key"
+        class="recent-row stagger-item sd-{{index}}"
+        data-tab="{{item.tab}}"
+        bindtap="goTab"
+        hover-class="recent-row-hover"
+      >
+        <text class="recent-kind">{{item.kind}}</text>
+        <view class="recent-main">
+          <text class="recent-title">{{item.title}}</text>
+          <text class="recent-sub">{{item.sub}}</text>
+        </view>
+        <text class="recent-date">{{item.date}}</text>
+        <text class="recent-arrow">›</text>
+      </view>
+    </block>
+    <view wx:else class="recent-empty">
+      <text class="recent-empty-t">还没有记录</text>
+      <text class="recent-empty-s">从上面的「记命令」「记项目」开始，攒下第一条</text>
+    </view>
+  </view>
+
+  <!-- 每日答案之书：放在最下方，翻面用单面 DOM + 两段动画 -->
+  <text class="section-title">每日答案之书</text>
+  <view class="quote answer-card" bindtap="drawAnswer" hover-class="answer-card-hover">
+    <view class="answer-face {{flipPhase === 'out' ? 'flip-out' : (flipPhase === 'in' ? 'flip-in' : '')}}">
+      <text class="answer-label">今日一句</text>
+      <text class="answer-text">「{{answerText}}」</text>
+      <view class="answer-bar">
+        <text class="answer-refresh">换一句 ↻</text>
+        <view class="like-wrap" catchtap="likeAnswer">
+          <view class="like-btn {{liked ? 'on' : ''}}">{{liked ? '♥' : '♡'}}</view>
+          <block wx:if="{{bursting}}">
+            <view class="pt pt-0"></view><view class="pt pt-1"></view>
+            <view class="pt pt-2"></view><view class="pt pt-3"></view>
+            <view class="pt pt-4"></view><view class="pt pt-5"></view>
+            <view class="pt pt-6"></view><view class="pt pt-7"></view>
+          </block>
+        </view>
+      </view>
     </view>
   </view>
 

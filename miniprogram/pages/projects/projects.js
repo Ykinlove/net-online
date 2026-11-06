@@ -1,3 +1,4 @@
+const themeColors = require('../../utils/theme-colors.js');
 const store = require('../../utils/store.js');
 
 const STATUS = ['进行中', '已完成', '已暂停'];
@@ -25,10 +26,12 @@ Page({
     detail: null,
     formOpen: false,
     editingId: '',
-    form: { name: '', status: '进行中', role: '', content: '', devices: '', tags: '', startDate: '', endDate: '' }
+    form: { name: '', status: '进行中', role: '', content: '', devices: '', tags: '', startDate: '', endDate: '' },
+    focusKey: ''
   },
 
   onShow() {
+    getApp().applyTheme(this);
     store.init();
     this.rebuild();
     const app = getApp();
@@ -52,11 +55,14 @@ Page({
        现在正文 / 设备 / 命令清单留给详情，点开时从 _rows 按 key 现取。 */
     const shown = all.map(p => {
       const raw = String(p.tags || '');
+      const st = p.status || '进行中';
       return {
         _key: p._id || p._localId,
         name: p.name || '(未命名项目)',
-        status: p.status || '进行中',
-        statusClass: statusClass(p.status || '进行中'),
+        status: st,
+        statusClass: statusClass(st),
+        /* 卡片左侧竖条按状态着色，扫列表时不用读文字就能分辨进度 */
+        toneClass: st === '已完成' ? 'done' : (st === '已暂停' ? 'pause' : 'doing'),
         role: p.role || '',
         preview: String(p.content || '（没有填写项目内容）').slice(0, 90),
         dateLabel: rangeLabel(p),
@@ -75,7 +81,12 @@ Page({
       ? (store.mem.lastError ? ('同步异常：' + store.mem.lastError) : ('云端已连接 · 本地 ' + all.length + ' 个 · 更新于 ' + now.toTimeString().slice(0, 5)))
       : '未连接云开发，数据只存在本机';
 
-    this.setData({ shown, total: all.length, diag, diagErr: !!store.mem.lastError });
+    this.setData({
+      shown,
+      total: all.length,
+      diag,
+      diagErr: !!store.mem.lastError
+    });
   },
 
   async refresh() {
@@ -220,8 +231,17 @@ Page({
     wx.showModal({
       title: '确认删除',
       content: '删错了可以在「我的 → 存档库」恢复，确定删除？',
-      confirmColor: '#d9534f',
+      confirmColor: themeColors.get('danger'),
       success: r => { if (r.confirm) doDelete(); }
     });
+  },
+
+  /* ---------- 输入框聚焦态（纯视觉） ---------- */
+  onFieldFocus(e) {
+    this.setData({ focusKey: e.currentTarget.dataset.k || '' });
+  },
+
+  onFieldBlur() {
+    this.setData({ focusKey: '' });
   }
 });

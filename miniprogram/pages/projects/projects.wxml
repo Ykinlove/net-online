@@ -1,8 +1,8 @@
-<view class="page pj">
+<view class="page pj theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
   <view class="cmd-head">
     <view class="cmd-title-wrap">
-      <text class="page-title">📁 项目记录</text>
+      <text class="page-title">项目记录</text>
       <text class="cmd-sub">共 {{total}} 个项目</text>
     </view>
     <view class="cmd-actions">
@@ -13,26 +13,25 @@
 
   <text class="cmd-diag {{diagErr ? 'is-err' : ''}}">{{diag}}</text>
 
-  <view wx:if="{{!shown.length}}" class="empty">
-    {{total ? '没有符合筛选的项目' : '还没有项目记录，点右上角「+ 记项目」开始'}}
-  </view>
+  <view wx:if="{{!shown.length}}" class="empty">{{total ? '没有符合筛选的项目' : '还没有项目记录'}}</view>
 
-  <view
-    wx:for="{{shown}}"
-    wx:key="_key"
-    class="pj-card"
-    data-idx="{{index}}"
-    bindtap="openDetail"
-  >
-    <view class="pj-top">
-      <text class="pj-status {{item.statusClass}}">{{item.status}}</text>
+  <view class="pj-list stagger">
+    <view
+      wx:for="{{shown}}"
+      wx:key="_key"
+      class="pj-card pj-tone-{{item.toneClass}} stagger-item sd-{{index}}"
+      data-idx="{{index}}"
+      bindtap="openDetail"
+    >
+      <view class="pj-top">
+        <text class="pj-status tag-outline {{item.statusClass === 's-done' ? 'tag-done' : (item.statusClass === 's-pause' ? 'tag-warning' : 'tag-doing')}}">{{item.status}}</text>
+        <text class="pj-date">{{item.dateLabel}}</text>
+      </view>
       <text class="pj-name">{{item.name}}</text>
-      <text class="pj-date">{{item.dateLabel}}</text>
-    </view>
-    <text wx:if="{{item.role}}" class="pj-role">角色：{{item.role}}</text>
-    <text class="pj-preview">{{item.preview}}</text>
-    <view wx:if="{{item.tagList.length}}" class="pj-tags">
-      <text wx:for="{{item.tagList}}" wx:for-item="tg" wx:key="*this" class="chip">{{tg}}</text>
+      <text wx:if="{{item.role}}" class="pj-role">角色：{{item.role}}</text>
+      <view wx:if="{{item.tagList.length}}" class="pj-tags">
+        <text wx:for="{{item.tagList}}" wx:for-item="tg" wx:key="*this" class="tag-outline tag-tech tg-{{index}}">{{tg}}</text>
+      </view>
     </view>
   </view>
 
@@ -48,9 +47,9 @@
         <text class="chip chip-gold">{{detail.dateLabel}}</text>
         <text wx:if="{{detail.role}}" class="chip">角色 {{detail.role}}</text>
       </view>
-      <scroll-view class="dt-code-wrap" scroll-y>
-        <text class="dt-code">{{detail.content || '（没有填写项目内容）'}}</text>
-      </scroll-view>
+      <view class="dt-code-wrap">
+        <text class="dt-body">{{detail.content || '（没有填写项目内容）'}}</text>
+      </view>
       <text wx:if="{{detail.devices}}" class="dt-desc">涉及设备：{{detail.devices}}</text>
       <text wx:if="{{detail.cmds}}" class="dt-desc">使用命令：{{detail.cmds}}</text>
 
@@ -71,7 +70,7 @@
 
       <view class="field">
         <text class="field-label">项目名称 <text class="req">*</text></text>
-        <input class="input" value="{{form.name}}" maxlength="40" placeholder="比如：某校区核心交换机割接" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="name" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'name' ? 'input-focus' : ''}}" value="{{form.name}}" maxlength="40" placeholder="比如：某校区核心交换机割接" placeholder-class="input-placeholder" data-k="name" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
 
       <view class="field">
@@ -89,22 +88,22 @@
 
       <view class="field">
         <text class="field-label">我在项目里的角色</text>
-        <input class="input" value="{{form.role}}" maxlength="20" placeholder="比如：实施 / 主责 / 配合" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="role" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'role' ? 'input-focus' : ''}}" value="{{form.role}}" maxlength="20" placeholder="比如：实施 / 主责 / 配合" placeholder-class="input-placeholder" data-k="role" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
 
       <view class="field">
         <text class="field-label">项目内容</text>
-        <textarea class="textarea" value="{{form.content}}" placeholder="做了什么、遇到什么问题、怎么解决的" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="content" bindinput="onFormInput" auto-height />
+        <textarea class="textarea {{focusKey === 'content' ? 'input-focus' : ''}}" value="{{form.content}}" placeholder="做了什么、遇到什么问题、怎么解决的" placeholder-class="input-placeholder" data-k="content" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" auto-height />
       </view>
 
       <view class="field">
         <text class="field-label">涉及设备</text>
-        <input class="input" value="{{form.devices}}" maxlength="60" placeholder="比如：S5560 / AC6005 / 华为光模块" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="devices" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'devices' ? 'input-focus' : ''}}" value="{{form.devices}}" maxlength="60" placeholder="比如：S5560 / AC6005 / 华为光模块" placeholder-class="input-placeholder" data-k="devices" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
 
       <view class="field">
         <text class="field-label">项目标签（逗号分隔）</text>
-        <input class="input" value="{{form.tags}}" maxlength="60" placeholder="比如：割接,无线" placeholder-class="input-placeholder" placeholder-style="color:#9fb0c0;font-size:calc(27 * var(--u));" data-k="tags" bindinput="onFormInput" />
+        <input class="input {{focusKey === 'tags' ? 'input-focus' : ''}}" value="{{form.tags}}" maxlength="60" placeholder="比如：割接,无线" placeholder-class="input-placeholder" data-k="tags" bindinput="onFormInput" bindfocus="onFieldFocus" bindblur="onFieldBlur" />
       </view>
 
       <view class="field">

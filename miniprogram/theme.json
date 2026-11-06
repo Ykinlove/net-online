@@ -1,0 +1,38 @@
+{
+  "light": {
+    "navBgColor": "#FFFFFF",
+    "navTxtStyle": "black",
+    "bgColor": "#F7F8FA",
+    "backgroundTextStyle": "dark",
+    "tabFontColor": "#9AA1AD",
+    "tabSelectedColor": "#3B7DD8",
+    "tabBgColor": "#FFFFFF",
+    "tabBorderStyle": "black",
+    "tabIconHome": "/images/tab/home.png",
+    "tabIconHomeOn": "/images/tab/home-on.png",
+    "tabIconCommands": "/images/tab/commands.png",
+    "tabIconCommandsOn": "/images/tab/commands-on.png",
+    "tabIconProjects": "/images/tab/projects.png",
+    "tabIconProjectsOn": "/images/tab/projects-on.png",
+    "tabIconMine": "/images/tab/mine.png",
+    "tabIconMineOn": "/images/tab/mine-on.png"
+  },
+  "dark": {
+    "navBgColor": "#1C1E26",
+    "navTxtStyle": "white",
+    "bgColor": "#121318",
+    "backgroundTextStyle": "light",
+    "tabFontColor": "#636877",
+    "tabSelectedColor": "#5A9AE6",
+    "tabBgColor": "#1C1E26",
+    "tabBorderStyle": "white",
+    "tabIconHome": "/images/tab/dark/home.png",
+    "tabIconHomeOn": "/images/tab/dark/home-on.png",
+    "tabIconCommands": "/images/tab/dark/commands.png",
+    "tabIconCommandsOn": "/images/tab/dark/commands-on.png",
+    "tabIconProjects": "/images/tab/dark/projects.png",
+    "tabIconProjectsOn": "/images/tab/dark/projects-on.png",
+    "tabIconMine": "/images/tab/dark/mine.png",
+    "tabIconMineOn": "/images/tab/dark/mine-on.png"
+  }
+}

@@ -12,13 +12,16 @@ Page({
     bgs: [],
     pickChar: DEFAULT_CHAR,
     pickBg: DEFAULT_BG,
+    /* v4：预览区插画路径，随选中项实时更新 */
+    charImage: '/images/preset/char/' + DEFAULT_CHAR + '.png',
+    bgImage: '/images/preset/bg/' + DEFAULT_BG + '.jpg',
     nickname: '',
     from: '',
-    adReady: !!REWARDED_AD_UNIT,
-    from: ''
+    adReady: !!REWARDED_AD_UNIT
   },
 
   onLoad(options) {
+    getApp().applyTheme(this);
     store.init();
     const p = store.getProfile() || {};
     const savedChar = store.getCharImage().replace(/^.*char\//, '').replace(/\.png$/, '');
@@ -56,7 +59,12 @@ Page({
       on: id === pickBg
     }));
 
-    this.setData({ chars, bgs });
+    this.setData({
+      chars,
+      bgs,
+      charImage: '/images/preset/char/' + pickChar + '.png',
+      bgImage: '/images/preset/bg/' + pickBg + '.jpg'
+    });
   },
 
   pickCharFn(e) {

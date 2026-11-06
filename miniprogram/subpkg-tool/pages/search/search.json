@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "搜命令"
+  "navigationBarTitleText": "搜命令",
+  "usingComponents": {
+    "offline-bar": "../../../components/offline-bar/offline-bar"
+  }
 }

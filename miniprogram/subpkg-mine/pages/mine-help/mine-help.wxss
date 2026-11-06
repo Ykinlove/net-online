@@ -1,52 +1,27 @@
 .hp { padding-bottom: calc(60 * var(--u)); }
 
-.hp-lead {
-  padding: calc(24 * var(--u)) calc(24 * var(--u));
-  margin-bottom: calc(22 * var(--u));
-  background: #fff3d6;
-  border: calc(4 * var(--u)) solid #c9a455;
-  border-radius: calc(8 * var(--u));
-  box-shadow: 0 calc(6 * var(--u)) 0 rgba(201, 164, 85, 0.28);
-}
-.hp-lead-t {
-  display: block;
-  font-size: calc(26 * var(--u));
-  font-weight: 800;
-  color: #8a5a10;
-  letter-spacing: calc(1 * var(--u));
-}
+.hp-head { padding: calc(8 * var(--u)) calc(8 * var(--u)) calc(10 * var(--u)); }
+.hp-head .doc-h1 { display: block; }
+.hp-head .doc-sub { display: block; margin-top: calc(8 * var(--u)); }
+
+/* 引言：复用全局 .quote（primary 左竖条 + primary-bg 底），不再用金色警示色 */
+.hp-lead { display: block; margin-bottom: calc(8 * var(--u)); }
 .hp-lead-d {
   display: block;
-  margin-top: calc(10 * var(--u));
   font-size: calc(23 * var(--u));
   line-height: 1.7;
-  color: #6b4a12;
 }
 
-.card { margin-bottom: calc(22 * var(--u)); }
-.card .card-title { display: block; margin-bottom: calc(12 * var(--u)); }
-
+/* 条目：复用全局 .list-item 做底部分割线，收紧一点纵向留白 */
+.hp-sec { margin-bottom: calc(8 * var(--u)); }
+.hp-item { padding: calc(16 * var(--u)) calc(8 * var(--u)); }
 .hp-p {
   display: block;
   font-size: calc(23 * var(--u));
   line-height: 1.75;
-  color: #4a5c6e;
-  padding: calc(4 * var(--u)) 0;
+  color: var(--text-secondary);
 }
 
-.hp-foot {
-  padding: calc(20 * var(--u)) calc(4 * var(--u)) 0;
-  text-align: center;
-}
-.hp-foot-t {
-  display: block;
-  font-size: calc(22 * var(--u));
-  font-weight: 800;
-  color: #8a99aa;
-}
-.hp-foot-d {
-  display: block;
-  margin-top: calc(6 * var(--u));
-  font-size: calc(20 * var(--u));
-  color: #a9bccd;
-}
+.hp-foot { padding: calc(28 * var(--u)) calc(8 * var(--u)) 0; text-align: center; }
+.hp-foot-t { display: block; font-size: calc(22 * var(--u)); font-weight: 600; color: var(--text-tertiary); }
+.hp-foot-d { display: block; margin-top: calc(6 * var(--u)); font-size: calc(20 * var(--u)); color: var(--text-tertiary); }

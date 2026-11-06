@@ -1,3 +1,3 @@
 <!-- pages/templates/templates.wxml —— 重定向跳板，见 templates.js -->
 <!-- 正常情况下 onLoad 立刻 redirectTo 到资料库页，这里只是兜底空白态 -->
-<view class="tpl-page"></view>
+    <view class="tpl-page theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s"></view>

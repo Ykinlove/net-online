@@ -1,3 +1,4 @@
+const themeColors = require('../../../utils/theme-colors.js');
 const store = require('../../../utils/store.js');
 const { computeCategoryLevels } = require('../../../utils/skill.js');
 
@@ -26,10 +27,12 @@ Page({
     list: [],
     statusList: STATUS_LIST,
     formOpen: false,
-    form: { name: '', status: 'want', goalText: '' }
+    form: { name: '', status: 'want', goalText: '' },
+    focusKey: ''
   },
 
   onShow() {
+    getApp().applyTheme(this);
     store.init();
     this.rebuild();
   },
@@ -77,6 +80,9 @@ Page({
     const k = e.currentTarget.dataset.k;
     this.setData({ ['form.' + k]: e.detail.value });
   },
+
+  onFieldFocus(e) { this.setData({ focusKey: e.currentTarget.dataset.k || '' }); },
+  onFieldBlur() { this.setData({ focusKey: '' }); },
 
   pickStatus(e) {
     this.setData({ 'form.status': e.currentTarget.dataset.v });
@@ -133,7 +139,7 @@ Page({
     wx.showModal({
       title: '确认删除',
       content: '删除「' + item.name + '」？删错了可以在存档库恢复。',
-      confirmColor: '#d9534f',
+      confirmColor: themeColors.get('danger'),
       success: r => { if (r.confirm) doDelete(); }
     });
   }

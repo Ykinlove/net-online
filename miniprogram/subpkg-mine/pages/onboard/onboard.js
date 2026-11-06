@@ -1,7 +1,14 @@
 const store = require('../../../utils/store.js');
-const { STAGES, STAGE_LEGACY } = require('../../../utils/seed.js');
+const { STAGES, STAGE_LEGACY, PRESET_CHARS } = require('../../../utils/seed.js');
+const portrait = require('../../../utils/portrait.js');
 
 const KW_MAX = 8;
+
+// 8 个圆形头像：用头肩特写，序号仍作为存档值（profile.avatar）
+const AVATARS = PRESET_CHARS.slice(0, 8).map((id, i) => ({
+  no: i + 1,
+  img: portrait.fromId(id)
+}));
 
 // 昵称输入框的随机提示，每次进来换一个
 const NICK_HINTS = [
@@ -35,10 +42,14 @@ Page({
     form: { nickname: '', org: '', major: '', stage: '', oneLineDesc: '' },
     interests: [],
     careers: [],
-    kwInput: { interests: '', careers: '' }
+    kwInput: { interests: '', careers: '' },
+    avatars: AVATARS,
+    avatarIdx: 0,
+    focusK: ''
   },
 
   onLoad() {
+    getApp().applyTheme(this);
     store.init();
     this.setData({ nickPh: NICK_HINTS[Math.floor(Math.random() * NICK_HINTS.length)] });
     const p = store.getProfile();
@@ -47,6 +58,7 @@ Page({
       const stage = STAGE_LEGACY[p.stage] || p.stage || '';
       this.setData({
         editing: true,
+        avatarIdx: Math.max(0, (Number(p.avatar) || 1) - 1),
         form: {
           nickname: p.nickname || '',
           org: p.org || '',
@@ -95,6 +107,25 @@ Page({
     this.setData({ [kind]: list });
   },
 
+  /* 选择头肩像（新增） */
+  onPickAvatar(e) {
+    this.setData({ avatarIdx: Number(e.currentTarget.dataset.idx) || 0 });
+  },
+
+  /* 「我的 → 编辑档案」合并了资料和形象：这里是下一层的形象 / 背景入口 */
+  goChargen() {
+    wx.navigateTo({ url: '/subpkg-mine/pages/chargen/chargen' });
+  },
+
+  /* 输入框聚焦态：复用全局 .input-focus（新增） */
+  onFieldFocus(e) {
+    this.setData({ focusK: e.currentTarget.dataset.fk || '' });
+  },
+
+  onFieldBlur() {
+    this.setData({ focusK: '' });
+  },
+
   async submit() {
     const f = this.data.form;
     const nickname = (f.nickname || '').trim();
@@ -113,6 +144,7 @@ Page({
       interests: this.data.interests.join('，'),
       careers: this.data.careers.join('，'),
       exp: old.exp || 0,
+      avatar: Number(this.data.avatarIdx) + 1,
       charImage: old.charImage || store.getCharImage() || '',
       bgImage: old.bgImage || store.getCharBg() || ''
     };

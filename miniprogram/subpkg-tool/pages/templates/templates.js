@@ -8,6 +8,7 @@
 // 真正的模板浏览逻辑在 browse 页（顶部切到「配置模板库」那一档）。
 Page({
   onLoad() {
+    getApp().applyTheme(this);
     wx.redirectTo({
       url: '/subpkg-tool/pages/browse/browse?kind=tpl'
     });

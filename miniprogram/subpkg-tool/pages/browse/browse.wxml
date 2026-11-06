@@ -1,47 +1,52 @@
-<view class="browse-page">
+<view class="browse-page theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
+
+  <offline-bar />
 
   <!-- 顶部：当前资源类型 + 总量 -->
   <view class="head">
     <view class="head-main">
-      <text class="head-title">{{icon}} {{title}}</text>
+    <text class="head-title">{{title}}</text>
       <text class="head-num">{{libTotal}} {{unit}}</text>
     </view>
     <text class="head-sub">{{catName}} · {{catDesc}}</text>
   </view>
 
-  <!-- 类型切换：命令百科 / 配置模板库 -->
+  <!-- 类型切换：命令百科 / 配置模板库（选中蓝底白字 .seg-item.on） -->
   <view class="kind-seg">
     <view
-      class="kind-seg-item {{kind === 'book' ? 'on' : ''}}"
+      class="kind-seg-item seg-item {{kind === 'book' ? 'on' : ''}}"
       bindtap="switchKind"
       data-kind="book"
-    >📚 命令百科</view>
+    >命令百科</view>
     <view
-      class="kind-seg-item {{kind === 'tpl' ? 'on' : ''}}"
+      class="kind-seg-item seg-item {{kind === 'tpl' ? 'on' : ''}}"
       bindtap="switchKind"
       data-kind="tpl"
-    >📋 配置模板库</view>
+    >配置模板库</view>
   </view>
 
   <!-- 关键词筛选：在「当前分类（+ 设备）」的结果里再筛一遍 -->
   <view class="bsearch">
-    <text class="bsearch-ico">🔍</text>
+    <image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/search.png" mode="aspectFit" />
     <input
-      class="bsearch-input"
+      class="input bsearch-input {{focusKey === 'kw' ? 'input-focus' : ''}}"
       value="{{kw}}"
       placeholder="{{kwTip}}"
-      placeholder-style="color:#9fb0c0;font-size:calc(23 * var(--u));"
+      placeholder-class="input-placeholder"
       confirm-type="search"
+      data-k="kw"
       bindinput="onKwInput"
+      bindfocus="onFieldFocus"
+      bindblur="onFieldBlur"
       bindconfirm="onKwInput"
     />
     <text wx:if="{{kw}}" class="bsearch-clear" bindtap="clearKw">✕</text>
   </view>
 
-  <!-- 分类切换 -->
+  <!-- 分类切换（选中蓝底白字 .seg-item.on） -->
   <scroll-view class="cats" scroll-x enable-flex>
     <view
-      class="cat {{cat === '' ? 'on' : ''}}"
+      class="cat seg-item {{cat === '' ? 'on' : ''}}"
       bindtap="pickCat"
       data-k=""
     >
@@ -50,7 +55,7 @@
     <view
       wx:for="{{cats}}"
       wx:key="key"
-      class="cat {{cat === item.key ? 'on' : ''}}"
+      class="cat seg-item {{cat === item.key ? 'on' : ''}}"
       bindtap="pickCat"
       data-k="{{item.key}}"
     >
@@ -59,29 +64,29 @@
     </view>
   </scroll-view>
 
-  <!-- 设备筛选：只有百科有 devs 维度，模板没有设备概念 -->
+  <!-- 设备筛选：只有百科有 devs 维度，模板没有设备概念（选中蓝底白字 .seg-item.on） -->
   <scroll-view wx:if="{{kind === 'book'}}" class="devs" scroll-x enable-flex>
     <view
       wx:for="{{sideList}}"
       wx:key="v"
-      class="dev {{dev === item.v ? 'on' : ''}}"
+      class="dev seg-item {{dev === item.v ? 'on' : ''}}"
       bindtap="pickDev"
       data-v="{{item.v}}"
     >{{item.t}}</view>
   </scroll-view>
 
-  <!-- 条目列表 -->
+  <!-- 条目列表：命令卡白底细边 + 左侧彩色竖条区分设备/厂商 -->
   <scroll-view class="list" scroll-y bindscrolltolower="loadMore">
     <view
       wx:for="{{shown}}"
       wx:key="id"
-      class="item"
+      class="item cmd-card {{item.vendorClass}}"
       bindtap="openItem"
       data-idx="{{index}}"
       hover-class="item-hover"
     >
       <view class="item-top">
-        <text class="item-name"><text wx:for="{{item.titleSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
+    <text class="item-name"><text wx:for="{{item.titleSegs}}" wx:for-item="seg" wx:key="t" class="{{seg.hl ? 'hl' : ''}}">{{seg.t}}</text></text>
         <text class="item-arrow">›</text>
       </view>
       <view class="item-tags">
@@ -100,8 +105,7 @@
     </view>
 
     <view wx:if="{{!shown.length}}" class="empty">
-      <text class="empty-ico">📭</text>
-      <text class="empty-txt">{{emptyText}}</text>
+    <text class="empty-txt">{{emptyText}}</text>
       <text class="empty-sub">{{emptySub}}</text>
     </view>
 
@@ -127,29 +131,33 @@
       </view>
 
       <scroll-view class="sheet-body" scroll-y>
-        <view wx:if="{{detail.tip}}" class="sheet-tip">
-          <text class="sheet-tip-ico">💡</text>
+        <view wx:if="{{detail.tip}}" class="quote sheet-tip">
           <text class="sheet-tip-txt">{{detail.tip}}</text>
         </view>
 
         <view wx:for="{{detail.blocks}}" wx:key="vendor" class="vd">
           <view class="vd-head">
-            <text class="vd-name">{{item.vendor}}</text>
+            <text class="vd-name tag-outline tag-tech">{{item.vendor}}</text>
             <text class="vd-copy" catchtap="copyOne" data-i="{{index}}">复制</text>
           </view>
-          <view class="vd-code">
-            <text
-              wx:for="{{item.lines}}"
-              wx:for-item="ln"
-              wx:key="index"
-              class="vd-line {{ln.note ? 'vd-line-note' : ''}}"
-            >{{ln.t}}</text>
+          <view class="code-block">
+            <view class="code-copy {{item.copied ? 'done' : ''}}" catchtap="onCopyCode" data-i="{{index}}">{{item.copied ? '✓' : '复制'}}</view>
+            <scroll-view class="code-scroll" scroll-x enable-flex>
+              <view class="code-inner">
+                <text
+                  wx:for="{{item.lines}}"
+                  wx:for-item="ln"
+                  wx:key="index"
+                  class="vd-line {{ln.note ? 'vd-line-note' : ''}}"
+                >{{ln.t}}</text>
+              </view>
+            </scroll-view>
           </view>
         </view>
       </scroll-view>
 
       <view class="sheet-foot">
-        <view class="sheet-btn" bindtap="copyAll" hover-class="sheet-btn-hover">
+        <view class="btn btn-primary sheet-btn" bindtap="copyAll" hover-class="sheet-btn-hover">
           {{detail.copyLabel}}
         </view>
       </view>

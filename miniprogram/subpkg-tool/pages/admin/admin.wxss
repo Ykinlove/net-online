@@ -1,6 +1,6 @@
 /* pages/admin/admin.wxss
-   复用全局像素卡片系统（app.wxss 的 .page/.card/.btn/.input/.seg 等），
-   本文件只补充 admin 专属样式。去掉旧的暗色扁平风，整体与小程序其它页一致。 */
+   复用全局卡片 / 表单 / 代码块系统，仅补充 admin 专属布局。
+   全部颜色走 var(--token)，1px 细边 + 轻阴影，无字面色值、无渐变重阴影。 */
 
 /* ---------- 口令锁 ---------- */
 .lock-wrap {
@@ -17,19 +17,31 @@
   text-align: center;
   padding: calc(48 * var(--u)) calc(32 * var(--u));
 }
-.lock-badge { font-size: calc(72 * var(--u)); margin-bottom: calc(16 * var(--u)); }
-.lock-title { font-size: calc(38 * var(--u)); font-weight: 800; color: #2c3e50; margin-bottom: calc(12 * var(--u)); }
-.lock-sub { font-size: calc(24 * var(--u)); color: #6b7d8f; line-height: 1.6; margin-bottom: calc(40 * var(--u)); }
+.lock-badge {
+  width: calc(120 * var(--u));
+  height: calc(120 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: calc(24 * var(--u));
+  background: var(--primary-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+}
+/* 纯 CSS 线性锁（蓝色 --primary），仅在此放大 */
+.lock-badge .icon-lock { transform: scale(2.2); }
+.lock-title { font-size: calc(36 * var(--u)); font-weight: 600; color: var(--text-primary); margin-bottom: calc(12 * var(--u)); }
+.lock-sub { font-size: calc(24 * var(--u)); color: var(--text-secondary); line-height: 1.6; margin-bottom: calc(40 * var(--u)); }
 .lock-input { text-align: center; margin-bottom: calc(28 * var(--u)); }
 .lock-btn { margin-bottom: calc(28 * var(--u)); }
-.hint { font-size: calc(21 * var(--u)); color: #9fb0c0; line-height: 1.6; }
+.hint { font-size: calc(21 * var(--u)); color: var(--text-tertiary); line-height: 1.6; }
 
 /* ---------- 头部 ---------- */
 .head-card { padding: calc(20 * var(--u)) calc(24 * var(--u)); }
 .head-row { display: flex; align-items: center; }
 .head-row .card-title { margin: 0; }
-.logout { margin-left: auto; font-size: calc(25 * var(--u)); font-weight: 700; color: #c97a14; }
-.head-sub { display: block; font-size: calc(23 * var(--u)); color: #6b7d8f; margin-top: calc(10 * var(--u)); }
+.logout { margin-left: auto; font-size: calc(25 * var(--u)); font-weight: 500; color: var(--primary); }
+.head-sub { display: block; font-size: calc(23 * var(--u)); color: var(--text-secondary); margin-top: calc(10 * var(--u)); }
 
 /* ---------- 定位 ---------- */
 .locate { display: flex; align-items: center; gap: calc(16 * var(--u)); }
@@ -41,79 +53,87 @@
 .id-badge {
   display: inline-flex; align-items: center; justify-content: center;
   padding: calc(6 * var(--u)) calc(18 * var(--u));
-  font-size: calc(22 * var(--u)); font-weight: 800;
-  border: calc(3 * var(--u)) solid #2c3e50; border-radius: calc(6 * var(--u));
+  font-size: calc(22 * var(--u)); font-weight: 500;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
 }
-.badge-book { background: #eef6ff; color: #2c6fb5; border-color: #7fb2dd; }
-.badge-tpl { background: #fff3d6; color: #c97a14; border-color: #c9a455; }
-.id-text { font-size: calc(25 * var(--u)); color: #2c3e50; font-weight: 700; word-break: break-all; }
+.badge-book { background: var(--primary-bg); color: var(--primary); border-color: var(--border); }
+.badge-tpl { background: var(--primary-bg); color: var(--primary); border-color: var(--primary); }
+.id-text { font-size: calc(25 * var(--u)); color: var(--text-primary); font-weight: 500; word-break: break-all; }
 .warn {
   margin-top: calc(16 * var(--u));
-  font-size: calc(22 * var(--u)); color: #9a6a00;
-  background: #fff7e0; border: calc(3 * var(--u)) solid #f0c66b;
-  border-radius: calc(8 * var(--u)); padding: calc(12 * var(--u)) calc(16 * var(--u)); line-height: 1.5;
+  font-size: calc(22 * var(--u)); color: var(--warning);
+  background: var(--warning-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: calc(12 * var(--u)) calc(16 * var(--u)); line-height: 1.5;
 }
 
-/* ---------- 厂商命令卡片 ---------- */
-.vendor-card {
-  background: #fff;
-  border: calc(3 * var(--u)) solid #cfe0ee;
-  border-radius: calc(10 * var(--u));
-  padding: calc(16 * var(--u)) calc(18 * var(--u));
-  margin-bottom: calc(16 * var(--u));
-}
+/* ---------- 厂商命令：分割线式列表项 ---------- */
+.vendor-card { display: flex; flex-direction: column; }
 .vendor-head { margin-bottom: calc(10 * var(--u)); }
 .vendor-name {
-  font-size: calc(25 * var(--u)); font-weight: 800; color: #2c6fb5;
-  background: #eef6ff; border: calc(3 * var(--u)) solid #9db6cc;
-  border-radius: calc(6 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u));
+  font-size: calc(25 * var(--u)); font-weight: 500; color: var(--primary);
 }
-.vendor-code { min-height: calc(220 * var(--u)); }
+.vendor-code { min-height: calc(200 * var(--u)); }
 
-/* ---------- 发布成功 ---------- */
+/* ---------- 代码块：等宽 / 横滚 / 右上角复制 ---------- */
+.code-cap {
+  display: block;
+  font-size: calc(21 * var(--u));
+  color: var(--text-tertiary);
+  margin: calc(14 * var(--u)) 0 calc(8 * var(--u));
+}
+.cmd-codeblock {
+  overflow: visible;
+  padding-top: calc(52 * var(--u));
+  margin-bottom: calc(8 * var(--u));
+}
+.cmd-codeblock .code-scroll { width: 100%; }
+.cmd-codeblock .dt-code {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: calc(23 * var(--u));
+  line-height: 1.7;
+  color: var(--code-text);
+  white-space: pre;
+}
+
+/* ---------- 状态提示 ---------- */
 .ok {
   margin-top: calc(20 * var(--u));
-  font-size: calc(25 * var(--u)); color: #1a7f4b; font-weight: 700;
-  background: #e8f8ee; border: calc(3 * var(--u)) solid #6fc79a;
-  border-radius: calc(8 * var(--u)); padding: calc(14 * var(--u)) calc(18 * var(--u));
+  font-size: calc(24 * var(--u)); color: var(--success); font-weight: 500;
+  background: var(--success-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: calc(14 * var(--u)) calc(18 * var(--u));
   text-align: center;
 }
+.err {
+  margin-top: calc(18 * var(--u));
+  font-size: calc(24 * var(--u)); color: var(--danger); font-weight: 500;
+  background: var(--danger-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: calc(14 * var(--u)) calc(18 * var(--u));
+}
+.load-pad { padding: calc(20 * var(--u)) 0; }
 
 /* ---------- 主功能 tab ---------- */
 .tab-seg { margin-bottom: calc(22 * var(--u)); }
 
-/* ---------- 待审核 ---------- */
-.review-card {
-  background: #fff;
-  border: calc(3 * var(--u)) solid #d9e4ee;
-  border-radius: calc(10 * var(--u));
-  padding: calc(18 * var(--u)) calc(20 * var(--u));
-  margin-bottom: calc(18 * var(--u));
-}
+/* ---------- 待审核：分割线式列表项 ---------- */
+.review-card { display: flex; flex-direction: column; }
 .review-head { display: flex; align-items: center; gap: calc(12 * var(--u)); flex-wrap: wrap; }
 .review-type {
-  font-size: calc(21 * var(--u)); font-weight: 800; color: #2c3e50;
-  background: #eef6ff; border: calc(3 * var(--u)) solid #9db6cc;
-  border-radius: calc(6 * var(--u)); padding: calc(3 * var(--u)) calc(12 * var(--u));
+  font-size: calc(21 * var(--u)); font-weight: 500; color: var(--text-secondary);
+  background: transparent; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: calc(3 * var(--u)) calc(12 * var(--u));
 }
-.review-title { font-size: calc(27 * var(--u)); font-weight: 800; color: #2c3e50; }
-.review-target { font-size: calc(22 * var(--u)); color: #6b7d8f; margin-top: calc(8 * var(--u)); }
+.review-title { font-size: calc(27 * var(--u)); font-weight: 500; color: var(--text-primary); }
+.review-target { font-size: calc(22 * var(--u)); color: var(--text-secondary); margin-top: calc(8 * var(--u)); }
 .review-summary {
   display: block;
-  font-size: calc(23 * var(--u)); color: #455a6b; line-height: 1.6;
+  font-size: calc(23 * var(--u)); color: var(--text-secondary); line-height: 1.6;
   margin-top: calc(12 * var(--u));
   white-space: pre-wrap;
-  background: #f6f9fc; border: calc(2 * var(--u)) solid #e2ebf2;
-  border-radius: calc(6 * var(--u)); padding: calc(12 * var(--u)) calc(14 * var(--u));
+  background: var(--bg-subtle); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: calc(12 * var(--u)) calc(14 * var(--u));
 }
 .review-actions { display: flex; gap: calc(16 * var(--u)); margin-top: calc(16 * var(--u)); }
 .review-ok { flex: 1; }
 .review-no { flex: 1; }
-
-/* 错误提示（与投稿页一致） */
-.err {
-  margin-top: calc(18 * var(--u));
-  font-size: calc(24 * var(--u)); color: #a32e2a; font-weight: 700;
-  background: #ffe9e7; border: calc(3 * var(--u)) solid #e08a86;
-  border-radius: calc(8 * var(--u)); padding: calc(14 * var(--u)) calc(18 * var(--u));
-}

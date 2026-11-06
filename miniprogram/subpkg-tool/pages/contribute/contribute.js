@@ -12,6 +12,9 @@ const contrib = require('../../../utils/contrib.js');
 const DEFAULT_DEVS = ['Switch', 'Router', 'AC', 'AP', '防火墙'];
 
 Page({
+  onShow() {
+    getApp().applyTheme(this);
+  },
   data: {
     type: 'add',            // 'add' | 'edit'
     kind: 'book',          // 'book' | 'tpl'
@@ -27,7 +30,11 @@ Page({
 
     newId: '',             // 新增类：可选短 id，留空自动生成
     submitted: '',
-    error: ''
+    error: '',
+
+    /* 视觉态（纯新增，不参与业务逻辑） */
+    focusKey: '',
+    copiedCode: ''
   },
 
   onType(e) { this.setData({ type: e.currentTarget.dataset.t, locatedId: '', submitted: '', error: '' }); },
@@ -114,6 +121,19 @@ Page({
   onTNote(e) { this.setData({ tNote: e.detail.value }); },
 
   onNewId(e) { this.setData({ newId: e.detail.value }); },
+
+  /* ---------- 视觉态：输入框聚焦 + 代码块复制（纯新增） ---------- */
+  onFieldFocus(e) { this.setData({ focusKey: e.currentTarget.dataset.k || '' }); },
+  onFieldBlur() { this.setData({ focusKey: '' }); },
+
+  onCopyCode(e) {
+    const code = e.currentTarget.dataset.code || '';
+    wx.vibrateShort({ type: 'light' });
+    wx.setClipboardData({ data: code });
+    this.setData({ copiedCode: code });
+    clearTimeout(this._copyTimer);
+    this._copyTimer = setTimeout(() => this.setData({ copiedCode: '' }), 1600);
+  },
 
   /* 组装并提交 */
   submit() {

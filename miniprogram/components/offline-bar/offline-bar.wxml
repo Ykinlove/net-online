@@ -1,0 +1,7 @@
+<!-- 离线提示条：融入文档风（细边 + 低饱和 + 跟随主题）。
+     断网时告诉用户「本地命令库已就绪」，而非吓人的报错；同步中给轻提示。 -->
+<view wx:if="{{visible}}" class="ob-bar ob-{{mode}}">
+  <view class="ob-dot"></view>
+  <text class="ob-text">{{text}}</text>
+  <view wx:if="{{showReload}}" class="ob-btn" catchtap="onReload">重新加载</view>
+</view>

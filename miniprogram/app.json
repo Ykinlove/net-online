@@ -7,39 +7,49 @@
     "pages/mine/mine"
   ],
   "window": {
-    "backgroundColor": "#5fb4f2",
-    "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#2c3e50",
+    "backgroundColor": "@bgColor",
+    "backgroundTextStyle": "@backgroundTextStyle",
+    "navigationBarBackgroundColor": "@navBgColor",
     "navigationBarTitleText": "Net 操作命令速记",
-    "navigationBarTextStyle": "white"
+    "navigationBarTextStyle": "@navTxtStyle"
   },
   "tabBar": {
-    "color": "#8a99aa",
-    "selectedColor": "#c97a14",
-    "backgroundColor": "#fffdf6",
-    "borderStyle": "black",
+    "color": "@tabFontColor",
+    "selectedColor": "@tabSelectedColor",
+    "backgroundColor": "@tabBgColor",
+    "borderStyle": "@tabBorderStyle",
     "list": [
       {
         "pagePath": "pages/home/home",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "@tabIconHome",
+        "selectedIconPath": "@tabIconHomeOn"
       },
       {
         "pagePath": "pages/commands/commands",
-        "text": "命令"
+        "text": "命令",
+        "iconPath": "@tabIconCommands",
+        "selectedIconPath": "@tabIconCommandsOn"
       },
       {
         "pagePath": "pages/projects/projects",
-        "text": "项目"
+        "text": "项目",
+        "iconPath": "@tabIconProjects",
+        "selectedIconPath": "@tabIconProjectsOn"
       },
       {
         "pagePath": "pages/mine/mine",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "@tabIconMine",
+        "selectedIconPath": "@tabIconMineOn"
       }
     ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
+  "darkmode": true,
+  "themeLocation": "theme.json",
   "subPackages": [
     {
       "root": "subpkg-tool",

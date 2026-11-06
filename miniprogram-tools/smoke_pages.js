@@ -12,7 +12,18 @@ const MP = path.join(__dirname, '..', 'miniprogram');
 /* ---- 1. mock 小程序全局 ---- */
 const storage = {};
 global.__pages = [];
-global.getApp = () => ({ globalData: {}, watch: () => {} });
+/* 主题系统接入后，页面在 onLoad/onShow 会调用 getApp() 的主题方法。
+   CI 桩需与真实 app.js 接口对齐（applyTheme/getTheme/getThemeMode/setThemeMode/setMotionDur），
+   否则主题页面在冒烟阶段报 "x is not a function"。真实运行时 getApp() 即 app.js 实例，天然具备这些。 */
+global.getApp = () => ({
+  globalData: { theme: 'light', themeMode: 'system', motionDur: 0.28 },
+  watch: () => {},
+  applyTheme: () => {},
+  getTheme: () => 'light',
+  getThemeMode: () => 'system',
+  setThemeMode: () => 'light',
+  setMotionDur: (v) => (typeof v === 'number' ? v : 0.28)
+});
 global.Page = cfg => {
   // 小程序运行时会实例化 Page 配置并挂上 setData；这里模拟合并行为
   cfg.setData = patch => { Object.assign(cfg.data || (cfg.data = {}), patch); };

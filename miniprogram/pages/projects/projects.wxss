@@ -3,10 +3,12 @@
 .pj { padding-bottom: calc(180 * var(--u)); }
 
 .pj-card {
-  background: #fffdf6;
-  border: calc(4 * var(--u)) solid #2c3e50;
-  border-radius: calc(8 * var(--u));
-  box-shadow: 0 calc(6 * var(--u)) 0 rgba(44, 62, 80, 0.16);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 var(--glass-sheen), var(--shadow-glass);
   padding: calc(18 * var(--u)) calc(20 * var(--u));
   margin-bottom: calc(16 * var(--u));
 }
@@ -16,46 +18,71 @@
   gap: calc(10 * var(--u));
   margin-bottom: calc(10 * var(--u));
 }
-.pj-status {
-  flex: none;
-  padding: calc(2 * var(--u)) calc(10 * var(--u));
-  font-size: calc(19 * var(--u));
-  font-weight: 800;
-  color: #fff;
-  background: #4c9ee0;
-  border-radius: calc(4 * var(--u));
-}
-.pj-status.s-done { background: #4caf7d; }
-.pj-status.s-pause { background: #b9cfe0; }
+/* 状态标签由全局 .tag-outline / .tag-done / .tag-doing 控制配色，这里只管布局 */
+.pj-status { flex: none; }
+/* 状态 / 日期一行，项目名独占一行：项目名称是主信息，不能被状态标签挤掉 */
 .pj-name {
-  flex: 1;
-  font-size: calc(26 * var(--u));
-  font-weight: 800;
-  color: #2c3e50;
+  display: block;
+  font-size: calc(28 * var(--u));
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+  margin-bottom: calc(10 * var(--u));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pj-date { flex: none; font-size: calc(20 * var(--u)); color: #a9bccd; }
-.pj-role { display: block; font-size: calc(21 * var(--u)); color: #7a8a9b; margin-bottom: calc(8 * var(--u)); }
-.pj-preview {
-  display: block;
-  font-size: calc(22 * var(--u));
-  line-height: 1.6;
-  color: #4a5c6e;
-  background: #f4f9fd;
-  border-left: calc(6 * var(--u)) solid #9db6cc;
-  padding: calc(12 * var(--u)) calc(14 * var(--u));
-  max-height: calc(110 * var(--u));
-  overflow: hidden;
+.pj-date {
+  flex: none;
+  margin-left: auto;
+  font-size: calc(20 * var(--u));
+  color: var(--text-tertiary);
 }
+.pj-role { display: block; font-size: calc(21 * var(--u)); color: var(--text-tertiary); margin-bottom: calc(8 * var(--u)); }
 .pj-tags { display: flex; flex-wrap: wrap; gap: calc(8 * var(--u)); margin-top: calc(12 * var(--u)); }
 
-.picker-box .ph { color: #9fb0c0; }
+/* 详情正文 */
+.dt-body {
+  display: block;
+  font-size: calc(24 * var(--u));
+  line-height: 1.7;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.picker-box .ph { color: var(--text-tertiary); }
 .picker-clear {
   display: inline-block;
   margin-top: calc(10 * var(--u));
   font-size: calc(21 * var(--u));
-  color: #a08a5e;
+  color: var(--primary);
   text-decoration: underline;
 }
+
+/* ---------- v4：图标底板与统计卡间距 ---------- */
+.cmd-head .icon-badge { margin-right: calc(4 * var(--u)); }
+.pj-top .icon-badge { flex: none; }
+.sheet-head .icon-badge { margin-right: calc(12 * var(--u)); }
+.card-title-row .icon-badge { margin-right: calc(12 * var(--u)); }
+.pj-list { margin-bottom: calc(4 * var(--u)); }
+
+/* ---------- 卡片与标签语义配色 ----------
+   只给「重要标签」和卡片左侧竖条上色，正文仍保持黑灰，
+   这样有辨识度但不会回到之前那种满屏花色的状态。
+   全部复用已有语义色 token，深浅主题自动跟随。 */
+.pj-card.pj-tone-done  { border-left: calc(6 * var(--u)) solid var(--success); }
+.pj-card.pj-tone-doing { border-left: calc(6 * var(--u)) solid var(--primary); }
+.pj-card.pj-tone-pause { border-left: calc(6 * var(--u)) solid var(--warning); }
+
+.pj-status.tag-done    { background: var(--success-bg); }
+.pj-status.tag-doing   { background: var(--primary-bg); }
+.pj-status.tag-warning { background: var(--warning-bg); }
+
+/* 项目标签按位置循环 4 组淡色，重要标签不再一律灰 */
+.pj-tags .tg-0 { color: var(--primary); background: var(--primary-bg); border-color: var(--primary); }
+.pj-tags .tg-1 { color: var(--success); background: var(--success-bg); border-color: var(--success); }
+.pj-tags .tg-2 { color: var(--warning); background: var(--warning-bg); border-color: var(--warning); }
+.pj-tags .tg-3 { color: var(--danger);  background: var(--danger-bg);  border-color: var(--danger); }
+
+.pj-role { color: var(--text-secondary); }

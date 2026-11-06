@@ -1,61 +1,48 @@
+/* 技能树：文档风 / 全局 token —— 无字面色值、无粗边框、无渐变 */
 .sk { padding-bottom: calc(60 * var(--u)); }
+.sk-h1 { display: block; margin-bottom: calc(8 * var(--u)); }
+.sk-sub { display: block; margin-bottom: calc(28 * var(--u)); }
 
-.cat-row {
-  display: flex;
-  align-items: center;
-  gap: calc(12 * var(--u));
-  padding: calc(10 * var(--u)) 0;
-}
-.cat-name { flex: none; width: calc(130 * var(--u)); font-size: calc(23 * var(--u)); font-weight: 700; color: #2c3e50; }
-.cat-lv { flex: none; font-size: calc(21 * var(--u)); font-weight: 800; color: #c97a14; }
-.cat-n { flex: none; width: calc(44 * var(--u)); text-align: right; font-size: calc(20 * var(--u)); color: #a9bccd; }
+/* 分类等级：圆形徽章 + 细线连接 + 全局进度条 */
+.cat-row { display: flex; align-items: center; gap: calc(16 * var(--u)); padding: calc(18 * var(--u)) calc(4 * var(--u)); }
+.cat-link { flex: none; width: calc(24 * var(--u)); }
+.cat-body { flex: 1; min-width: 0; }
+.cat-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: calc(10 * var(--u)); }
+.cat-name { font-size: calc(26 * var(--u)); font-weight: 500; color: var(--text-primary); }
+.cat-n { font-size: calc(21 * var(--u)); color: var(--text-tertiary); }
+.cat-lv { flex: none; font-size: calc(21 * var(--u)); font-weight: 600; color: var(--primary); }
 
-.tabs { display: flex; gap: calc(10 * var(--u)); margin-bottom: calc(16 * var(--u)); }
-.tab {
-  flex: 1;
-  text-align: center;
-  padding: calc(12 * var(--u)) 0;
-  font-size: calc(22 * var(--u));
-  font-weight: 700;
-  color: #6b7d8f;
-  background: #f2f8fd;
-  border: calc(3 * var(--u)) solid #d5e4f0;
-  border-radius: calc(6 * var(--u));
-}
-.tab.on { color: #2c3e50; background: #ffd86b; border-color: #2c3e50; }
+.sk-seg { margin-bottom: calc(20 * var(--u)); }
 
-.skill-item {
-  display: flex;
-  align-items: center;
-  gap: calc(12 * var(--u));
-  padding: calc(18 * var(--u)) 0;
-  border-bottom: calc(2 * var(--u)) dashed #e2ecf4;
-}
-.skill-item:last-child { border-bottom: none; }
-.skill-main { flex: 1; display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
-.skill-name { font-size: calc(26 * var(--u)); font-weight: 800; color: #2c3e50; }
-.skill-goal { font-size: calc(21 * var(--u)); color: #8a99aa; }
-.skill-status {
-  align-self: flex-start;
-  margin-top: calc(4 * var(--u));
-  padding: calc(1 * var(--u)) calc(10 * var(--u));
-  font-size: calc(19 * var(--u));
-  font-weight: 700;
-  border-radius: calc(4 * var(--u));
-  background: #eef6ff;
-  color: #4a7fa8;
-}
-.skill-status.s-learning { background: #fff3d6; color: #c97a14; }
-.skill-status.s-lit { background: #e9f9ee; color: #2f7a55; }
+/* 技能清单：去外框，改底部分割线 */
+.skill-item { display: flex; align-items: center; gap: calc(16 * var(--u)); }
+.skill-main { flex: 1; display: flex; flex-direction: column; gap: calc(6 * var(--u)); min-width: 0; }
+.skill-name { font-size: calc(27 * var(--u)); font-weight: 500; color: var(--text-primary); }
+.skill-goal { font-size: calc(22 * var(--u)); color: var(--text-tertiary); }
+.skill-main .tag-outline { align-self: flex-start; }
+/* statusClass 由 js 产出的值，仅在此着色 */
+.s-learning { color: var(--primary); border-color: var(--primary); }
+.s-lit { color: var(--success); border-color: var(--success); }
 
 .skill-ops { display: flex; gap: calc(12 * var(--u)); flex: none; }
 .op {
-  font-size: calc(21 * var(--u));
-  font-weight: 700;
-  color: #4a7fa8;
-  padding: calc(6 * var(--u)) calc(12 * var(--u));
-  background: #eef6ff;
-  border: calc(2 * var(--u)) solid #c2d4e3;
-  border-radius: calc(6 * var(--u));
+  font-size: calc(21 * var(--u)); font-weight: 500;
+  color: var(--primary);
+  padding: calc(8 * var(--u)) calc(16 * var(--u));
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
 }
-.op-danger { color: #a32e2a; background: #ffefee; border-color: #e6b4b1; }
+.op-danger { color: var(--danger); border-color: var(--danger); }
+
+/* ---------- v4：图标底板 / 页头 / 统计卡 ---------- */
+.sk-head { display: flex; align-items: center; gap: calc(18 * var(--u)); margin-bottom: calc(24 * var(--u)); }
+.sk-head-txt { flex: 1; min-width: 0; }
+.sk-head-txt .sk-h1 { margin-bottom: calc(6 * var(--u)); }
+.sk-head-txt .sk-sub { margin-bottom: 0; }
+.card-title-row .icon-badge { margin-right: calc(12 * var(--u)); }
+.sheet-head .icon-badge { margin-right: calc(12 * var(--u)); }
+.cat-row { gap: calc(10 * var(--u)); }
+.cat-row .icon-badge { flex: none; }
+.skill-item .icon-badge { flex: none; }
+.sk-list { margin-bottom: calc(4 * var(--u)); }

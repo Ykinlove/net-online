@@ -1,3 +1,4 @@
+const themeColors = require('../../../utils/theme-colors.js');
 // pages/admin/admin.js —— 内容审核页（作者 / 管理员）
 //
 // 作用：作者在这里按 id / 关键词定位一条命令百科或配置模板，修正字段后发布到
@@ -96,10 +97,15 @@ Page({
     pendingLoading: false,
 
     /* 权限状态：'checking' 判定中 | 'denied' 不是作者/管理员 | 'ok' 可以进 */
-    perm: 'checking'
+    perm: 'checking',
+
+    /* 视觉态（纯新增，不参与业务逻辑） */
+    focusKey: '',
+    copiedCode: ''
   },
 
   onLoad() {
+    getApp().applyTheme(this);
     const unlocked = wx.getStorageSync(UNLOCK_KEY) === '1';
     const hasPass = !!wx.getStorageSync(PASS_KEY);
     this.setData({ unlocked, hasPass });
@@ -144,7 +150,7 @@ Page({
     wx.showModal({
       title: '重设本机口令',
       content: '会清掉当前设备上设置的口令，之后可以重新设一个。云端数据不受影响。',
-      confirmColor: '#d9534f',
+      confirmColor: themeColors.get('danger'),
       success: (r) => {
         if (!r.confirm) return;
         wx.removeStorageSync(PASS_KEY);
@@ -245,6 +251,19 @@ Page({
   onTNote(e) { this.setData({ tNote: e.detail.value }); },
 
   onNote(e) { this.setData({ note: e.detail.value }); },
+
+  /* ---------- 视觉态：输入框聚焦 + 代码块复制（纯新增） ---------- */
+  onFieldFocus(e) { this.setData({ focusKey: e.currentTarget.dataset.k || '' }); },
+  onFieldBlur() { this.setData({ focusKey: '' }); },
+
+  onCopyCode(e) {
+    const code = e.currentTarget.dataset.code || '';
+    wx.vibrateShort({ type: 'light' });
+    wx.setClipboardData({ data: code });
+    this.setData({ copiedCode: code });
+    clearTimeout(this._copyTimer);
+    this._copyTimer = setTimeout(() => this.setData({ copiedCode: '' }), 1600);
+  },
 
   /* ---------- 待审核（社区投稿） ---------- */
   onTab(e) {

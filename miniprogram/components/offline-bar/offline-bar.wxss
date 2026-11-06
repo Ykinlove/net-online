@@ -1,0 +1,50 @@
+/* 离线提示条：细边、低饱和、跟随主题（CSS 变量从 page 根继承）。 */
+.ob-bar {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  margin: calc(12 * var(--u)) calc(24 * var(--u)) 0;
+  padding: calc(10 * var(--u)) calc(16 * var(--u));
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: calc(22 * var(--u));
+  line-height: 1.3;
+}
+
+.ob-dot {
+  width: calc(12 * var(--u));
+  height: calc(12 * var(--u));
+  border-radius: 50%;
+  margin-right: calc(12 * var(--u));
+  flex: 0 0 auto;
+}
+
+.ob-offline .ob-dot {
+  background: var(--warning);
+}
+
+.ob-syncing .ob-dot {
+  background: var(--primary);
+}
+
+.ob-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ob-btn {
+  flex: 0 0 auto;
+  margin-left: calc(14 * var(--u));
+  padding: calc(6 * var(--u)) calc(18 * var(--u));
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--text-on-primary);
+  font-size: calc(20 * var(--u));
+  white-space: nowrap;
+}
+
+.ob-btn:active {
+  background: var(--primary-hover);
+}

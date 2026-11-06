@@ -1,43 +1,62 @@
 const store = require('../../../utils/store.js');
 const { buildBook } = require('../../../utils/xlsx.js');
+const motion = require('../../../utils/motion.js');
 
 const WECHAT_ID = 'Ykinlove11';
 
 Page({
   data: {
-    nickname: '',
-    skillCount: 0,
-    archiveCount: 0
+    /* 首页太阳/月亮负责浅深直切；这里只留「跟随系统」总开关 */
+    followSystem: true,
+    tgPress: false,
+    tgPop: false,
+    liquidPct: 61,
+    liquidDragging: false,
+    durLabel: '标准'
   },
 
   onShow() {
-    store.init();
-    this.refresh();
-  },
-
-  refresh() {
-    const p = store.getProfile() || {};
+    getApp().applyTheme(this);
+    const dur = getApp().globalData.motionDur;
+    const pct = Math.round((0.48 - dur) / 0.36 * 100);
     this.setData({
-      nickname: p.nickname || '未建立档案',
-      skillCount: store.getList('skills').length,
-      archiveCount: store.getSnapshots().length
+      followSystem: getApp().getThemeMode() === 'system',
+      liquidPct: pct,
+      durLabel: this._label(pct)
     });
+    /* 技能树 / 存档库已移到「我的」页，这里不用再读一遍列表算数量 */
+    store.init();
   },
 
-  goSkill() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/mine-skill/mine-skill' });
+  onReady() { motion.cacheRects(this, '.liquid', '_lrects'); },
+
+  _label(p) { return p < 33 ? '舒缓' : (p < 66 ? '标准' : '干脆'); },
+
+  /* 液态滑块：拖动圆头挤压，数值实时广播成全站过渡时长 */
+  onLiquidStart(e) {
+    this.setData({ liquidDragging: true });
+    this._applyLiquid(e);
+  },
+  onLiquidMove(e) { this._applyLiquid(e); },
+  onLiquidEnd() { this.setData({ liquidDragging: false }); },
+  _applyLiquid(e) {
+    const t = e.touches && e.touches[0];
+    const r = (this._lrects || [])[0];
+    if (!t || !r || !r.width) return;
+    const p = Math.max(0, Math.min(100, (t.clientX - r.left) / r.width * 100));
+    const dur = +(0.48 - p / 100 * 0.36).toFixed(2);
+    getApp().setMotionDur(dur);
+    this.setData({ liquidPct: Math.round(p), durLabel: this._label(p) });
   },
 
-  goArchive() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/mine-archive/mine-archive' });
-  },
-
-  editProfile() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/onboard/onboard' });
-  },
-
-  changeChar() {
-    wx.navigateTo({ url: '/subpkg-mine/pages/chargen/chargen' });
+  /* 弹性开关：关掉时把当前生效主题固定成手动值，避免画面突然跳一下 */
+  onFollowSystem() {
+    const on = !this.data.followSystem;
+    const app = getApp();
+    app.setThemeMode(on ? 'system' : app.getTheme());
+    this.setData({ followSystem: on, tgPop: false, tgPress: true });
+    setTimeout(() => this.setData({ tgPop: true, tgPress: false }), 10);
+    setTimeout(() => this.setData({ tgPop: false }), 400);
   },
 
   copyWechat() {

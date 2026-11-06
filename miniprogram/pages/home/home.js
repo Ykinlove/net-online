@@ -1,28 +1,48 @@
 const store = require('../../utils/store.js');
 const { ANSWER_BOOK } = require('../../utils/seed.js');
-const { dayInfo, weekOfMonth, weeksInMonth } = require('../../utils/lunar.js');
+const portrait = require('../../utils/portrait.js');
+const motion = require('../../utils/motion.js');
 
-const WEEK_DAYS = ['日', '一', '二', '三', '四', '五', '六'];
+function shortDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const p = (n) => (n < 10 ? '0' + n : String(n));
+  return p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
 
 Page({
   data: {
-    answer: '',
-    answerIdx: -1,
+    theme: 'light',
+    /* 答案之书：只有一个内容节点，翻面靠两段动画，不做双面 DOM */
+    answerText: '',
+    flipPhase: '',
+    flipping: false,
+    liked: false,
+    bursting: false,
+    ripples: [],
     nickname: '',
-    weekDays: WEEK_DAYS,
-    calTitle: '',
-    calCells: [],
-    calFoot: ''
+    themePulse: false,
+    /* 页头小头像：由档案里的全身立绘映射到头肩特写 */
+    portraitImage: '/images/portrait/character_01.png',
+    /* 最近手记 */
+    recent: [],
+    cmdCount: 0,
+    projCount: 0
   },
 
   onLoad() {
-    this.drawAnswer();
+    getApp().applyTheme(this);
+    this.setData({ answerText: this._pick() });
+  },
+
+  onReady() {
+    motion.cacheRects(this, '.ripple-host');
   },
 
   onShow() {
+    getApp().applyTheme(this);
     store.init();
     this.refresh();
-    this.buildCalendar(this._calY, this._calM);
   },
 
   onPullDownRefresh() {
@@ -34,80 +54,92 @@ Page({
 
   refresh() {
     const p = store.getProfile() || {};
+    const charPath = store.getCharImage() || '/images/preset/char/character_01.png';
     this.setData({
-      nickname: p.nickname || ''
+      nickname: p.nickname || '',
+      portraitImage: portrait.fromChar(charPath)
+    });
+    this.buildRecent();
+  },
+
+  /* 最近手记：命令 + 项目合并按时间倒序取 3 条，内容是真实数据 */
+  buildRecent() {
+    const cmds = store.getList('commands') || [];
+    const projs = store.getList('projects') || [];
+    const rows = cmds.map((c) => ({
+      key: 'c-' + (c._id || c._localId),
+      kind: '命令',
+      title: c.title || '(未命名命令)',
+      sub: (c.device || '其他设备') + (c.content ? ' · ' + String(c.content).split('\n')[0].slice(0, 18) : ''),
+      date: shortDate(c.createdAt || c.updatedAt),
+      ts: c.createdAt || c.updatedAt || 0,
+      tab: 'commands'
+    })).concat(projs.map((p) => ({
+      key: 'p-' + (p._id || p._localId),
+      kind: '项目',
+      title: p.name || '(未命名项目)',
+      sub: (p.status || '进行中') + (p.content ? ' · ' + String(p.content).slice(0, 18) : ''),
+      date: shortDate(p.createdAt || p.updatedAt),
+      ts: p.createdAt || p.updatedAt || 0,
+      tab: 'projects'
+    })));
+    rows.sort((a, b) => b.ts - a.ts);
+    this.setData({
+      recent: rows.slice(0, 3),
+      cmdCount: cmds.length,
+      projCount: projs.length
     });
   },
 
-  drawAnswer() {
+  /* 首页快捷切换：太阳=浅色、月亮=深色。
+     走 App.setThemeMode，会广播到所有已打开页面并写进本地存储。
+     不做震动、不做位移：切换只播一次极轻的明度淡变，避免「屏幕抖一下」。 */
+  onThemeSwitch(e) {
+    const mode = e.currentTarget.dataset.mode;
+    if (getApp().getTheme() === mode || this.data.themePulse) return;
+    const next = getApp().setThemeMode(mode);
+    this.setData({ theme: next, themePulse: true });
+    setTimeout(() => this.setData({ themePulse: false }), 420);
+  },
+
+  _pick() {
     let i = Math.floor(Math.random() * ANSWER_BOOK.length);
-    if (ANSWER_BOOK.length > 1 && i === this.data.answerIdx) i = (i + 1) % ANSWER_BOOK.length;
-    this.setData({ answer: ANSWER_BOOK[i], answerIdx: i });
+    if (ANSWER_BOOK.length > 1 && i === this._answerIdx) i = (i + 1) % ANSWER_BOOK.length;
+    this._answerIdx = i;
+    return ANSWER_BOOK[i];
   },
 
-  buildCalendar(y, m) {
-    const now = new Date();
-    const year = typeof y === 'number' ? y : now.getFullYear();
-    const month = typeof m === 'number' ? m : now.getMonth();
-    this._calY = year;
-    this._calM = month;
-
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    // 有记录的日期集合
-    const marks = {};
-    store.getList('commands').forEach(c => { if (c.date) marks[String(c.date).slice(0, 10)] = 1; });
-    store.getList('projects').forEach(p => {
-      const sd = p.startDate || p.date;
-      if (sd) marks[String(sd).slice(0, 10)] = 1;
-      if (p.endDate) marks[String(p.endDate).slice(0, 10)] = 1;
-    });
-
-    const cells = [];
-    for (let i = 0; i < firstDay; i++) {
-      cells.push({ key: 'e' + i, day: '', sub: '', subKind: '', hasRec: false, isToday: false });
-    }
-    for (let d = 1; d <= daysInMonth; d++) {
-      const mm = String(month + 1).padStart(2, '0');
-      const dd = String(d).padStart(2, '0');
-      const key = year + '-' + mm + '-' + dd;
-      const info = dayInfo(year, month + 1, d);
-      cells.push({
-        key,
-        day: d,
-        sub: info.sub,
-        subKind: info.kind,
-        hasRec: !!marks[key],
-        isToday: year === now.getFullYear() && month === now.getMonth() && d === now.getDate()
-      });
-    }
-
-    /* 底部显示周数：看的是当前月就报“本月第 N 周”，其它月报“共 N 周” */
-    const isThisMonth = year === now.getFullYear() && month === now.getMonth();
-    const calFoot = isThisMonth
-      ? '本月第 ' + weekOfMonth(year, month + 1, now.getDate()) + ' 周'
-      : '共 ' + weeksInMonth(year, month + 1) + ' 周';
-
-    this.setData({
-      calTitle: year + ' 年 ' + (month + 1) + ' 月',
-      calCells: cells,
-      calFoot
-    });
+  /* 卡片翻面：前半程翻出 → 中点换文本 → 后半程翻回。
+     单一内容节点，任意次数点击结构都一致，不会出现第二面跑到左上角。 */
+  drawAnswer() {
+    if (this.data.flipping) return;
+    const next = this._pick();
+    this.setData({ flipping: true, flipPhase: 'out' });
+    setTimeout(() => {
+      this.setData({ answerText: next, flipPhase: 'in' });
+      setTimeout(() => this.setData({ flipping: false, flipPhase: '' }), 270);
+    }, 225);
   },
 
-  calPrev() {
-    let y = this._calY;
-    let m = this._calM - 1;
-    if (m < 0) { m = 11; y -= 1; }
-    this.buildCalendar(y, m);
+  /* 点赞炸一下：粒子节点靠 bursting 重建，保证每次点击都重新播 */
+  likeAnswer() {
+    const liked = !this.data.liked;
+    this.setData({ liked: liked, bursting: false });
+    if (!liked) return;
+    setTimeout(() => this.setData({ bursting: true }), 10);
+    setTimeout(() => this.setData({ bursting: false }), 720);
+    try { wx.vibrateShort({ type: 'light' }); } catch (err) {}
   },
 
-  calNext() {
-    let y = this._calY;
-    let m = this._calM + 1;
-    if (m > 11) { m = 0; y += 1; }
-    this.buildCalendar(y, m);
+  onRipple(e) { motion.ripple(this, e); },
+
+  goRecords() {
+    wx.switchTab({ url: '/pages/commands/commands' });
+  },
+
+  goTab(e) {
+    const tab = e.currentTarget.dataset.tab === 'projects' ? 'projects' : 'commands';
+    wx.switchTab({ url: '/pages/' + tab + '/' + tab });
   },
 
   goAddCmd() {

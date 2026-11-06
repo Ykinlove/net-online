@@ -1,18 +1,13 @@
-<view class="page mine">
+<view class="page mine theme-{{theme}}" data-theme="{{theme}}" style="--dur:{{dur || 0.28}}s">
 
-  <!-- 等级：只显示 Lv + 进度，不写任何说明文字 -->
-  <view class="card lv-card">
-    <view class="lv-hero">
-      <text class="lv-big">Lv.{{lv.level}}</text>
-      <view class="bar"><view class="bar-fill" style="width:{{lv.pct}}%"></view></view>
+  <!-- 资料卡：像素场景 + 玻璃信息层 + 头肩特写头像 -->
+  <view class="card char-card avatar-grad">
+    <image class="char-scene" src="{{bgImage}}" mode="aspectFill" />
+    <view class="char-scene-dim"></view>
+    <view class="char-scene-veil"></view>
+    <view class="illus round char-avatar avatar-active">
+      <image class="illus-char" src="{{portraitImage}}" mode="aspectFill" />
     </view>
-  </view>
-
-  <!-- 人物卡 -->
-  <view class="char-card">
-    <image class="char-bg" src="{{bgImage}}" mode="aspectFill"></image>
-    <view class="char-shade"></view>
-    <image class="char-img" src="{{charImage}}" mode="aspectFit"></image>
     <view class="char-info">
       <text class="char-name">{{nickname || '未命名工程师'}}</text>
       <text wx:if="{{oneLineDesc}}" class="char-desc">{{oneLineDesc}}</text>
@@ -42,10 +37,10 @@
     </view>
   </view>
 
-  <!-- 搜不到的：内容缺口的输入源 -->
+  <!-- 搜不到的说法：内容缺口的输入源 -->
   <view wx:if="{{missList.length}}" class="card">
     <view class="card-title-row">
-      <text class="card-title">🔍 搜不到的说法</text>
+      <text class="card-title">搜不到的说法</text>
       <text class="card-more" bindtap="goSearchMiss">全部 ›</text>
     </view>
     <view class="miss-list">
@@ -54,28 +49,44 @@
     <text class="miss-tip">这些是库里还没有的说法，可以反馈补充</text>
   </view>
 
-  <!-- 入口 -->
-  <view class="menu">
-    <view class="menu-row" bindtap="goFav" hover-class="menu-row-hover">
-      <text class="menu-ico">⭐</text>
-      <text class="menu-txt">我的收藏</text>
+  <!-- 功能列表：资料 + 形象合并成一个入口；技能树 / 存档库从设置页上移 -->
+  <view class="inset">
+    <view class="inset-row" bindtap="editProfile" hover-class="menu-row-hover">
+      <view class="icon-badge sm"><image class="icon icon-sm" src="/images/icons/{{theme || 'light'}}/user.png" mode="aspectFit" /></view>
+      <text class="inset-row-t">编辑档案</text>
+      <text class="inset-row-s">资料 / 形象</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="inset-row" bindtap="goSkill" hover-class="menu-row-hover">
+      <view class="icon-badge sm"><image class="icon icon-sm" src="/images/icons/{{theme || 'light'}}/tree.png" mode="aspectFit" /></view>
+      <text class="inset-row-t">技能树</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="inset-row" bindtap="goArchive" hover-class="menu-row-hover">
+      <view class="icon-badge sm"><image class="icon icon-sm" src="/images/icons/{{theme || 'light'}}/archive.png" mode="aspectFit" /></view>
+      <text class="inset-row-t">存档库</text>
+      <text wx:if="{{archiveCount}}" class="menu-badge">{{archiveCount}}</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="inset-row" bindtap="goFav" hover-class="menu-row-hover">
+      <view class="icon-badge sm"><image class="icon icon-sm" src="/images/icons/{{theme || 'light'}}/star.png" mode="aspectFit" /></view>
+      <text class="inset-row-t">我的收藏</text>
       <text wx:if="{{favCount}}" class="menu-badge">{{favCount}}</text>
       <text class="menu-arrow">›</text>
     </view>
-    <view class="menu-row" bindtap="goContribute" hover-class="menu-row-hover">
-      <text class="menu-ico">📝</text>
-      <text class="menu-txt">贡献内容</text>
+    <view class="inset-row" bindtap="goContribute" hover-class="menu-row-hover">
+      <view class="icon-badge sm"><image class="icon icon-sm" src="/images/icons/{{theme || 'light'}}/edit.png" mode="aspectFit" /></view>
+      <text class="inset-row-t">其他</text>
       <text class="menu-arrow">›</text>
     </view>
-    <!-- 「内容审核」只在 设置 → 制作人 一处，这里不再重复出第二个入口 -->
-    <view class="menu-row" bindtap="goSettings" hover-class="menu-row-hover">
-      <text class="menu-ico">⚙️</text>
-      <text class="menu-txt">设置</text>
+    <view class="inset-row" bindtap="goSettings" hover-class="menu-row-hover">
+      <view class="icon-badge sm"><image class="icon icon-sm" src="/images/icons/{{theme || 'light'}}/settings.png" mode="aspectFit" /></view>
+      <text class="inset-row-t">设置</text>
       <text class="menu-arrow">›</text>
     </view>
   </view>
 
   <view class="mine-foot">
-    <text class="foot-brand">🌐 Net 操作命令速记</text>
+    <text class="foot-brand">Net 操作命令速记</text>
   </view>
 </view>
