@@ -1,5 +1,5 @@
 const store = require('../../../utils/store.js');
-const { buildBook } = require('../../../utils/xlsx.js');
+const { buildBook } = require('../../utils/xlsx.js');
 const motion = require('../../../utils/motion.js');
 
 const WECHAT_ID = 'Ykinlove11';

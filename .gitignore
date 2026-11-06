@@ -62,3 +62,14 @@ miniprogram-tools/.last_upload_version
 
 # WorkBuddy 工具自动生成的目录（自动化记忆等），不属于源码
 .workbuddy/
+
+# ---- 代码质量整改（2026-11-06）产生的中间产物 ----
+# 图片压缩试算输出（正式产物已写回 miniprogram/images/）
+miniprogram-tools/_img_opt/
+# 数据压缩缓存（_pack_cache/<pkg>/<sha1>/ 下是 base64(deflate) 产物与 minify 原文）
+# 不入库：可由 build_data.py build 完全重建，入库会产生 800KB 巨型 diff。
+miniprogram-tools/_pack_cache/
+miniprogram-tools/_pack_stage/
+# 视觉比对临时图
+miniprogram-tools/_vis_*.png
+miniprogram-tools/_sample_assets.png

@@ -1,7 +1,8 @@
 const store = require('../../../utils/store.js');
-const admin = require('../../../utils/admin.js');
+const admin = require('../../utils/admin.js');
 const { PRESET_CHARS, PRESET_BGS } = require('../../../utils/seed.js');
-const { REWARDED_AD_UNIT, FREE_CHARS, FREE_BGS, ENABLE_LOCKS } = require('../../../utils/config.js');
+const { REWARDED_AD_UNIT, FREE_CHARS, FREE_BGS, ENABLE_LOCKS } = require('../../utils/config.js');
+const portrait = require('../../../utils/portrait.js');
 
 const DEFAULT_CHAR = PRESET_CHARS[0];
 const DEFAULT_BG = PRESET_BGS[0];
@@ -13,8 +14,8 @@ Page({
     pickChar: DEFAULT_CHAR,
     pickBg: DEFAULT_BG,
     /* v4：预览区插画路径，随选中项实时更新 */
-    charImage: '/images/preset/char/' + DEFAULT_CHAR + '.png',
-    bgImage: '/images/preset/bg/' + DEFAULT_BG + '.jpg',
+    charImage: portrait.charPath(DEFAULT_CHAR),
+    bgImage: portrait.bgPath(DEFAULT_BG),
     nickname: '',
     from: '',
     adReady: !!REWARDED_AD_UNIT
@@ -24,8 +25,9 @@ Page({
     getApp().applyTheme(this);
     store.init();
     const p = store.getProfile() || {};
-    const savedChar = store.getCharImage().replace(/^.*char\//, '').replace(/\.png$/, '');
-    const savedBg = store.getCharBg().replace(/^.*bg\//, '').replace(/\.jpg$/, '');
+    /* 兼容三种存档形态：纯 ID（当前）、旧路径（/images/preset/char/x.png）、新路径 */
+    const savedChar = portrait.idOf(store.getCharImage());
+    const savedBg = portrait.idOf(store.getCharBg());
     /* 老档案可能存着已被移出列表的形象/背景，归一化到默认，避免「一个都没选中」 */
     this.setData({
       nickname: p.nickname || '',
@@ -62,8 +64,8 @@ Page({
     this.setData({
       chars,
       bgs,
-      charImage: '/images/preset/char/' + pickChar + '.png',
-      bgImage: '/images/preset/bg/' + pickBg + '.jpg'
+      charImage: portrait.charPath(pickChar),
+      bgImage: portrait.bgPath(pickBg)
     });
   },
 
@@ -148,14 +150,15 @@ Page({
 
   /* ---------- 保存 ---------- */
   async confirm() {
-    const charPath = '/images/preset/char/' + this.data.pickChar + '.png';
-    const bgPath = '/images/preset/bg/' + this.data.pickBg + '.jpg';
-    store.setCharImage(charPath);
-    store.setCharBg(bgPath);
+    /* 存档存 ID 而不是路径：立绘在分包里，路径会随分包布局变 */
+    const charId = this.data.pickChar;
+    const bgId = this.data.pickBg;
+    store.setCharImage(charId);
+    store.setCharBg(bgId);
 
     const p = store.getProfile();
     if (p && p.nickname) {
-      await store.saveProfile(Object.assign({}, p, { charImage: charPath, bgImage: bgPath }));
+      await store.saveProfile(Object.assign({}, p, { charImage: charId, bgImage: bgId }));
     }
 
     if (this.data.from === 'first') {

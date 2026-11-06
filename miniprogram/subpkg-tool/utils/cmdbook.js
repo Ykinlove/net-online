@@ -75,41 +75,41 @@ const { BATCH62_EXTRA } = require('./cmdbook-batch62.js');
 const { BATCH63_EXTRA } = require('./cmdbook-batch63.js');
 const { BATCH64_EXTRA } = require('./cmdbook-batch64.js');
 const { BATCH65_EXTRA } = require('./cmdbook-batch65.js');
-const { BATCH66_EXTRA } = require('../../utils/cmdbook-batch66.js');
-const { BATCH67_EXTRA } = require('../../utils/cmdbook-batch67.js');
-const { BATCH68_EXTRA } = require('../../utils/cmdbook-batch68.js');
-const { BATCH69_EXTRA } = require('../../utils/cmdbook-batch69.js');
-const { BATCH70_EXTRA } = require('../../utils/cmdbook-batch70.js');
-const { BATCH71_EXTRA } = require('../../utils/cmdbook-batch71.js');
-const { BATCH72_EXTRA } = require('../../utils/cmdbook-batch72.js');
-const { BATCH73_EXTRA } = require('../../utils/cmdbook-batch73.js');
-const { BATCH74_EXTRA } = require('../../utils/cmdbook-batch74.js');
-const { BATCH75_EXTRA } = require('../../utils/cmdbook-batch75.js');
-const { BATCH76_EXTRA } = require('../../utils/cmdbook-batch76.js');
-const { BATCH77_EXTRA } = require('../../utils/cmdbook-batch77.js');
-const { BATCH78_EXTRA } = require('../../utils/cmdbook-batch78.js');
-const { BATCH79_EXTRA } = require('../../utils/cmdbook-batch79.js');
-const { BATCH80_EXTRA } = require('../../utils/cmdbook-batch80.js');
-const { BATCH81_EXTRA } = require('../../utils/cmdbook-batch81.js');
-const { BATCH82_EXTRA } = require('../../utils/cmdbook-batch82.js');
-const { BATCH83_EXTRA } = require('../../utils/cmdbook-batch83.js');
-const { BATCH84_EXTRA } = require('../../utils/cmdbook-batch84.js');
-const { BATCH85_EXTRA } = require('../../utils/cmdbook-batch85.js');
-const { BATCH86_EXTRA } = require('../../utils/cmdbook-batch86.js');
-const { BATCH87_EXTRA } = require('../../utils/cmdbook-batch87.js');
-const { BATCH88_EXTRA } = require('../../utils/cmdbook-batch88.js');
-const { BATCH89_EXTRA } = require('../../utils/cmdbook-batch89.js');
-const { BATCH90_EXTRA } = require('../../utils/cmdbook-batch90.js');
-const { BATCH91_EXTRA } = require('../../utils/cmdbook-batch91.js');
-const { BATCH92_EXTRA } = require('../../utils/cmdbook-batch92.js');
-const { BATCH93_EXTRA } = require('../../utils/cmdbook-batch93.js');
-const { BATCH94_EXTRA } = require('../../utils/cmdbook-batch94.js');
-const { BATCH95_EXTRA } = require('../../utils/cmdbook-batch95.js');
-const { BATCH96_EXTRA } = require('../../utils/cmdbook-batch96.js');
-const { BATCH97_EXTRA } = require('../../utils/cmdbook-batch97.js');
-const { BATCH98_EXTRA } = require('../../utils/cmdbook-batch98.js');
-const { BATCH99_EXTRA } = require('../../utils/cmdbook-batch99.js');
-const { BATCH100_EXTRA } = require('../../utils/cmdbook-batch100.js');
+const { BATCH66_EXTRA } = require('./cmdbook-batch66.js');
+const { BATCH67_EXTRA } = require('./cmdbook-batch67.js');
+const { BATCH68_EXTRA } = require('./cmdbook-batch68.js');
+const { BATCH69_EXTRA } = require('./cmdbook-batch69.js');
+const { BATCH70_EXTRA } = require('./cmdbook-batch70.js');
+const { BATCH71_EXTRA } = require('./cmdbook-batch71.js');
+const { BATCH72_EXTRA } = require('./cmdbook-batch72.js');
+const { BATCH73_EXTRA } = require('./cmdbook-batch73.js');
+const { BATCH74_EXTRA } = require('./cmdbook-batch74.js');
+const { BATCH75_EXTRA } = require('./cmdbook-batch75.js');
+const { BATCH76_EXTRA } = require('./cmdbook-batch76.js');
+const { BATCH77_EXTRA } = require('./cmdbook-batch77.js');
+const { BATCH78_EXTRA } = require('./cmdbook-batch78.js');
+const { BATCH79_EXTRA } = require('./cmdbook-batch79.js');
+const { BATCH80_EXTRA } = require('./cmdbook-batch80.js');
+const { BATCH81_EXTRA } = require('./cmdbook-batch81.js');
+const { BATCH82_EXTRA } = require('./cmdbook-batch82.js');
+const { BATCH83_EXTRA } = require('./cmdbook-batch83.js');
+const { BATCH84_EXTRA } = require('./cmdbook-batch84.js');
+const { BATCH85_EXTRA } = require('./cmdbook-batch85.js');
+const { BATCH86_EXTRA } = require('./cmdbook-batch86.js');
+const { BATCH87_EXTRA } = require('./cmdbook-batch87.js');
+const { BATCH88_EXTRA } = require('./cmdbook-batch88.js');
+const { BATCH89_EXTRA } = require('./cmdbook-batch89.js');
+const { BATCH90_EXTRA } = require('./cmdbook-batch90.js');
+const { BATCH91_EXTRA } = require('./cmdbook-batch91.js');
+const { BATCH92_EXTRA } = require('./cmdbook-batch92.js');
+const { BATCH93_EXTRA } = require('./cmdbook-batch93.js');
+const { BATCH94_EXTRA } = require('./cmdbook-batch94.js');
+const { BATCH95_EXTRA } = require('./cmdbook-batch95.js');
+const { BATCH96_EXTRA } = require('./cmdbook-batch96.js');
+const { BATCH97_EXTRA } = require('./cmdbook-batch97.js');
+const { BATCH98_EXTRA } = require('./cmdbook-batch98.js');
+const { BATCH99_EXTRA } = require('./cmdbook-batch99.js');
+const { BATCH100_EXTRA } = require('./cmdbook-batch100.js');
 
 const BASE = [
   {
@@ -1341,7 +1341,7 @@ function tplIndex() {
        本文件在 subpkg-tool/utils/ 下，往上两级是 miniprogram/，
        所以是 ../../utils/（分包页面在 subpkg-tool/pages/xxx/ 下，
        才需要往三级——两者别搞混）。 */
-    list = require('../../utils/tplbook.js').TPLS || [];
+    list = require('./tplbook.js').TPLS || [];
   } catch (e) {
     list = [];
   }
@@ -1526,7 +1526,7 @@ function searchTemplates(kw, limit) {
 function listBy(opts) {
   const o = opts || {};
   const all = buildIndex();
-  const cats = require('../../utils/categories.js');
+  const cats = require('./categories.js');
   const rows = [];
 
   for (let i = 0; i < all.length; i++) {
@@ -1559,7 +1559,7 @@ function listBy(opts) {
  */
 function categoryStats() {
   const all = buildIndex();
-  const cats = require('../../utils/categories.js');
+  const cats = require('./categories.js');
   const counts = {};
   cats.CATEGORIES.forEach(function (c) { counts[c.key] = 0; });
   for (let i = 0; i < all.length; i++) {

@@ -7,7 +7,7 @@
 //   命令百科 book：{ id, devs, name, kw:[], cmds:[[厂商,命令],...], tip }
 //   配置模板 tpl ：{ id, kw:[], cat, name, vendor, code, note }
 const cmdbook = require('../../utils/cmdbook.js');
-const contrib = require('../../../utils/contrib.js');
+const contrib = require('../../utils/contrib.js');
 
 const DEFAULT_DEVS = ['Switch', 'Router', 'AC', 'AP', '防火墙'];
 

@@ -27,6 +27,9 @@
     18. 暗黑图标          check_dark_icons.py   （theme.json 双主题对称 + 图标真实存在）
     19. 离线缓存          check_offline.py      （离线层接线 + 分包隔离铁律 + 云端真相源）
     20. 主题变量          check_theme_tokens.py （CSS 令牌闭合 + 深浅覆盖 + 三处色值一致）
+    21. 代码质量          check_code_quality.py（复刻开发者工具三条包体规则：
+                                                  每包编译后 < 1.5M / 图片音频合计 < 200K /
+                                                  主包无「仅分包在用」的 JS）
 """
 import io, os, re, subprocess, sys, time
 
@@ -69,11 +72,40 @@ def head(text, n=8):
     return '\n'.join(lines[-n:])
 
 
+# ---- 跨包模块查找 -------------------------------------------------------
+# 2026-11-06 起，为过开发者工具「主包 < 1.5M」检查，大量 util 被物理迁进分包。
+# 守卫项如果写死某个包路径，以后再挪一次文件就会误报「缺少 xxx」。
+# 这两个辅助函数在主包 + 两个分包里按文件名找，找不到返回空串。
+UTIL_DIRS = [
+    os.path.join(MP, 'utils'),
+    os.path.join(MP, 'subpkg-tool', 'utils'),
+    os.path.join(MP, 'subpkg-mine', 'utils'),
+]
+
+
+def find_module(name):
+    """在主包 / 两个分包的 utils 目录里找同名文件，返回绝对路径；找不到返回 None。"""
+    for d in UTIL_DIRS:
+        p = os.path.join(d, name)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def read_module(name):
+    """跨包读一个 util 的内容；找不到返回空串。"""
+    p = find_module(name)
+    if not p:
+        return ''
+    with io.open(p, encoding='utf-8') as f:
+        return f.read()
+
+
 def check_syntax():
     """源 + 产物全部 node --check"""
     files = []
     src_dir = os.path.join(HERE, 'data-src')
-    for d in [src_dir, os.path.join(MP, 'utils'), os.path.join(MP, 'subpkg-tool', 'utils')]:
+    for d in [src_dir] + UTIL_DIRS:
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
@@ -178,9 +210,9 @@ def check_structure():
         if not is_registered(need):
             problems.append('app.json 未注册页面：' + need)
 
-    # 客户端投稿模块
-    if not os.path.isfile(os.path.join(MP, 'utils', 'contrib.js')):
-        problems.append('缺少客户端模块：miniprogram/utils/contrib.js')
+    # 客户端投稿模块（2026-11-06 起随分包迁到 subpkg-tool/utils/）
+    if not find_module('contrib.js'):
+        problems.append('缺少客户端模块：contrib.js（应在 subpkg-tool/utils/）')
 
     # 五个云函数：每个都要有 index.js + package.json
     cf_root = os.path.join(ROOT, 'cloudfunctions')
@@ -249,12 +281,12 @@ def check_entry_paths():
     if 'isAdmin' in mine_js:
         problems.append('mine.js 仍带 isAdmin 判定（该页已无管理入口，应删掉这次云函数请求）')
 
-    # 白名单不得写进包体
-    admin_util = read(os.path.join('utils', 'admin.js'))
+    # 白名单不得写进包体（admin.js 随分包迁走，两个分包各有一份）
+    admin_util = read_module('admin.js')
     if 'oVfs1' in admin_util:
-        problems.append('utils/admin.js 里出现了 openid 白名单（包体人人可下载，等于公开）')
+        problems.append('admin.js 里出现了 openid 白名单（包体人人可下载，等于公开）')
     if not admin_util:
-        problems.append('缺少 utils/admin.js（作者判定工具）')
+        problems.append('缺少 admin.js（作者判定工具，应在 subpkg-tool/utils/ 或 subpkg-mine/utils/）')
 
     for word in ['（作者）', '（投稿）', '(作者)', '(投稿)']:
         if word in mine_wxml:
@@ -471,6 +503,14 @@ def main():
     run('暗黑图标', ['python', os.path.join(HERE, 'check_dark_icons.py')])
     run('离线缓存', ['python', os.path.join(HERE, 'check_offline.py')])
     run('主题变量', ['python', os.path.join(HERE, 'check_theme_tokens.py')])
+
+    # 22 代码质量（2026-11-06 新增）
+    #   复刻微信开发者工具「代码质量」面板里跟包体相关的三条规则：
+    #   · 每个包编译后 < 1.5 M（含分包，不只是主包）
+    #   · 主包+分包图片音频合计 < 200 K
+    #   · 主包里没有「只有分包在用」的 JS
+    #   这三条在开发者工具里是 GUI 点出来的，CI 里没法用，只能自己复刻。
+    run('代码质量', ['python', os.path.join(HERE, 'check_code_quality.py')])
 
     # 11 体积
     check_size()

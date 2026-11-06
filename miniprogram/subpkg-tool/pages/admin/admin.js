@@ -19,8 +19,8 @@ const themeColors = require('../../../utils/theme-colors.js');
 //   配置模板 tpl ：{ id, kw:[], cat, name, vendor, code, note }
 const cmdbook = require('../../utils/cmdbook.js');
 const hotfix = require('../../../utils/hotfix.js');
-const contrib = require('../../../utils/contrib.js');
-const admin = require('../../../utils/admin.js');
+const contrib = require('../../utils/contrib.js');
+const admin = require('../../utils/admin.js');
 
 /* 本地口令。
  *

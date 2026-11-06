@@ -1,6 +1,6 @@
 const themeColors = require('../../../utils/theme-colors.js');
 const store = require('../../../utils/store.js');
-const { computeCategoryLevels } = require('../../../utils/skill.js');
+const { computeCategoryLevels } = require('../../utils/skill.js');
 
 const STATUS_LIST = [
   { k: 'want', name: '想学' },

@@ -1,0 +1,1 @@
+const D=require('./cmdbook-data.js');module.exports={BATCH77_EXTRA:D.BATCH77_EXTRA};

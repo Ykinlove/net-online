@@ -26,7 +26,7 @@ Page({
     getApp().applyTheme(this);
     store.init();
     const p = store.getProfile() || {};
-    const charPath = store.getCharImage() || p.charImage || '/images/preset/char/character_01.png';
+    const charPath = store.getCharImage() || p.charImage || 'character_01';
     this.setData({
       nickname: p.nickname || '',
       oneLineDesc: p.oneLineDesc || '',
@@ -34,7 +34,7 @@ Page({
       org: p.org || '',
       major: p.major || '',
       portraitImage: portrait.fromChar(charPath),
-      bgImage: store.getCharBg() || p.bgImage || '/images/preset/bg/background_01.jpg',
+      bgImage: portrait.bgPath(store.getCharBg() || p.bgImage || 'background_01'),
       interests: splitKw(p.interests),
       careers: splitKw(p.careers),
       favCount: store.getFavs().length,

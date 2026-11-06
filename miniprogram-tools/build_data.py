@@ -19,13 +19,17 @@
     改数据要同时改两处，一旦只改一处就会漂移（本项目已实测漂移 4 个文件）。
     现在改成「源 → 产物」单向，源是唯一真源，从根上消除漂移。
 """
-import os, io, sys, json, shutil
+import os, io, sys, json, shutil, subprocess, hashlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..'))
 MP = os.path.join(ROOT, 'miniprogram')
 SRC = os.path.join(HERE, 'data-src')
 MANIFEST = os.path.join(HERE, 'data-manifest.json')
+# 压缩产物的缓存目录：<sha1>.js 是压缩形态，<sha1>.min.js 是 minify 后的原文。
+# sha1 取自 minify 后内容，源没变就命中缓存，重复构建不必再调 node。
+PACK_CACHE = os.path.join(HERE, '_pack_cache')
+PACK_STAGE = os.path.join(HERE, '_pack_stage')
 
 # 逻辑文件：手写代码，不是数据产物，不在 manifest 里，也不需要有对应源。
 # 孤儿扫描要跳过它们，否则真正的残留产物会被噪音淹没。
@@ -63,11 +67,93 @@ def write(p, s):
 
 
 def expected_output(name):
-    """源文件应该产出什么内容"""
+    """源文件应该产出什么内容
+
+    两步：minify（去注释/空白）-> 压缩（base64 + raw deflate）。
+    压缩这步的存在理由是微信开发者工具「代码质量」要求每个包编译后 < 1.5 MB，
+    命令库原样打包会让 subpkg-tool 顶到 2.5 MB；运行时由 utils/decompress.js 解回来。
+    """
     sp = os.path.join(SRC, name)
     if not os.path.exists(sp):
         return None
     return minify_js(read(sp))
+
+
+def _sha1(text):
+    return hashlib.sha1(text.encode('utf-8')).hexdigest()[:16]
+
+
+def pack_outputs(files):
+    """{name: 产物内容}。
+
+    按分包分组，每组合并成一个 cmdbook-data.js（整体 deflate 一次），
+    各数据文件变成薄壳从数据包里取自己那一份。
+    合并的理由：deflate 的窗口只有 32 KB，95 个文件各压各的匹配不到跨文件重复，
+    合并后压缩率从 58% 回到 71%，直接省出约 176 KB —— 决定分包能否过 1.5 MB。
+
+    缓存：整组内容的 sha1 作为键，源没变就复用，不必反复调 node。
+    """
+    by_pkg = {}
+    for name, pkg in files.items():
+        sp = os.path.join(SRC, name)
+        if not os.path.exists(sp):
+            by_pkg.setdefault(pkg, {})[name] = None
+            continue
+        by_pkg.setdefault(pkg, {})[name] = minify_js(read(sp))
+
+    out = {}
+    data_out = {}
+    for pkg, group in by_pkg.items():
+        valid = {n: m for n, m in group.items() if m is not None}
+        for n, m in group.items():
+            if m is None:
+                out[n] = None
+        if not valid:
+            continue
+
+        joined = '\n'.join(valid[n] for n in sorted(valid))
+        key = _sha1(joined)
+        cache_dir = os.path.join(PACK_CACHE, pkg, key)
+        shell_of = lambda n: os.path.join(cache_dir, 'shell-' + n)
+        data_file = os.path.join(cache_dir, 'cmdbook-data.js')
+
+        if not (os.path.exists(data_file) and all(os.path.exists(shell_of(n)) for n in valid)):
+            shutil.rmtree(cache_dir, ignore_errors=True)
+            os.makedirs(cache_dir, exist_ok=True)
+            stage = os.path.join(PACK_STAGE, pkg, key)
+            shutil.rmtree(stage, ignore_errors=True)
+            os.makedirs(stage, exist_ok=True)
+            for n, m in valid.items():
+                write(os.path.join(stage, n), m)
+            r = subprocess.run(
+                ['node', os.path.join(HERE, 'pack_data.js'), '--merge', stage, cache_dir],
+                capture_output=True, text=True)
+            if r.returncode != 0:
+                sys.stderr.write(r.stdout + r.stderr)
+                raise SystemExit('合并打包失败：node pack_data.js 返回 %d' % r.returncode)
+            shutil.rmtree(stage, ignore_errors=True)
+
+        for n in valid:
+            p = shell_of(n)
+            if not os.path.exists(p):
+                raise SystemExit('薄壳产物缺失：%s' % p)
+            out[n] = read(p)
+        data_out[pkg] = read(data_file)
+    return out, data_out
+
+
+def build_expected_map(files):
+    """({name: 期望产物内容}, {pkg: cmdbook-data.js 内容})；源缺失的名字对应 None。"""
+    names = sorted(files)
+    packed, data_map = pack_outputs(files)
+    result = {}
+    for name in names:
+        sp = os.path.join(SRC, name)
+        if not os.path.exists(sp):
+            result[name] = None
+        else:
+            result[name] = packed[name]
+    return result, data_map
 
 
 def target_path(name, pkg):
@@ -77,10 +163,23 @@ def target_path(name, pkg):
 def do_build(files):
     """从源生成产物。只写变化的文件。"""
     changed, missing, orphan = [], [], []
+    want_map, data_map = build_expected_map(files)
+
+    # 先写数据包（薄壳依赖它）
+    for pkg, content in sorted(data_map.items()):
+        tp = os.path.join(PKG_DIR[pkg], 'cmdbook-data.js')
+        cur = read(tp) if os.path.exists(tp) else None
+        if cur == content:
+            continue
+        os.makedirs(os.path.dirname(tp), exist_ok=True)
+        write(tp, content)
+        changed.append(('cmdbook-data.js', pkg,
+                        len(cur.encode('utf-8')) if cur else 0,
+                        len(content.encode('utf-8'))))
 
     for name in sorted(files):
         pkg = files[name]
-        want = expected_output(name)
+        want = want_map[name]
         if want is None:
             missing.append(name)
             continue
@@ -124,9 +223,16 @@ def do_build(files):
 def do_check(files):
     """校验产物与源字节级一致。不一致返回非 0。"""
     bad = []
+    want_map, data_map = build_expected_map(files)
+    for pkg, content in sorted(data_map.items()):
+        tp = os.path.join(PKG_DIR[pkg], 'cmdbook-data.js')
+        if not os.path.exists(tp):
+            bad.append(('cmdbook-data.js', pkg, '数据包产物不存在'))
+        elif read(tp) != content:
+            bad.append(('cmdbook-data.js', pkg, '数据包内容不一致'))
     for name in sorted(files):
         pkg = files[name]
-        want = expected_output(name)
+        want = want_map[name]
         if want is None:
             bad.append((name, pkg, '源文件不存在'))
             continue
@@ -163,9 +269,11 @@ def do_check(files):
 
 
 def do_restore(files):
-    """救急：把产物（压缩版）反压缩回 data-src 的可读格式。
+    """救急：把产物（压缩形态）解回 data-src 的可读源码。
 
-    只在源被误改、且产物是正确版本时使用。
+    产物现在是 base64(deflate(JSON))，解回来是 JSON 形态的数组字面量。
+    注意引号风格会从单引号变成双引号（minify_js 不改字符串内部的引号），
+    所以回灌后产物字节会变 —— 但数据本身一致，再跑一次 build 即可自洽。
     """
     n = 0
     for name in sorted(files):
@@ -173,15 +281,19 @@ def do_restore(files):
         tp = target_path(name, pkg)
         if not os.path.exists(tp):
             continue
-        cur = read(tp)
-        sp = os.path.join(SRC, name)
-        old = read(sp) if os.path.exists(sp) else ''
-        if old == cur:
+        r = subprocess.run(
+            ['node', os.path.join(HERE, 'unpack_data.js'), tp],
+            capture_output=True, text=True)
+        if r.returncode != 0:
+            print('  !! %s 解包失败：%s' % (name, (r.stderr or r.stdout).strip()))
             continue
-        write(sp, cur)
+        sp = os.path.join(SRC, name)
+        write(sp, r.stdout)
         n += 1
         print('  已回灌: %s' % name)
     print('回灌 %d 个文件' % n)
+    print('提示：引号风格会变（单引号 -> 双引号），再跑一次 '
+          'python build_data.py build 让产物与源重新对齐。')
     return 0
 
 
@@ -201,8 +313,9 @@ def pkg_size(d):
 def do_status(files):
     same = 0
     diff = []
+    want_map, data_map = build_expected_map(files)
     for name in sorted(files):
-        want = expected_output(name)
+        want = want_map[name]
         tp = target_path(name, files[name])
         if want is None or not os.path.exists(tp):
             diff.append(name)

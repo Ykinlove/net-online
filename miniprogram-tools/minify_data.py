@@ -14,7 +14,10 @@ DIRS = [os.path.join(MP, 'utils'), os.path.join(MP, 'subpkg-tool', 'utils')]
 SRC = os.path.join(HERE, 'data-src')
 
 # 只压缩「纯数据」文件：逻辑文件（store/skill/xlsx/lunar/level/cmdbook）不碰
-SKIP = {'cmdbook.js', 'store.js', 'skill.js', 'xlsx.js', 'lunar.js', 'level.js', 'seed.js', 'config.js'}
+# decompress.js 是解压器、cmdbook-data.js 是合并后的数据包 —— 两者都是构建产物，
+# 但形态不是「纯数组字面量」，绝不能被当成数据再压缩一遍。
+SKIP = {'cmdbook.js', 'store.js', 'skill.js', 'xlsx.js', 'lunar.js', 'level.js',
+        'seed.js', 'config.js', 'decompress.js', 'cmdbook-data.js'}
 
 
 TIGHT = set('[]{}(),;:=')

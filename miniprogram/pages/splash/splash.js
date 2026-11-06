@@ -48,8 +48,9 @@ Page({
        用默认形象直接进首页，想换去「设置 → 我的形象」。
        判断「要不要选形象」的活儿交给建档流程（onboard → chargen?from=first）。 */
     if (!store.getCharImage()) {
-      store.setCharImage('/images/preset/char/character_01.png');
-      store.setCharBg('/images/preset/bg/background_01.jpg');
+      /* 存角色 ID 而不是路径：立绘已挪进分包，路径随布局变，ID 才稳定 */
+      store.setCharImage('character_01');
+      store.setCharBg('background_01');
     }
     wx.switchTab({ url: '/pages/home/home' });
     this.setData({ entering: false });

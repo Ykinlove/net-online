@@ -54,7 +54,7 @@ Page({
 
   refresh() {
     const p = store.getProfile() || {};
-    const charPath = store.getCharImage() || '/images/preset/char/character_01.png';
+    const charPath = store.getCharImage() || 'character_01';
     this.setData({
       nickname: p.nickname || '',
       portraitImage: portrait.fromChar(charPath)

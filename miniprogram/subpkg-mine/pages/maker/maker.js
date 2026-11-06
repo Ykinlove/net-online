@@ -5,7 +5,7 @@
 //
 // 「贡献内容」（投稿）已移到「我的」页，对所有用户开放（谁都能投稿）。
 // 管理入口对普通用户整体隐藏，避免误以为这个入口是自己审稿用的。
-const admin = require('../../../utils/admin.js');
+const admin = require('../../utils/admin.js');
 
 Page({
   data: {
