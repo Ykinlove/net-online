@@ -35,6 +35,10 @@
     23. 工具缓存          check_devtools_cache.py（编译缓存里的幽灵模块检查：
                                                   缓存有、磁盘无 = 开发者工具会按旧代码
                                                   统计包体，「代码质量」结果不可信）
+    24. 平铺预览版        build_preview.py --ci（WorkBuddy 预览只认 app.json.pages，
+                                                  不认 subPackages —— 预览必须用平铺版。
+                                                  这项防「改了源码忘了重新生成平铺版
+                                                  就部署」，预览会悄悄显示旧代码）
 """
 import io, os, re, subprocess, sys, time
 
@@ -524,6 +528,13 @@ def main():
     #     开发者工具会按旧代码统计包体，「代码质量」面板结果不可信。
     run('主包布局', ['python', os.path.join(HERE, 'check_pkg_layout.py')])
     run('工具缓存', ['python', os.path.join(HERE, 'check_devtools_cache.py')])
+
+    # 25 平铺预览版（2026-11-06 新增）
+    #   WorkBuddy 的云端预览打包器只认 app.json 的 pages 数组、不认 subPackages，
+    #   所以预览必须用一份「平铺版」小程序（19 页全进 pages，无 subPackages）。
+    #   这项守卫防的是「改了 miniprogram/ 却忘了重新生成平铺版就部署」——
+    #   那样预览会悄悄显示旧代码，比报错更难查。
+    run('平铺预览版', ['python', os.path.join(HERE, 'build_preview.py'), '--ci'])
 
     # 11 体积
     check_size()

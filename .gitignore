@@ -18,6 +18,19 @@ clone_work/
 # 根目录的 chargen_new（插画素材 12MB，与小程序运行无关）
 chargen_new/
 
+# preview-dist：给 WorkBuddy 预览用的「平铺版」小程序（2026-11-06 起）。
+# 由 miniprogram-tools/build_preview.py 从 miniprogram/ 生成，是纯构建产物：
+#   · app.json 的 pages 收全部 19 页、去掉 subPackages/preloadRule
+#   · 其余文件与 miniprogram/ 逐字节相同（路由与 require 路径零改动）
+# 不入库：内容全是 miniprogram/ 的副本，入库只会产生 1.6MB 巨型 diff。
+preview-dist/
+
+# miniprogram-tools/ 下的临时测量脚本（一次性排查用）
+miniprogram-tools/_measure_flat.py
+miniprogram-tools/_measure_data.py
+miniprogram-tools/_probe_ci.js
+miniprogram-tools/_merged.json
+
 # chargen_preview：脚本与配置留档，生成的图片原料不留
 # （最终采用的图已经在 miniprogram/images/preset/char）
 chargen_preview/*.png
