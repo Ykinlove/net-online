@@ -183,6 +183,42 @@ def check(out_dir):
     return 0
 
 
+def flat_size_check(out_dir):
+    """平铺版的包体必须留在微信「上传硬限 2 MiB」之内。
+
+    平铺版通常不是发布产物（发布前要把 miniprogram/ 部署回去），
+    但万一直接发布了，它就是主包 —— 这时 2 MiB 是微信的硬上限，超了直接传不上去。
+    顺便报一下与开发者工具 1.5 M 建议线的差距，让代价显式可见。
+    """
+    sys.path.insert(0, HERE)
+    import check_code_quality as ccq
+
+    app = read_json(os.path.join(out_dir, 'app.json'))
+    files = ccq.walk(out_dir)
+    roots = ccq.pkg_roots(app)          # 平铺版没有 subPackages -> 只有一个 __APP__
+    agg = {r: 0 for r in roots}
+    for rel, p, size in files:
+        r = ccq.pkg_of(rel, roots)
+        agg[r] += ccq.compiled_size(rel, size) if rel.endswith('.js') else size
+
+    HARD = 2 * 1024 * 1024               # 微信官方上传上限 2 MiB
+    ADVICE = int(1.5 * 1024 * 1024)      # 开发者工具「代码质量」建议线
+    bad = []
+    for r in roots:
+        v = int(agg[r] * ccq.SAFETY)
+        flag = 'OK' if v < HARD else '✗ 超 %d B' % (v - HARD)
+        print('    %-14s 编译后估算 %9d B  硬限 %d %s  距 1.5M 建议线 %+d'
+              % (r, v, HARD, flag, v - ADVICE))
+        if v >= HARD:
+            bad.append('平铺版 %s 编译后估算 %d B，超出微信 2 MiB 上传硬限 %d B'
+                       % (r, v, v - HARD))
+    if bad:
+        for b in bad:
+            print('  ' + b)
+        return 1
+    return 0
+
+
 def ci(out_dir):
     """CI 模式：目录不存在就生成，存在就严格校验（防止「改了代码忘了重新生成」）。"""
     if not os.path.isdir(out_dir):
@@ -190,7 +226,11 @@ def ci(out_dir):
         print('  preview-dist 原本不存在 —— 已自动生成'
               '（手动刷新跑 python build_preview.py）')
         return 0
-    return check(out_dir)
+    rc = check(out_dir)
+    if rc != 0:
+        return rc
+    print('  平铺版包体：')
+    return flat_size_check(out_dir)
 
 
 def main():
