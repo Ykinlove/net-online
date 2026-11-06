@@ -55,6 +55,20 @@ def read(rel):
         return f.read()
 
 
+def read_deployed_version():
+    """读 cloudfunctions/getCmdLib/DEPLOYED_VERSION —— 记录云端已部署的命令库版本号。
+
+    该文件只在重新部署 getCmdLib 之后更新。守卫拿它和本地生成的版本号比对，
+    不一致就说明「命令库改了但云端还没重新部署」，端侧会一直拿旧数据。
+    """
+    p = os.path.join(ROOT, 'cloudfunctions', 'getCmdLib', 'DEPLOYED_VERSION')
+    if not os.path.isfile(p):
+        return None
+    with io.open(p, encoding='utf-8') as f:
+        v = f.read().strip()
+    return v or None
+
+
 def main():
     problems = []
 
@@ -222,13 +236,23 @@ def main():
                 problems.append('build_cmdlib.js 执行失败：%s'
                                 % (p.stderr or p.stdout or '').strip().split('\n')[-1])
             else:
-                # 与云端已部署的版本号比对（2026-11-06 部署时记录）
                 out = p.stdout or ''
                 m = re.search(r'版本号：(\S+)', out)
-                if m and m.group(1) != 'c1216-c833a122':
-                    problems.append('命令库版本号变了：本地生成 %s，云端部署的是 '
-                                    'c1216-c833a122（需重新部署 getCmdLib 并让端侧重拉）'
-                                    % m.group(1))
+                if m:
+                    local_ver = m.group(1)
+                    # 云端已部署的版本号记在 DEPLOYED_VERSION 文件里 ——
+                    # 不写死在脚本里，否则每改一次命令库都要动脚本（容易忘、也容易改错）。
+                    # 该文件只在**重新部署 getCmdLib 之后**才更新。
+                    deployed_ver = read_deployed_version()
+                    if deployed_ver is None:
+                        problems.append('缺少 cloudfunctions/getCmdLib/DEPLOYED_VERSION'
+                                        '（记录云端已部署的命令库版本号）')
+                    elif local_ver != deployed_ver:
+                        problems.append(
+                            '命令库版本与云端不一致：本地生成 %s，云端部署的是 %s'
+                            '（需重新部署 getCmdLib，并把 DEPLOYED_VERSION 更新为 %s，'
+                            '端侧下次启动会自动重拉）'
+                            % (local_ver, deployed_ver, local_ver))
         except Exception as e:
             problems.append('build_cmdlib.js 执行异常：%s' % e)
 

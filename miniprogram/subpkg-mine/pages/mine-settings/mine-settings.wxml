@@ -40,10 +40,6 @@
       <text class="row-label">意见反馈</text>
       <text class="row-arrow">›</text>
     </button>
-    <view class="list-item row">
-      <text class="row-label">版本</text>
-      <text class="row-value">v5.20</text>
-    </view>
     <view class="list-item row" bindtap="goMaker" hover-class="row-hover">
       <text class="row-label">制作人</text>
       <text class="row-value">杨雷鹏</text>

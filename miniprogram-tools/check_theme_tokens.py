@@ -140,6 +140,8 @@ def main():
     sys_dark = media_blocks(css, '@media (prefers-color-scheme: dark)', ':root')
     class_dark = blocks_of(css, '.theme-dark')
     class_light = blocks_of(css, '.theme-light')
+    attr_dark = blocks_of(css, '[data-theme="dark"]')
+    attr_light = blocks_of(css, '[data-theme="light"]')
     v3_light = blocks_of(top_level_css(css), ':root, page')
 
     if not base_root:
@@ -183,6 +185,27 @@ def main():
     if only_light:
         problems.append('.theme-light 有而 .theme-dark 没有的令牌：%s'
                         % ' '.join(only_light))
+
+    # ---------- 3b. 类选择器与属性选择器必须完全等价 ----------
+    # app.wxss 注释声明「属性选择器在 Skyline 不受支持，因此同时提供等价类选择器」。
+    # 若两者不等价，就出现「只带 data-theme 不带 theme-dark 类」的元素漏覆盖 ——
+    # 2026-11-06 之前 [data-theme="dark"] 就少了 12 个质感令牌，属于真实隐患。
+    for cname, aname, cset, aset in (
+            ('.theme-dark', '[data-theme="dark"]', class_dark, attr_dark),
+            ('.theme-light', '[data-theme="light"]', class_light, attr_light)):
+        miss_a = sorted(set(cset) - set(aset))
+        miss_c = sorted(set(aset) - set(cset))
+        if miss_a:
+            problems.append('%s 有而 %s 没有的令牌（两套写法必须等价）：%s'
+                            % (cname, aname, ' '.join(miss_a)))
+        if miss_c:
+            problems.append('%s 有而 %s 没有的令牌（两套写法必须等价）：%s'
+                            % (aname, cname, ' '.join(miss_c)))
+        # 同名令牌的值也必须一致，否则两套写法表现不同
+        for k in sorted(set(cset) & set(aset)):
+            if cset[k] != aset[k]:
+                problems.append('%s 与 %s 的 --%s 取值不一致：%s vs %s'
+                                % (cname, aname, k, cset[k], aset[k]))
 
     # ---------- 4. 质感层颜色令牌两套手动主题都要覆盖 ----------
     v3_colors = {k for k, v in v3_light.items() if COLOR_VALUE.search(v)}

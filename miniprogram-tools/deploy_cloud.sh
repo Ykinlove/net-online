@@ -52,6 +52,16 @@ for fn in $TARGETS; do
   fi
   echo "── 部署 $fn ──"
   tcb fn deploy "$fn" -e "$ENV_ID" --dir "$DIR" --runtime "$RUNTIME" --force
+  # 部署成功后记录本次版本号：DEPLOYED_VERSION 是「云端已在跑哪一版」的唯一凭据，
+  # CI 守卫靠它比对「本地生成的版本」与「云端在跑的版本」。
+  # 部署失败不写 —— 否则标记文件会比云端实际版本新，守卫就失去意义了。
+  if [ "$fn" = "getCmdLib" ]; then
+    NEW_VER="$(node miniprogram-tools/build_cmdlib.js --check | sed -n 's/^版本号：//p')"
+    if [ -n "$NEW_VER" ]; then
+      echo "$NEW_VER" > cloudfunctions/getCmdLib/DEPLOYED_VERSION
+      echo "  ✓ 已记录 DEPLOYED_VERSION = $NEW_VER"
+    fi
+  fi
   echo ""
 done
 

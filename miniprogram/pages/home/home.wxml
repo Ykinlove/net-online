@@ -104,6 +104,6 @@
   </view>
 
   <view class="home-foot">
-    <text>{{nickname ? nickname + ' · ' : ''}}Net 操作命令速记　v5.20</text>
+    <text>{{nickname ? nickname + ' · ' : ''}}Net 操作命令速记</text>
   </view>
 </view>

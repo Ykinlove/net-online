@@ -189,7 +189,10 @@ view, text, scroll-view, button, input, textarea, picker, image {
   --mask-bg: rgba(9, 10, 14, 0.72);
 }
 
-/* 手动深色（属性选择器写法；部分内核支持，单独成块避免连累类选择器） */
+/* 手动深色（属性选择器写法；部分内核支持，单独成块避免连累类选择器）
+   质感令牌（glass/glow/ring/shadow-btn/primary-grad）也必须在此覆盖 ——
+   否则只用 data-theme 而没有 theme-dark 类的元素会漏掉质感层。
+   本块须与 .theme-dark 完全等价（check_theme_tokens.py 会校验两者对称）。 */
 [data-theme="dark"] {
   --bg-page: #121318;
   --bg-card: #1C1E26;
@@ -216,6 +219,19 @@ view, text, scroll-view, button, input, textarea, picker, image {
   --shadow-card: none;
   --shadow-soft: none;
   --mask-bg: rgba(9, 10, 14, 0.72);
+  /* 质感层：与 .theme-dark 逐项一致 */
+  --glass-bg: rgba(30, 33, 42, 0.68);
+  --glass-bg-strong: rgba(34, 37, 48, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-sheen: rgba(255, 255, 255, 0.07);
+  --glow-1: rgba(58, 110, 190, 0.22);
+  --glow-2: rgba(96, 80, 170, 0.20);
+  --glow-3: rgba(50, 140, 120, 0.18);
+  --glow-clear: rgba(18, 19, 24, 0);
+  --ring: rgba(90, 154, 230, 0.30);
+  --shadow-glass: 0 12px 36px rgba(9, 10, 14, 0.46), 0 1px 2px rgba(9, 10, 14, 0.30);
+  --shadow-btn: 0 8px 24px rgba(90, 154, 230, 0.26), 0 2px 6px rgba(9, 10, 14, 0.30);
+  --primary-grad: linear-gradient(135deg, #7CB0F0 0%, #4A86D8 100%);
 }
 
 /* ---------- 5. 手动浅色（必须覆盖回浅色，优先级高于系统 media） ---------- */
@@ -273,6 +289,19 @@ view, text, scroll-view, button, input, textarea, picker, image {
   --shadow-card: 0 1px 3px rgba(26, 29, 36, 0.05);
   --shadow-soft: 0 1px 2px rgba(26, 29, 36, 0.06);
   --mask-bg: rgba(18, 20, 26, 0.55);
+  /* 质感层：与 .theme-light 逐项一致 */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.92);
+  --glass-sheen: rgba(255, 255, 255, 0.7);
+  --glow-1: rgba(91, 155, 235, 0.20);
+  --glow-2: rgba(150, 125, 225, 0.16);
+  --glow-3: rgba(90, 200, 175, 0.14);
+  --glow-clear: rgba(255, 255, 255, 0);
+  --ring: rgba(59, 125, 216, 0.26);
+  --shadow-glass: 0 8px 32px rgba(31, 45, 80, 0.10), 0 1px 2px rgba(31, 45, 80, 0.06);
+  --shadow-btn: 0 8px 22px rgba(59, 125, 216, 0.30), 0 2px 6px rgba(59, 125, 216, 0.18);
+  --primary-grad: linear-gradient(135deg, #5A9AE6 0%, #3B7DD8 100%);
 }
 
 /* ============================================================
