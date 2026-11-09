@@ -26,7 +26,7 @@ Page({
     devCount: {},
     shown: [],
     total: 0,
-    drawerY: 0,
+    /* drawerY 是纯数值状态，已移到页面实例（utils/motion.js），不再进 data */
     drawerDragging: false,
     drawerStyle: '',
     diag: '',

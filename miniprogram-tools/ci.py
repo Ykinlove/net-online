@@ -36,9 +36,13 @@
                                                   缓存有、磁盘无 = 开发者工具会按旧代码
                                                   统计包体，「代码质量」结果不可信）
     24. 平铺预览版        build_preview.py --ci（WorkBuddy 预览只认 app.json.pages，
-                                                  不认 subPackages —— 预览必须用平铺版。
-                                                  这项防「改了源码忘了重新生成平铺版
-                                                  就部署」，预览会悄悄显示旧代码）
+                                                 不认 subPackages —— 预览必须用平铺版。
+                                                 这项防「改了源码忘了重新生成平铺版
+                                                 就部署」，预览会悄悄显示旧代码）
+    25. 性能不变量        check_perf_idempotency.js（离线层注入幂等 / 整库缓存只读一次 /
+                                                 搜索缓存复用且换数据失效 / 波纹与抽屉
+                                                 走路径式 setData —— 性能退化是静默的，
+                                                 功能评测全绿也看不出来，只能靠断言锁住）
 """
 import io, os, re, subprocess, sys, time
 
@@ -535,6 +539,12 @@ def main():
     #   这项守卫防的是「改了 miniprogram/ 却忘了重新生成平铺版就部署」——
     #   那样预览会悄悄显示旧代码，比报错更难查。
     run('平铺预览版', ['python', os.path.join(HERE, 'build_preview.py'), '--ci'])
+
+    # 26 性能不变量（2026-11-09 新增）
+    #   守的是「功能全对但真机掉帧」的静默退化：整库缓存被重复解析、
+    #   同一份数据集被反复注入导致索引全失效、波纹改回整数组 setData。
+    #   这些都不会让任何搜索评测变红，只能靠最小运行时桩做行为断言。
+    run('性能不变量', ['node', os.path.join(HERE, 'check_perf_idempotency.js')])
 
     # 11 体积
     check_size()

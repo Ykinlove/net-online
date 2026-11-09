@@ -83,6 +83,48 @@ page {
   --radius-md: 8px;
   --radius-sm: 6px;
   --font-code: Consolas, "Courier New", monospace;
+
+  /* ---------- 设计令牌阶梯（尺寸 / 字号 / 圆角 / 模糊，非颜色类） ----------
+     收敛全站散值用的统一刻度。这些令牌**深浅主题同值**，所以只在 page
+     基准块定义一次，不进 :root / .theme-dark / [data-theme] 的对称覆盖表
+     （check_theme_tokens.py 明确区分颜色类与非颜色类，避免逼出假重复）。
+     取值与改造前的字面值逐字一致：本层本身不产生任何外观变化，
+     只让后续新增样式有刻度可依，不必再逐页翻 calc(N * var(--u))。 */
+  /* 字号：N 与历史 calc(N * var(--u)) 一一对应 */
+  --fs-caption: calc(20 * var(--u));
+  --fs-chip:    calc(21 * var(--u));
+  --fs-mini:    calc(22 * var(--u));
+  --fs-label:   calc(23 * var(--u));
+  --fs-code:    calc(24 * var(--u));
+  --fs-field:   calc(25 * var(--u));
+  --fs-body:    calc(26 * var(--u));
+  --fs-sub:     calc(27 * var(--u));
+  --fs-input:   calc(29 * var(--u));
+  --fs-title:   calc(30 * var(--u));
+  --fs-icon:    calc(34 * var(--u));
+  --fs-h1:      calc(44 * var(--u));
+  /* 间距：4 的倍数档，覆盖 4~40 的常见空档 */
+  --sp-1: calc(4 * var(--u));
+  --sp-2: calc(8 * var(--u));
+  --sp-3: calc(12 * var(--u));
+  --sp-4: calc(16 * var(--u));
+  --sp-5: calc(20 * var(--u));
+  --sp-6: calc(24 * var(--u));
+  --sp-8: calc(32 * var(--u));
+  --sp-10: calc(40 * var(--u));
+  /* 圆角：与既有 --radius-* 同源，补上 pill 档 */
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+  --r-pill: 999px;
+  /* 玻璃模糊：两档，替换散写的 blur() 字面值 */
+  --blur-glass: 18px;
+  --blur-soft: 14px;
+  /* 动效时长档（--dur 本身是主题过渡基准，守卫会与 app.js 对齐，不动） */
+  --dur-fast: 0.18s;
+  --dur-slow: 0.45s;
+
   background: var(--bg-page);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
@@ -316,11 +358,15 @@ view, text, scroll-view, button, input, textarea, picker, image {
   margin-left: auto;
   margin-right: auto;
   min-height: 100vh;
-  padding: calc(24 * var(--u)) calc(24 * var(--u)) calc(40 * var(--u));
+  /* 底部留白叠加安全区：全面屏机型上最后一张卡片不再贴着手势条。
+     与 .sheet 的既有写法保持一致（calc(calc(...) + env(...))）。 */
+  padding: calc(24 * var(--u)) calc(24 * var(--u)) calc(calc(40 * var(--u)) + env(safe-area-inset-bottom));
   background: var(--bg-page);
   color: var(--text-primary);
 }
-.page-tight { padding: calc(16 * var(--u)) calc(24 * var(--u)) calc(32 * var(--u)); }
+.page-tight {
+  padding: calc(16 * var(--u)) calc(24 * var(--u)) calc(calc(32 * var(--u)) + env(safe-area-inset-bottom));
+}
 
 /* 另外几个自带根容器的页面，同样限宽居中并承载主题变量 */
 .splash, .search-page, .tpl-page, .theme-dark, .theme-light {
@@ -826,8 +872,8 @@ view, text, scroll-view, button, input, textarea, picker, image {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 1px 0 var(--glass-sheen), var(--shadow-glass);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(160%);
+  backdrop-filter: blur(var(--blur-glass)) saturate(160%);
   transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease),
               box-shadow var(--dur) var(--ease), color var(--dur) var(--ease);
 }
@@ -877,8 +923,8 @@ view, text, scroll-view, button, input, textarea, picker, image {
 .btn-ghost {
   background: var(--glass-bg);
   border-color: var(--glass-border);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(160%);
+  backdrop-filter: blur(var(--blur-glass)) saturate(160%);
 }
 .btn-danger {
   background: var(--danger-bg);
@@ -913,8 +959,8 @@ view, text, scroll-view, button, input, textarea, picker, image {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur-soft)) saturate(150%);
+  backdrop-filter: blur(var(--blur-soft)) saturate(150%);
 }
 .seg-item.on {
   background: var(--primary-grad);
@@ -943,13 +989,13 @@ view, text, scroll-view, button, input, textarea, picker, image {
 }
 .bar {
   height: calc(14 * var(--u));
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: inset 0 1px 2px var(--glass-sheen);
 }
 .bar-fill {
   background: var(--primary-grad);
   background-color: var(--primary);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   box-shadow: 0 0 calc(10 * var(--u)) var(--ring);
   transition: width 0.45s var(--ease);
 }
@@ -1028,8 +1074,8 @@ page {
   background: var(--primary-bg);
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 1px 0 var(--glass-sheen), var(--shadow-soft);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur-soft)) saturate(150%);
+  backdrop-filter: blur(var(--blur-soft)) saturate(150%);
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
               border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
@@ -1092,8 +1138,8 @@ page {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 1px 0 var(--glass-sheen), var(--shadow-glass);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(160%);
+  backdrop-filter: blur(var(--blur-glass)) saturate(160%);
   overflow: hidden;
   animation: fadeIn 0.4s var(--ease) backwards;
 }
@@ -1217,7 +1263,7 @@ page, .page {
   flex: none;
   width: calc(92 * var(--u));
   height: calc(52 * var(--u));
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--bg-subtle);
   border: 1px solid var(--glass-border);
   transition: background-color 0.3s var(--ease);
@@ -1256,7 +1302,16 @@ page, .page {
   pointer-events: none;
   animation: rippleOut 0.62s var(--ease) forwards;
 }
+/* 波纹槽位复用后节点不会销毁，靠两个等价动画名交替让 animation-name
+   变化、动画重新起播。不再用「每次触摸换一个新 id 节点」的做法，
+   那样必须整条 ripples 数组覆盖 setData（见 utils/motion.js）。 */
+.ripple-0 { animation-name: rippleOut; }
+.ripple-1 { animation-name: rippleOutB; }
 @keyframes rippleOut {
+  from { transform: scale(0.35); opacity: 0.7; }
+  to   { transform: scale(16); opacity: 0; }
+}
+@keyframes rippleOutB {
   from { transform: scale(0.35); opacity: 0.7; }
   to   { transform: scale(16); opacity: 0; }
 }
@@ -1337,7 +1392,7 @@ page, .page {
 .tick-a, .tick-b {
   position: absolute;
   height: calc(4 * var(--u));
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--success);
   transform-origin: left center;
 }
@@ -1408,7 +1463,7 @@ page, .page {
   left: calc(4 * var(--u));
   width: calc(28 * var(--u));
   height: calc(3 * var(--u));
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--primary);
   transition: transform 0.34s var(--spring), top 0.34s var(--spring), opacity 0.2s var(--ease);
 }
@@ -1437,6 +1492,6 @@ page, .page {
   width: calc(72 * var(--u));
   height: calc(8 * var(--u));
   margin: 0 auto calc(18 * var(--u));
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--border-strong);
 }

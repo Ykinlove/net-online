@@ -19,7 +19,7 @@
 
   <!-- 搜索入口 -->
   <view class="search-entry ripple-host" data-r="0" bindtouchstart="onRipple" bindtap="goSearch" hover-class="search-entry-hover">
-    <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 0}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+    <view wx:if="{{ripples[0].id}}" class="ripple ripple-{{ripples[0].cls}}" style="left:{{ripples[0].x}}px;top:{{ripples[0].y}}px"></view>
     <image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/search.png" mode="aspectFit" />
     <text class="se-ph">搜命令，比如「划分端口」</text>
     <text class="se-go">›</text>
@@ -29,19 +29,19 @@
   <text class="section-title">快捷入口</text>
   <view class="grid-2 home-grid three stagger">
     <view class="grid-cell ent-cell ripple-host stagger-item sd-0" data-r="1" bindtouchstart="onRipple" bindtap="goLibrary" hover-class="ent-cell-hover">
-      <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 1}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+      <view wx:if="{{ripples[1].id}}" class="ripple ripple-{{ripples[1].cls}}" style="left:{{ripples[1].x}}px;top:{{ripples[1].y}}px"></view>
       <view class="icon-badge sm"><image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/book.png" mode="aspectFit" /></view>
       <text class="ent-t">资料库</text>
       <text class="ent-s">命令百科 / 模板</text>
     </view>
     <view class="grid-cell ent-cell ripple-host stagger-item sd-1" data-r="2" bindtouchstart="onRipple" bindtap="goAddCmd" hover-class="ent-cell-hover">
-      <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 2}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+      <view wx:if="{{ripples[2].id}}" class="ripple ripple-{{ripples[2].cls}}" style="left:{{ripples[2].x}}px;top:{{ripples[2].y}}px"></view>
       <view class="icon-badge sm"><image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/terminal.png" mode="aspectFit" /></view>
       <text class="ent-t">记命令</text>
       <text class="ent-s">常用命令用法</text>
     </view>
     <view class="grid-cell ent-cell ripple-host stagger-item sd-2" data-r="3" bindtouchstart="onRipple" bindtap="goAddProj" hover-class="ent-cell-hover">
-      <block wx:for="{{ripples}}" wx:key="id"><view wx:if="{{item.i === 3}}" class="ripple" style="left:{{item.x}}px;top:{{item.y}}px"></view></block>
+      <view wx:if="{{ripples[3].id}}" class="ripple ripple-{{ripples[3].cls}}" style="left:{{ripples[3].x}}px;top:{{ripples[3].y}}px"></view>
       <view class="icon-badge sm"><image class="icon icon-md" src="/images/icons/{{theme || 'light'}}/folder.png" mode="aspectFit" /></view>
       <text class="ent-t">记项目</text>
       <text class="ent-s">实施 / 排障过程</text>

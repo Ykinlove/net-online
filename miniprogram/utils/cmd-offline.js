@@ -13,6 +13,12 @@
 //
 // 关键不变量：内置种子（cmdbook 包内数据）永远是兜底，云端同步只做「升级」，
 // 任何一步失败都退回本地缓存 / 内置种子，搜索永不饿死。
+//
+// 幂等约定（2026-11-09）：
+//   每个 tool 页 onLoad 都会先 registerBookSetter 再 ensureReady，
+//   改版前这两步各打一次 cmdbook.setDataset，每次都让索引/词表/模板索引
+//   全量失效（1216 条重算 intentsOf + 分类）；practice 异步加载完再失效一次。
+//   现在「同一份 entries 引用只注入一次」，且缓存只在进程内读一次磁盘。
 
 const sync = require('./cmd-sync.js');
 
@@ -30,7 +36,10 @@ const state = {
   _entries: null      // 最近一次的条目（缓存或云端），即便 setter 尚未注册也先存着
 };
 
-let _bookSetter = null; // 由分包页面注入：function(entries) -> boolean（写进 cmdbook.BOOK）
+let _bookSetter = null;      // 由分包页面注入：function(entries) -> boolean（写进 cmdbook.BOOK）
+let _appliedEntries = null;  // 已经注入 setter 的数据集引用
+let _cacheLoaded = false;    // 本地缓存是否已在进程内读过
+let _lastEmit = '';          // 上次广播的状态签名
 let _syncedOnce = false;
 const listeners = [];
 
@@ -39,8 +48,15 @@ function snapshot() {
   return Object.assign({}, state);
 }
 
+/* 状态没变就不广播。ensureReady() 每页都调，以前每进一页都会让
+   offline-bar 白做一次 setData；offline-bar 在 attached 时本来就主动
+   getStatus() 取一次初始态，不依赖这里的广播。 */
 function emit() {
   const s = snapshot();
+  const sig = [s.online, s.source, s.version, s.count,
+               s.hasCache, s.syncing, s.error].join('|');
+  if (sig === _lastEmit) return;
+  _lastEmit = sig;
   for (let i = 0; i < listeners.length; i++) {
     try { listeners[i](s); } catch (e) {}
   }
@@ -58,12 +74,24 @@ function getStatus() { return snapshot(); }
 function isOnline() { return state.online; }
 function needReload() { return !state.online && !state.hasCache && state.source === 'bundle'; }
 
+/* 把 entries 注入实际数据集。同一份数组只注入一次 ——
+   cmd-sync.readCache() 现在在内存里保留同一引用，所以
+   registerBookSetter 与 ensureReady 拿到的必然是同一份，第二次直接短路。 */
+function applyToBook(entries) {
+  if (!entries || typeof _bookSetter !== 'function') return;
+  if (_appliedEntries === entries) return;
+  try {
+    _bookSetter(entries);
+    _appliedEntries = entries;
+  } catch (e) { /* setter 出错不致命，也不记账，下次重试 */ }
+}
+
 /* 分包页面调用：把「条目写进内存 BOOK」的实现注入进来。
    一旦注册，若已有 _entries 立即补应用（解决 app 启动先同步、页面后加载的时序差）。 */
 function registerBookSetter(fn) {
   _bookSetter = fn;
   if (state._entries && typeof fn === 'function') {
-    try { fn(state._entries); } catch (e) {}
+    applyToBook(state._entries);
     emit();
   }
 }
@@ -74,26 +102,31 @@ function applyEntries(entries, version, source) {
   state._entries = entries;
   state.version = version;
   state.source = source || state.source;
-  if (typeof _bookSetter === 'function') {
-    try { _bookSetter(entries); } catch (e) { /* setter 出错不致命 */ }
-  }
+  applyToBook(entries);
   sync.writeCacheAtomic({ version: version, entries: entries, savedAt: Date.now() });
   state.hasCache = true;
   state.lastSyncAt = Date.now();
   return true;
 }
 
-/* 把本地缓存读进来（离线优先）。无缓存 / 损坏则留内置种子。幂等。 */
+/* 把本地缓存读进来（离线优先）。无缓存 / 损坏则留内置种子。
+   进程内只读一次磁盘：cmd-sync.readCache() 自带内存缓存，这里再挡一层，
+   连 state 重赋值和整份缓存的重复解析都省掉。
+   外部若主动 clearCache()，下一次同步会经 applyEntries 覆盖 _entries，
+   不会用到过期数据。 */
 function loadCacheIntoBook() {
+  if (_cacheLoaded) {
+    if (state._entries) applyToBook(state._entries);
+    return state.hasCache;
+  }
+  _cacheLoaded = true;
   const cache = sync.readCache();
   if (cache && cache.version && Array.isArray(cache.entries) && cache.entries.length) {
     state._entries = cache.entries;
     state.version = cache.version;
     state.source = 'cache';
     state.hasCache = true;
-    if (typeof _bookSetter === 'function') {
-      try { _bookSetter(cache.entries); } catch (e) {}
-    }
+    applyToBook(cache.entries);
     return true;
   }
   state.source = 'bundle';

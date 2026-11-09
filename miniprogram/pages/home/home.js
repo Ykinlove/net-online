@@ -19,7 +19,14 @@ Page({
     flipping: false,
     liked: false,
     bursting: false,
-    ripples: [],
+    /* 波纹按宿主槽位存（data-r = 0..3）。motion.ripple 只做路径式
+       setData，不再每次触摸覆盖整条数组；id = 0 表示该槽位空闲。 */
+    ripples: [
+      { id: 0, x: 0, y: 0, cls: 0 },
+      { id: 0, x: 0, y: 0, cls: 0 },
+      { id: 0, x: 0, y: 0, cls: 0 },
+      { id: 0, x: 0, y: 0, cls: 0 }
+    ],
     nickname: '',
     themePulse: false,
     /* 页头小头像：由档案里的全身立绘映射到头肩特写 */

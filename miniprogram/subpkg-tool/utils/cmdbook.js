@@ -679,6 +679,10 @@ function dataVer() {
   return hotfix.version() + ':' + DATA_VER;
 }
 
+/* 内置种子永远留一份原始引用：外部注入的数据集可能被替换多次，
+   练习题库也是异步来的，rebuildBook() 需要一个稳定的基准。 */
+const BOOK_BUILTIN = BOOK;
+
 /* 单条百科条目 → 索引结构（本地条目与云端新增条目共用）。 */
 function indexBook(p) {
   return {
@@ -1234,7 +1238,9 @@ function dropGreedy(all, dev, groups) {
  * @param {string} kw  关键词，空格分隔多个词
  * @param {string} dev 设备大类，'全部' 表示不限
  */
-function search(kw, dev) {
+/* 内部实现：算出「排序后的候选序列」。对外 search() 按
+   (数据版本, 关键词, 设备大类) 缓存这份序列，命中时只做展示对象映射。 */
+function computeSearch(kw, dev) {
   const all = buildIndex();
   const qtext = String(kw || '').toLowerCase();
   const ctx = { qi: intentsOf(kw), q: qtext, nq: qtext.replace(/\s+/g, '') };
@@ -1297,6 +1303,32 @@ function search(kw, dev) {
     }
   }
 
+  return list;
+}
+
+/* 搜索结果缓存：
+   同一个查询在一次会话里常被反复调用（搜索页防抖前后、切 tab 回显、
+   admin/contribute 反查），以前每次都对 1216 条重新打分、重算 rarity。
+   key 带上 dataVer()，热更新 / 换数据集 / 练习题加载完都会自动失效。
+   缓存的是内部 cand（只含索引记录引用），对外**每次重新 map 出全新对象**，
+   页面改写返回值不会污染缓存，也不会跨页串数据。
+   FIFO 限 24 条，长会话里内存不会一直涨。 */
+const SEARCH_CACHE_LIMIT = 24;
+const SEARCH_CACHE = Object.create(null);
+const SEARCH_KEYS = [];
+
+function search(kw, dev) {
+  const key = dataVer() + '\u0002' + String(kw == null ? '' : kw)
+              + '\u0002' + String(dev == null ? '' : dev);
+  let list = SEARCH_CACHE[key];
+  if (!list) {
+    list = computeSearch(kw, dev);
+    SEARCH_CACHE[key] = list;
+    SEARCH_KEYS.push(key);
+    if (SEARCH_KEYS.length > SEARCH_CACHE_LIMIT) {
+      delete SEARCH_CACHE[SEARCH_KEYS.shift()];
+    }
+  }
   return list.map(c => {
     const it = c.it;
     return {
@@ -1744,12 +1776,42 @@ function lookupById(kind, id) {
  * @param {Array} entries 与内置 BOOK 同 schema 的条目数组（id/devs/name/kw/cmds/tip…）
  * @returns {boolean} 是否真的替换了（入参非法时返回 false，保持原 BOOK 不变）
  */
-function setDataset(entries) {
-  if (!Array.isArray(entries) || !entries.length) return false;
-  const practiceNow = (practice && practice.getPractice && practice.getPractice()) || [];
-  BOOK = entries.concat(practiceNow);
+/* 数据源重建 —— 把「外部注入的数据集」与「远程练习题库」统一成一次构建。
+   改版前有三个地方各自 concat + DATA_VER++：
+     · setDataset（离线层注入）
+     · registerBookSetter → setDataset（每个 tool 页 onLoad 一次）
+     · ensureReady → loadCacheIntoBook → setDataset（同一个 onLoad 又一次）
+     · practice 异步加载完成
+   结果每进一个页面触发 2~3 次索引 / 词表 / 模板索引全失效，
+   每次都要对 1216 条重算 intentsOf 与分类缓存。
+   现在按「输入引用」判等：同一份数据集只重建一次，
+   只有云端换了库、练习题库真的到位时才推进 DATA_VER。 */
+let _baseEntries = null;
+let _practiceArr = practice.getPractice();
+let _builtBase = BOOK_BUILTIN;
+let _builtPractice = _practiceArr;
+
+function rebuildBook() {
+  const base = _baseEntries || BOOK_BUILTIN;
+  const sameBase = base === _builtBase;
+  /* 练习题库加载失败时会重新赋一个新的空数组引用，内容没变，
+     不该因此白推进一次数据版本。 */
+  const samePractice = _practiceArr === _builtPractice
+                       || (_practiceArr.length === 0 && _builtPractice.length === 0);
+  if (sameBase && samePractice) return false;
+  _builtBase = base;
+  _builtPractice = _practiceArr;
+  BOOK = base.concat(_practiceArr);
   DATA_VER++;
   return true;
+}
+
+function setDataset(entries) {
+  if (!Array.isArray(entries) || !entries.length) return false;
+  if (_baseEntries === entries) return false;   // 幂等：同一份数据集不重复重建
+  _baseEntries = entries;
+  _practiceArr = (practice && practice.getPractice && practice.getPractice()) || [];
+  return rebuildBook();
 }
 
 module.exports = { VENDORS,
@@ -1769,10 +1831,11 @@ module.exports = { VENDORS,
    页面只调用 search/lookupById 等函数，BOOK 重建后自动包含练习数据，无需改动页面。 */
 practice.loadPractice()
   .then(() => {
-    BOOK = BOOK.concat(practice.getPractice());
-    /* 推进数据版本：练习题不走 hotfix，不推进的话索引/词表永不失效，
-       练习题进了 BOOK 也进不了索引 → 永久搜不到。 */
-    DATA_VER++;
+    /* 练习题不走 hotfix，必须把它并进数据源并推进版本，
+       否则索引/词表永不失效，练习题进了 BOOK 也搜不到。
+       统一走 rebuildBook()，与 setDataset 共用同一份幂等判定。 */
+    _practiceArr = practice.getPractice() || [];
+    rebuildBook();
   })
   .catch(() => {});
 

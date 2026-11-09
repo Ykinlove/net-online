@@ -80,18 +80,40 @@ def flat_app_json(app):
 
 
 def copy_tree(src, dst):
-    if os.path.isdir(dst):
-        shutil.rmtree(dst)
+    """增量同步，不再「整目录 rmtree 再全量复制」。
+
+    以前每次构建都要一次性删掉 301 个文件再写一遍：既触发环境的批量删除
+    保护，也没有必要 —— 两次构建之间绝大多数文件内容没变。现在只覆盖
+    需要的文件，并单独摘掉目标里源已删除的孤儿文件（正常为 0 个）。
+    app.json / project.config.json 会先被原样复制，随后由 build() 用
+    平铺版内容覆盖，所以它们始终留在 wanted 集合里，不会被误删。
+    """
+    if not os.path.isdir(dst):
+        os.makedirs(dst)
+
+    wanted = set()
     for root, dirs, files in os.walk(src):
         dirs[:] = [d for d in dirs if not d.startswith('.')]
-        rel = os.path.relpath(root, src)
-        target = dst if rel == '.' else os.path.join(dst, rel)
+        rel_root = os.path.relpath(root, src)
+        target = dst if rel_root == '.' else os.path.join(dst, rel_root)
         if not os.path.isdir(target):
             os.makedirs(target)
         for fn in files:
             if fn.startswith('.') or fn in SKIP_NAMES:
                 continue
+            wanted.add(os.path.normpath(os.path.join(rel_root, fn)).replace('\\', '/'))
             shutil.copy2(os.path.join(root, fn), os.path.join(target, fn))
+
+    # 源里已经不存在的文件才删（逐个删，不是整目录清空）
+    for root, dirs, files in os.walk(dst):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for fn in files:
+            if fn.startswith('.') or fn in SKIP_NAMES:
+                continue
+            p = os.path.join(root, fn)
+            rel = os.path.normpath(os.path.relpath(p, dst)).replace('\\', '/')
+            if rel not in wanted:
+                os.remove(p)
 
 
 def build(out_dir, verbose=True):
