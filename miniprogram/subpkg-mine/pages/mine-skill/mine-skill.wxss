@@ -43,6 +43,5 @@
 .card-title-row .icon-badge { margin-right: calc(12 * var(--u)); }
 .sheet-head .icon-badge { margin-right: calc(12 * var(--u)); }
 .cat-row { gap: calc(10 * var(--u)); }
-.cat-row .icon-badge { flex: none; }
-.skill-item .icon-badge { flex: none; }
+/* .cat-row / .skill-item 的 .icon-badge flex:none 由 app.wxss 统一提供，勿重复 */
 .sk-list { margin-bottom: calc(4 * var(--u)); }

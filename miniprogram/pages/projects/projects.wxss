@@ -62,7 +62,7 @@
 
 /* ---------- v4：图标底板与统计卡间距 ---------- */
 .cmd-head .icon-badge { margin-right: calc(4 * var(--u)); }
-.pj-top .icon-badge { flex: none; }
+/* .pj-top .icon-badge 的 flex:none 由 app.wxss 统一提供，勿在本页重复定义 */
 .sheet-head .icon-badge { margin-right: calc(12 * var(--u)); }
 .card-title-row .icon-badge { margin-right: calc(12 * var(--u)); }
 .pj-list { margin-bottom: calc(4 * var(--u)); }
