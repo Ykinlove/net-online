@@ -11,11 +11,12 @@
    于是有一条必须靠机制守住的约定：
      日常预览部署 preview-dist/；**发布到微信前，先把 miniprogram/ 部署回去**。
 
-为什么现在不能直接切：
-   当前没有发布动作。现在把 miniprogram/ 部署上去，预览卡会立刻回到
+为什么平时不能直接切：
+   日常没有发布动作。把 miniprogram/ 部署上去，预览卡会立刻回到
    「navigateTo:fail 未找到页面：subpkg-mine/pages/onboard/onboard」——
-   正是上一轮修好的故障。所以这条约定只能固化成「检查 + 明确指引」，
-   由真正要发布的那一刻执行，而不是提前执行。
+   正是上一轮修好的故障。所以这条约定平时只固化成「检查 + 明确指引」，
+   **由用户明确要发布的那一刻才执行切换**。切过去到发布完成之间，
+   预览不可用是预期状态；发布完必须部署回 preview-dist/ 恢复预览。
 
 本脚本检查：
    · miniprogram/app.json 仍是分包版（有 subPackages，pages 只含主包页）
@@ -125,23 +126,33 @@ def main():
     print('  当前部署     %s' % channel)
     print('  sync-state   %s' % ('已读取 ✓' if has_state else '本机未初始化（干净克隆，跳过目录核对）'))
 
+    is_release = channel.startswith('发布通道')
     print('')
-    print('  ⚠ 发布到微信前必须执行：把 miniprogram/ 部署回去')
-    print('    directory  = %s' % MP)
-    print('    appId      = %s（复用，勿新建）'
-          % (state.get('appId') or '<本机 sync-state.json 里的 appId>'))
-    print('    appName / domainPrefix / miniProgramRequested 沿用 sync-state.json')
-    print('    这一步只是「注册/预览复用」，不传 userAskedToPublish；')
-    print('    真正发布在预览面板的 Share 里完成。')
-    print('    部署后预览会暂时报「未找到页面」，属预期；发布完记得部署回 preview-dist。')
+    if is_release:
+        print('  ✓ 已处于发布通道：Share 发布的就是分包版 miniprogram/')
+        print('    预览卡此时报「未找到页面」属预期，不是代码故障。')
+        print('    ⚠ 发布完成后必须部署回 preview-dist/，恢复 19 页预览。')
+    else:
+        print('  ⚠ 发布到微信前必须执行：把 miniprogram/ 部署回去')
+        print('    directory  = %s' % MP)
+        print('    appId      = %s（复用，勿新建）'
+              % (state.get('appId') or '<本机 sync-state.json 里的 appId>'))
+        print('    appName / domainPrefix / miniProgramRequested 沿用 sync-state.json')
+        print('    这一步只是「注册/预览复用」，不传 userAskedToPublish；')
+        print('    真正发布在预览面板的 Share 里完成。')
+        print('    部署后预览会暂时报「未找到页面」，属预期；发布完记得部署回 preview-dist。')
 
     if '--release' in sys.argv:
         print('')
         print('  发布前清单：')
         print('    1. python miniprogram-tools/ci.py 全绿')
-        print('    2. 部署 miniprogram/（上面参数，复用同一个 appId）')
+        print('    2. 部署 miniprogram/（参数见下，复用同一个 appId）%s'
+              % ('—— 已完成 ✓' if is_release else ''))
         print('    3. 预览面板右上角「分享 / Share」→ 继续试用或绑定 → 发布')
         print('    4. 发布完成后部署回 preview-dist/，恢复 19 页预览')
+        if not is_release:
+            print('    directory  = %s' % MP)
+            print('    appId      = %s' % (state.get('appId') or '<见 sync-state.json>'))
 
     if problems:
         print('')
@@ -150,7 +161,10 @@ def main():
             print('  ✗ ' + p)
         return 1
     print('')
-    print('发布通道：全部一致 ✓（当前为预览通道，符合日常开发状态）')
+    if is_release:
+        print('发布通道：全部一致 ✓（当前为发布通道，发布完成后记得切回 preview-dist）')
+    else:
+        print('发布通道：全部一致 ✓（当前为预览通道，符合日常开发状态）')
     return 0
 
 
