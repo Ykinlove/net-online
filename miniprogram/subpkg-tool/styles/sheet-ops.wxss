@@ -1,0 +1,23 @@
+/* subpkg-tool/styles/sheet-ops.wxss —— 详情浮层的收藏操作区
+   只有 search / browse 两页用；fav 页本身就是收藏列表，没有这一排按钮。 */
+
+.sheet-ops {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--u));
+}
+.fav-btn {
+  font-size: calc(20 * var(--u));
+  font-weight: 500;
+  color: var(--primary);
+  background: var(--primary-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: calc(4 * var(--u)) calc(14 * var(--u));
+}
+.fav-btn-on {
+  color: var(--text-on-primary);
+  background: var(--primary);
+  border-color: var(--primary);
+}

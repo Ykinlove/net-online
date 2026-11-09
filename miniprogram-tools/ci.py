@@ -43,6 +43,15 @@
                                                  搜索缓存复用且换数据失效 / 波纹与抽屉
                                                  走路径式 setData —— 性能退化是静默的，
                                                  功能评测全绿也看不出来，只能靠断言锁住）
+    26. 视觉层叠回归      css_snapshot.py --check（展开 @import 后按真实层叠顺序
+                                                 算出每页最终生效声明，与基线逐条比对；
+                                                 抽共享 wxss / 调覆盖顺序才敢做）
+    27. 发布通道          check_release_channel.py（miniprogram 仍是分包版 /
+                                                 preview-dist 仍是平铺版 / 页面全集一致 /
+                                                 sync-state 目录没漂移 —— 发布错目录
+                                                 在预览里看不出来，发布才会炸）
+
+    注：以上编号是检查分组，实际输出项数略多（含「热更新覆盖层」等未编号项）。
 """
 import io, os, re, subprocess, sys, time
 
@@ -545,6 +554,19 @@ def main():
     #   同一份数据集被反复注入导致索引全失效、波纹改回整数组 setData。
     #   这些都不会让任何搜索评测变红，只能靠最小运行时桩做行为断言。
     run('性能不变量', ['node', os.path.join(HERE, 'check_perf_idempotency.js')])
+
+    # 27 视觉层叠回归（2026-11-09 新增）
+    #   基线 visual-baseline.json 记录的是「重构前」每页最终生效的 25030 条声明。
+    #   抽共享 wxss / 改 @import / 调覆盖顺序后会展开 import 重新算一遍，
+    #   逐条不一致就报错并指出页面、选择器、属性、前后值 —— 零视觉差异才放行。
+    run('视觉层叠回归', ['python', os.path.join(HERE, 'css_snapshot.py'), '--check'])
+
+    # 28 发布通道（2026-11-09 新增）
+    #   守的是「发布到微信前必须把 miniprogram/ 部署回去」这条约定。
+    #   日常状态就该是预览通道（preview-dist），所以这项检查的是两份目录
+    #   形态与 sync-state 是否漂移，而不是强迫现在切换 —— 提前切会立刻把
+    #   预览打回「未找到页面」。每次 CI 都会把发布动作参数打印出来当提醒。
+    run('发布通道', ['python', os.path.join(HERE, 'check_release_channel.py')])
 
     # 11 体积
     check_size()
